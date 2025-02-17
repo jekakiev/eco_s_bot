@@ -1,2 +1,3 @@
+aiogram
 python-dotenv
-echo "aiogram" >> requirements.txt
+
