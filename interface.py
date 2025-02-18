@@ -90,7 +90,7 @@ async def process_wallet_name(message: types.Message, state: FSMContext):
 
 # === ВЫБОР ТОКЕНОВ (✅ работает) ===
 async def toggle_token(callback: types.CallbackQuery, state: FSMContext):
-    token = callback.data.split("_")[1]
+    token = callback.data.split("_")[2]  # Correct the index to [2]
     data = await state.get_data()
     selected_tokens = data.get("selected_tokens", [])
 
