@@ -1,13 +1,25 @@
 # threads_config.py
 
-# Мапінг токенів: {Назва токена: (ID треда, Контрактна адреса)}
+# Мапінг токенів у відповідні треди
 TOKEN_CONFIG = {
-    "ROSTIKSON 2.0": (7, "0xcdfb52783591231ea098d9e3207dc6c699513b00"),  
-    "S": (4, "0xd44257dde89ca53f1471582f718632e690e46dc2"),             
-    "HITCOIN": (9, "0xc95e481e86d71d7892dbb7d1f4e98455e4e52ca7"),       
-    "GRIMASS": (5, "0x6ceb7abc1b001b2f874185ac4932e7aee83970ef"),      
+    "ROSTIKSON 2.0": {
+        "thread_id": 7,
+        "contract_address": "0xcdfb52783591231ea098d9e3207dc6c699513b00",
+    },
+    "S": {
+        "thread_id": 4,
+        "contract_address": "0xd44257dde89ca53f1471582f718632e690e46dc2",
+    },
+    "HITCOIN": {
+        "thread_id": 9,
+        "contract_address": "0xc95e481e86d71d7892dbb7d1f4e98455e4e52ca7",
+    },
+    "GRIMASS": {
+        "thread_id": 5,
+        "contract_address": "0x6ceb7abc1b001b2f874185ac4932e7aee83970ef",
+    },
 }
 
-# Значення за замовчуванням для невідомих токенів
+# Значення за замовчуванням, якщо токену немає в списку
 DEFAULT_THREAD_ID = 60
-DEFAULT_CONTRACT_ADDRESS = None  # Якщо немає вказаної адреси
+DEFAULT_CONTRACT_ADDRESS = None

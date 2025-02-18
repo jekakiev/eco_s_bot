@@ -2,12 +2,12 @@ import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from config import BOT_TOKEN
-from arbiscan import get_token_transactions  # Функция получения транзакций
-from message_formatter import format_swap_message  # Форматирование сообщений
-from wallets_config import WATCHED_WALLETS  # Загружаем настройки кошельков
-from threads_config import TOKEN_CONFIG, DEFAULT_THREAD_ID  # Мапінг тредів
+from arbiscan import get_token_transactions  # Функція отримання транзакцій
+from message_formatter import format_swap_message  # Форматування повідомлень
+from wallets_config import WATCHED_WALLETS  # Адреси гаманців
+from threads_config import TOKEN_CONFIG, DEFAULT_THREAD_ID  # Налаштування тредів
 
-# Ініціалізуємо бота та диспетчер
+# Ініціалізація бота і диспетчера
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
@@ -18,9 +18,9 @@ CHAT_ID = -1002458140371  # Chat ID групи
 # Обробник команди /start
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
-    await message.answer("✅ Бот запущен!")
+    await message.answer("✅ Бот запущений!")
 
-# Обробник команди /get_chat_id (Отримання ID треда)
+# Обробник команди /get_chat_id (отримання ID треда)
 @dp.message(Command("get_chat_id"))
 async def get_chat_id(message: types.Message):
     thread_id = message.message_thread_id  # ID треда (гілки)
@@ -45,29 +45,28 @@ async def check_token_transactions():
                 if last_tx_hash.get(wallet_address) != latest_tx["hash"]:  # Якщо це нова транзакція
                     last_tx_hash[wallet_address] = latest_tx["hash"]
 
-                    # Отримуємо інформацію про токен
                     token_name = latest_tx.get("token_in", "Невідомий токен")
-                    thread_id = TOKEN_THREADS.get(token_name, DEFAULT_THREAD_ID)  # Вибираємо тред
+                    token_data = TOKEN_CONFIG.get(token_name, {})
+                    thread_id = token_data.get("thread_id", DEFAULT_THREAD_ID)
 
                     text, parse_mode = format_swap_message(
                         tx_hash=latest_tx["hash"],
                         sender=wallet_name,  # Використовуємо ім'я гаманця
                         sender_url=f"https://arbiscan.io/address/{wallet_address}",
-                        amount_in=latest_tx.get("amount_in", "Неизвестно"),
-                        token_in=token_name,
+                        amount_in=latest_tx.get("amount_in", 0),
+                        token_in=latest_tx.get("token_in", "Невідомо"),
                         token_in_url=f"https://arbiscan.io/token/{latest_tx.get('token_in_address', '')}",
-                        amount_out=latest_tx.get("amount_out", "Неизвестно"),
-                        token_out=latest_tx.get("token_out", "Неизвестно"),
+                        amount_out=latest_tx.get("amount_out", 0),
+                        token_out=latest_tx.get("token_out", "Невідомо"),
                         token_out_url=f"https://arbiscan.io/token/{latest_tx.get('token_out_address', '')}",
-                        usd_value=latest_tx.get("usd_value", "Неизвестно")
+                        usd_value=latest_tx.get("usd_value", "Невідомо")
                     )
 
-                    # Відправляємо повідомлення в відповідний тред
                     await bot.send_message(
-                        chat_id=CHAT_ID,
-                        message_thread_id=thread_id,
-                        text=text,
-                        parse_mode=parse_mode,
+                        chat_id=CHAT_ID, 
+                        message_thread_id=thread_id, 
+                        text=text, 
+                        parse_mode=parse_mode, 
                         disable_web_page_preview=True
                     )
 
@@ -75,7 +74,7 @@ async def check_token_transactions():
 
 # Запуск бота
 async def main():
-    asyncio.create_task(check_token_transactions())  # Запускаємо моніторинг транзакцій токенів
+    asyncio.create_task(check_token_transactions())  # Запускаємо моніторинг транзакцій
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
