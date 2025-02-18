@@ -33,17 +33,6 @@ CHAT_ID = -1002458140371  # Chat ID групи
 async def start_command(message: types.Message):
     await message.answer("✅ Бот запущений та моніторить транзакції!", reply_markup=get_main_menu())
 
-# Обробник команди /get_chat_id (Отримання ID треда)
-@dp.message(Command("get_chat_id"))
-async def get_chat_id(message: types.Message):
-    thread_id = message.message_thread_id  # ID треда (гілки)
-    chat_info = f"🆔 Chat ID: `{message.chat.id}`"
-
-    if thread_id:
-        chat_info += f"\n🧵 Thread ID: `{thread_id}`"
-
-    await message.answer(chat_info, parse_mode="Markdown")
-
 # Функція перевірки нових транзакцій
 async def check_token_transactions():
     """Перевіряє нові транзакції у відстежуваних гаманцях"""
