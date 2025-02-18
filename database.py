@@ -1,85 +1,63 @@
-
 import sqlite3
 
-DB_PATH = "database.db"
+class Database:
+    def __init__(self, db_name="bot_database.db"):
+        self.conn = sqlite3.connect(db_name, check_same_thread=False)
+        self.cursor = self.conn.cursor()
+        self.create_tables()
 
-def add_wallet(name, address):
-    """Додає новий гаманець у базу."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    try:
-        cursor.execute("INSERT INTO wallets (name, address) VALUES (?, ?)", (name, address))
-        conn.commit()
-    except sqlite3.IntegrityError:
-        return False  # Гаманець уже є в базі
-    finally:
-        conn.close()
-    return True
+    def create_tables(self):
+        """Створення таблиць у базі даних"""
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS wallets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                address TEXT UNIQUE NOT NULL,
+                name TEXT DEFAULT 'Невідомий',
+                tokens TEXT DEFAULT ''
+            )
+        """)
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tx_hash TEXT UNIQUE NOT NULL,
+                wallet_address TEXT NOT NULL,
+                token_name TEXT,
+                usd_value TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        self.conn.commit()
 
-def remove_wallet(address):
-    """Видаляє гаманець із бази."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM wallets WHERE address = ?", (address,))
-    conn.commit()
-    conn.close()
+    def add_wallet(self, address, name="Невідомий", tokens=""):
+        """Додає новий гаманець у базу даних"""
+        self.cursor.execute("INSERT OR IGNORE INTO wallets (address, name, tokens) VALUES (?, ?, ?)", (address, name, tokens))
+        self.conn.commit()
 
-def get_all_wallets():
-    """Отримує список усіх гаманців."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT name, address FROM wallets")
-    wallets = cursor.fetchall()
-    conn.close()
-    return wallets
+    def remove_wallet(self, address):
+        """Видаляє гаманець з бази даних"""
+        self.cursor.execute("DELETE FROM wallets WHERE address = ?", (address,))
+        self.conn.commit()
 
-def save_transaction(hash, wallet_address, amount, token, link):
-    """Зберігає транзакцію, щоб не надсилати її повторно."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    try:
-        cursor.execute("INSERT INTO transactions (hash, wallet_address, amount, token, link) VALUES (?, ?, ?, ?, ?)",
-                       (hash, wallet_address, amount, token, link))
-        conn.commit()
-    except sqlite3.IntegrityError:
-        return False  # Транзакція вже є в базі
-    finally:
-        conn.close()
-    return True
+    def update_wallet(self, address, name=None, tokens=None):
+        """Оновлює дані про гаманець"""
+        if name:
+            self.cursor.execute("UPDATE wallets SET name = ? WHERE address = ?", (name, address))
+        if tokens is not None:
+            self.cursor.execute("UPDATE wallets SET tokens = ? WHERE address = ?", (tokens, address))
+        self.conn.commit()
 
-def is_transaction_processed(hash):
-    """Перевіряє, чи транзакція вже оброблена."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT 1 FROM transactions WHERE hash = ?", (hash,))
-    result = cursor.fetchone()
-    conn.close()
-    return result is not None
+    def get_all_wallets(self):
+        """Отримує всі відстежувані гаманці"""
+        self.cursor.execute("SELECT address, name, tokens FROM wallets")
+        return [{"address": row[0], "name": row[1], "tokens": row[2]} for row in self.cursor.fetchall()]
 
+    def add_transaction(self, tx_hash, wallet_address, token_name, usd_value):
+        """Додає нову транзакцію в БД"""
+        self.cursor.execute("INSERT OR IGNORE INTO transactions (tx_hash, wallet_address, token_name, usd_value) VALUES (?, ?, ?, ?)",
+                            (tx_hash, wallet_address, token_name, usd_value))
+        self.conn.commit()
 
-import sqlite3
-
-DB_PATH = "database.db"
-
-def add_thread(token, thread_id, thread_name):
-    """Додає нову гілку в базу."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    try:
-        cursor.execute("INSERT INTO threads (token, thread_id, thread_name) VALUES (?, ?, ?)", 
-                       (token, thread_id, thread_name))
-        conn.commit()
-    except sqlite3.IntegrityError:
-        return False  # Гілка вже є в базі
-    finally:
-        conn.close()
-    return True
-
-def get_thread_by_token(token):
-    """Отримує Thread ID та назву за токеном."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT thread_id, thread_name FROM threads WHERE token = ?", (token,))
-    result = cursor.fetchone()
-    conn.close()
-    return result  # (thread_id, thread_name) або None
+    def is_transaction_exist(self, tx_hash):
+        """Перевіряє, чи є така транзакція в БД"""
+        self.cursor.execute("SELECT 1 FROM transactions WHERE tx_hash = ?", (tx_hash,))
+        return self.cursor.fetchone() is not None

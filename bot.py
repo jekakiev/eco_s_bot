@@ -5,7 +5,7 @@ from aiogram.filters import Command
 from config import BOT_TOKEN
 from arbiscan import get_token_transactions
 from message_formatter import format_swap_message
-from wallets_config import WATCHED_WALLETS
+from database import Database
 from threads_config import TOKEN_CONFIG, DEFAULT_THREAD_ID  # Мапінг тредів
 
 # Налаштування логування
@@ -15,12 +15,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Ініціалізуємо бота і диспетчер
+# Ініціалізуємо бота, диспетчер та базу даних
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
+db = Database()
 
 # Налаштування
-CHECK_INTERVAL = 10  # Перевірка кожні 10 секунд
+CHECK_INTERVAL = 2  # Перевірка кожні 2 секунди
 CHAT_ID = -1002458140371  # Chat ID групи
 
 # Обробник команди /start
@@ -39,17 +40,18 @@ async def get_chat_id(message: types.Message):
 
     await message.answer(chat_info, parse_mode="Markdown")
 
-# Функція перевірки нових транзакцій конкретного токена
+# Функція перевірки нових транзакцій
 async def check_token_transactions():
     """Перевіряє нові транзакції у відстежуваних гаманцях"""
-    last_tx_hash = {}
-
     while True:
         logger.info("🔍 Починаємо перевірку нових транзакцій...")
-        for wallet_address, wallet_name in WATCHED_WALLETS.items():
+
+        watched_wallets = db.get_all_wallets()  # Отримуємо гаманці з БД
+        for wallet in watched_wallets:
+            wallet_address = wallet["address"]
+            wallet_name = wallet["name"]
             transactions = get_token_transactions(wallet_address)
 
-            # Додаємо перевірку
             if not isinstance(transactions, list):
                 logger.error(f"❌ Помилка: get_token_transactions повернула не список для {wallet_address}. Отримано: {transactions}")
                 continue
@@ -63,19 +65,12 @@ async def check_token_transactions():
             token_out = latest_tx.get("token_out", "Невідомо")
             contract_address = latest_tx.get("token_out_address", "").lower()
 
-            # Логуємо отримані транзакції
-            logger.info(f"🔄 Отримано транзакцію: {tx_hash}")
-            logger.info(f"📌 Контрактна адреса токена: {contract_address}")
-            logger.info(f"📌 Токен: {token_out}")
+            if db.is_transaction_exist(tx_hash):  # Перевіряємо, чи є транзакція в БД
+                continue
 
-            if last_tx_hash.get(wallet_address) == tx_hash:
-                continue  # Якщо транзакція вже була оброблена
-
-            last_tx_hash[wallet_address] = tx_hash
+            db.add_transaction(tx_hash, wallet_address, token_out, latest_tx.get("usd_value", "0"))
 
             thread_id = DEFAULT_THREAD_ID
-
-            # Знаходимо відповідний тред для контрактної адреси токена
             for token_name, config in TOKEN_CONFIG.items():
                 if contract_address == config["contract_address"].lower():
                     thread_id = config["thread_id"]
@@ -84,7 +79,6 @@ async def check_token_transactions():
             else:
                 logger.warning(f"⚠️ Токен {token_out} ({contract_address}) не знайдено в мапінгу, відправляємо в {DEFAULT_THREAD_ID}")
 
-            # Форматуємо повідомлення
             text, parse_mode = format_swap_message(
                 tx_hash=tx_hash,
                 sender=wallet_name,
@@ -98,7 +92,6 @@ async def check_token_transactions():
                 usd_value=latest_tx.get("usd_value", "Невідомо")
             )
 
-            # Відправляємо повідомлення у відповідний тред
             try:
                 logger.info(f"📩 Відправляємо повідомлення у тред {thread_id} для {wallet_address}...")
                 await bot.send_message(
