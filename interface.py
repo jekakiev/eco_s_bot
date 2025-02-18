@@ -1,7 +1,8 @@
 import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.filters import Command, Text
+from aiogram.filters import Command
+from aiogram.filters.callback_data import CallbackData
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from database import Database
@@ -168,12 +169,12 @@ def get_tokens_keyboard(selected_tokens):
 
 # ==== Регистрация обработчиков ====
 def register_handlers(dp: Dispatcher):
-    dp.message.register(wallet_control, Text(startswith="wallet_"))
+    dp.message.register(wallet_control, Command("wallets"))
     dp.message.register(process_wallet_address, WalletState.waiting_for_address)
     dp.message.register(process_wallet_name, WalletState.waiting_for_name)
-    dp.callback_query.register(toggle_token, Text(startswith="toggle_token_"))
-    dp.callback_query.register(confirm_tokens, Text("confirm_tokens"))
-    dp.callback_query.register(delete_wallet, Text(startswith="delete_wallet_"))
-    dp.callback_query.register(cancel_operation, Text("cancel"))
-    dp.callback_query.register(add_wallet_start, Text("add_wallet"))
-    dp.callback_query.register(show_wallets, Text("show_wallets"))
+    dp.callback_query.register(toggle_token, CallbackData.filter("toggle_token_"))
+    dp.callback_query.register(confirm_tokens, CallbackData.filter("confirm_tokens"))
+    dp.callback_query.register(delete_wallet, CallbackData.filter("delete_wallet_"))
+    dp.callback_query.register(cancel_operation, CallbackData.filter("cancel"))
+    dp.callback_query.register(add_wallet_start, CallbackData.filter("add_wallet"))
+    dp.callback_query.register(show_wallets, CallbackData.filter("show_wallets"))
