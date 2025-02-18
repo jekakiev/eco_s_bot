@@ -1,15 +1,12 @@
 import asyncio
-import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from config import BOT_TOKEN
 from arbiscan import get_token_transactions  # Функція отримання транзакцій
 from message_formatter import format_swap_message  # Форматування повідомлень
-from wallets_config import WATCHED_WALLETS  # Адреси гаманців
-from threads_config import TOKEN_CONFIG, DEFAULT_THREAD_ID  # Налаштування тредів
-
-# Налаштовуємо логування
-logging.basicConfig(level=logging.INFO)
+from wallets_config import WATCHED_WALLETS  # Гаманці
+from threads_config import TOKEN_CONFIG, DEFAULT_THREAD_ID  # Мапінг токенів і тредів
+from logger_config import logger  # Наш логер
 
 # Ініціалізація бота і диспетчера
 bot = Bot(token=BOT_TOKEN)
@@ -35,18 +32,24 @@ async def check_token_transactions():
             if isinstance(transactions, list) and transactions:
                 latest_tx = transactions[0]  # Беремо останню транзакцію
 
+                logger.info(f"🔍 Перевіряємо транзакцію {latest_tx['hash']}")
+
                 # Перевіряємо, чи ця транзакція нова
                 if last_tx_hash.get(wallet_address) == latest_tx["hash"]:
-                    logging.info(f"🔄 Транзакція {latest_tx['hash']} вже була оброблена, пропускаємо.")
+                    logger.info(f"🔄 Транзакція {latest_tx['hash']} вже була оброблена, пропускаємо.")
                     continue  # Пропускаємо, якщо це та ж сама транзакція
 
                 last_tx_hash[wallet_address] = latest_tx["hash"]
 
                 token_name = latest_tx.get("token_in", "Невідомий токен")
                 token_data = TOKEN_CONFIG.get(token_name, {})
+
+                if not token_data:
+                    logger.warning(f"⚠️ Токен {token_name} не знайдено у мапінгу, використовуємо DEFAULT_THREAD_ID")
+                
                 thread_id = token_data.get("thread_id", DEFAULT_THREAD_ID)
 
-                logging.info(f"📩 Нова транзакція {latest_tx['hash']} для токена {token_name} -> Тред {thread_id}")
+                logger.info(f"📩 Нова транзакція {latest_tx['hash']} для токена {token_name} -> Тред {thread_id}")
 
                 # Формуємо повідомлення
                 text, parse_mode = format_swap_message(
@@ -64,6 +67,7 @@ async def check_token_transactions():
 
                 # Відправляємо повідомлення в Telegram
                 try:
+                    logger.info(f"📤 Надсилаємо повідомлення у тред {thread_id}...")
                     await bot.send_message(
                         chat_id=CHAT_ID, 
                         message_thread_id=thread_id, 
@@ -71,15 +75,15 @@ async def check_token_transactions():
                         parse_mode=parse_mode, 
                         disable_web_page_preview=True
                     )
-                    logging.info(f"✅ Повідомлення надіслано у тред {thread_id}: {latest_tx['hash']}")
+                    logger.info(f"✅ Повідомлення надіслано у тред {thread_id}: {latest_tx['hash']}")
                 except Exception as e:
-                    logging.error(f"❌ ПОМИЛКА відправки повідомлення: {str(e)}")
+                    logger.error(f"❌ ПОМИЛКА відправки повідомлення: {str(e)}")
 
         await asyncio.sleep(CHECK_INTERVAL)  # Затримка перед наступним запитом
 
 # Запуск бота
 async def main():
-    logging.info("🚀 Бот запущено!")
+    logger.info("🚀 Бот запущено!")
     asyncio.create_task(check_token_transactions())  # Запускаємо моніторинг транзакцій
     await dp.start_polling(bot)
 
