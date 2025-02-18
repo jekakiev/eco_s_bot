@@ -28,28 +28,40 @@ class Database:
         """)
         self.conn.commit()
 
+    # ====== ФУНКЦІЇ ДЛЯ ГАМАНЦІВ ======
+
     def add_wallet(self, address, name="Невідомий", tokens=""):
         """Додає новий гаманець у базу даних"""
         self.cursor.execute("INSERT OR IGNORE INTO wallets (address, name, tokens) VALUES (?, ?, ?)", (address, name, tokens))
         self.conn.commit()
 
-    def remove_wallet(self, address):
+    def remove_wallet(self, wallet_id):
         """Видаляє гаманець з бази даних"""
-        self.cursor.execute("DELETE FROM wallets WHERE address = ?", (address,))
+        self.cursor.execute("DELETE FROM wallets WHERE id = ?", (wallet_id,))
         self.conn.commit()
 
-    def update_wallet(self, address, name=None, tokens=None):
-        """Оновлює дані про гаманець"""
-        if name:
-            self.cursor.execute("UPDATE wallets SET name = ? WHERE address = ?", (name, address))
-        if tokens is not None:
-            self.cursor.execute("UPDATE wallets SET tokens = ? WHERE address = ?", (tokens, address))
+    def update_wallet_name(self, wallet_id, new_name):
+        """Оновлює ім'я гаманця"""
+        self.cursor.execute("UPDATE wallets SET name = ? WHERE id = ?", (new_name, wallet_id))
+        self.conn.commit()
+
+    def update_wallet_tokens(self, wallet_id, tokens):
+        """Оновлює список токенів для відстежування"""
+        self.cursor.execute("UPDATE wallets SET tokens = ? WHERE id = ?", (tokens, wallet_id))
         self.conn.commit()
 
     def get_all_wallets(self):
         """Отримує всі відстежувані гаманці"""
-        self.cursor.execute("SELECT address, name, tokens FROM wallets")
-        return [{"address": row[0], "name": row[1], "tokens": row[2]} for row in self.cursor.fetchall()]
+        self.cursor.execute("SELECT id, address, name, tokens FROM wallets")
+        return [{"id": row[0], "address": row[1], "name": row[2], "tokens": row[3]} for row in self.cursor.fetchall()]
+
+    def get_wallet_by_id(self, wallet_id):
+        """Отримує інформацію про конкретний гаманець"""
+        self.cursor.execute("SELECT id, address, name, tokens FROM wallets WHERE id = ?", (wallet_id,))
+        row = self.cursor.fetchone()
+        return {"id": row[0], "address": row[1], "name": row[2], "tokens": row[3]} if row else None
+
+    # ====== ФУНКЦІЇ ДЛЯ ТРАНЗАКЦІЙ ======
 
     def add_transaction(self, tx_hash, wallet_address, token_name, usd_value):
         """Додає нову транзакцію в БД"""
@@ -61,3 +73,15 @@ class Database:
         """Перевіряє, чи є така транзакція в БД"""
         self.cursor.execute("SELECT 1 FROM transactions WHERE tx_hash = ?", (tx_hash,))
         return self.cursor.fetchone() is not None
+
+    def get_last_transaction(self):
+        """Отримує останню транзакцію"""
+        self.cursor.execute("SELECT tx_hash, wallet_address, token_name, usd_value, timestamp FROM transactions ORDER BY timestamp DESC LIMIT 1")
+        row = self.cursor.fetchone()
+        return {
+            "tx_hash": row[0],
+            "wallet_address": row[1],
+            "token_name": row[2],
+            "usd_value": row[3],
+            "timestamp": row[4]
+        } if row else None

@@ -3,10 +3,12 @@ import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from config import BOT_TOKEN
+from interface import register_handlers
 from arbiscan import get_token_transactions
 from message_formatter import format_swap_message
 from database import Database
 from threads_config import TOKEN_CONFIG, DEFAULT_THREAD_ID  # Мапінг тредів
+
 
 # Налаштування логування
 logging.basicConfig(
