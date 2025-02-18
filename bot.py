@@ -2,22 +2,23 @@ import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from config import BOT_TOKEN
-from arbiscan import get_token_transactions  # Імпортуємо правильну функцію
+from arbiscan import get_token_transactions  # Імпортуємо функцію для отримання транзакцій
+from message_formatter import format_swap_message  # Імпортуємо функцію форматування повідомлень
 
 # Ініціалізуємо бота та диспетчер
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# Тестовий гаманець
+# Налаштування
 WATCHED_WALLET = "0x0CCe04C23E9e2D64759fc79BA728234Cff5d9A7f"
-CHECK_INTERVAL = 10  # Оновлення кожні 10 секунд
-THREAD_ID = 7  # Вставлений Thread ID гілки
-CHAT_ID = -1002458140371  # Встав свій Chat ID
+CHECK_INTERVAL = 10  # Перевірка кожні 10 секунд
+THREAD_ID = 7  # Thread ID гілки
+CHAT_ID = -1002458140371  # Chat ID групи
 
 # Обробник команди /start
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
-    await message.answer("✅ Бот запущено!")
+    await message.answer("✅ Бот запущен!")
 
 # Обробник команди /get_chat_id (Отримання ID гілки)
 @dp.message(Command("get_chat_id"))
@@ -26,7 +27,8 @@ async def get_chat_id(message: types.Message):
     chat_info = f"🆔 Chat ID: `{message.chat.id}`"
 
     if thread_id:
-        chat_info += f"\n🧵 Thread ID: `{thread_id}`"
+        chat_info += f"
+🧵 Thread ID: `{thread_id}`"
 
     await message.answer(chat_info, parse_mode="Markdown")
 
@@ -43,13 +45,17 @@ async def check_token_transactions():
             if last_tx_hash != latest_tx["hash"]:  # Якщо це нова транзакція
                 last_tx_hash = latest_tx["hash"]
 
-                text = (
-                    f"🔔 Нова транзакція токена!\n\n"
-                    f"🔹 Hash: {latest_tx['hash']}\n"
-                    f"💰 Value: {int(latest_tx['value']) / 10**18} {latest_tx['tokenSymbol']}\n"
-                    f"📤 Відправник: {latest_tx['from']}\n"
-                    f"📥 Одержувач: {latest_tx['to']}\n"
-                    f"🔗 [Деталі](https://arbiscan.io/tx/{latest_tx['hash']})"
+                text = format_swap_message(
+                    tx_hash=latest_tx["hash"],
+                    sender=latest_tx["from"],
+                    sender_url=f"https://arbiscan.io/address/{latest_tx['from']}",
+                    amount_in=latest_tx.get("amount_in", "Неизвестно"),
+                    token_in=latest_tx.get("token_in", "Неизвестно"),
+                    token_in_url=f"https://arbiscan.io/token/{latest_tx.get('token_in_address', '')}",
+                    amount_out=latest_tx.get("amount_out", "Неизвестно"),
+                    token_out=latest_tx.get("token_out", "Неизвестно"),
+                    token_out_url=f"https://arbiscan.io/token/{latest_tx.get('token_out_address', '')}",
+                    usd_value=latest_tx.get("usd_value", "Неизвестно")
                 )
 
                 await bot.send_message(chat_id=CHAT_ID, message_thread_id=THREAD_ID, text=text, disable_web_page_preview=True)
