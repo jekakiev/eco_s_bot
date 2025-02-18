@@ -1,92 +1,102 @@
 import asyncio
-from aiogram import Bot, Dispatcher, types, F
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
+from aiogram import Bot, Dispatcher, types
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.filters import Command, StateFilter
+from aiogram.filters import Command, Text
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
 from database import Database
 from threads_config import TOKEN_CONFIG
 
 db = Database()
 
-# === СТАНЫ ДЛЯ FSM ===
-class AddWalletState(StatesGroup):
-    address = State()
-    name = State()
-    tokens = State()
 
-# === ГЛАВНОЕ МЕНЮ ===
-def get_main_keyboard():
-    builder = InlineKeyboardBuilder()
-    builder.button(text="💼 Управление кошельками", callback_data="wallets_menu")
-    return builder.as_markup()
+# ==== Машина состояний для добавления кошелька ====
+class WalletState(StatesGroup):
+    waiting_for_address = State()
+    waiting_for_name = State()
+    waiting_for_tokens = State()
 
-# === КНОПКИ СПИСКА КОШЕЛЬКОВ ===
-def get_wallets_keyboard():
+
+# ==== Функция для создания главного меню ====
+def get_main_menu():
     builder = InlineKeyboardBuilder()
-    wallets = db.get_all_wallets()
-    
-    for wallet in wallets:
-        builder.button(text=wallet["name"], callback_data=f"wallet_{wallet['id']}")  # wallet_id
+    builder.button(text="📜 Показать кошельки", callback_data="show_wallets")
     builder.button(text="➕ Добавить кошелек", callback_data="add_wallet")
-    builder.button(text="⬅️ Вернуться в главное меню", callback_data="home")
-    
     return builder.as_markup()
 
-# === МЕНЮ УПРАВЛЕНИЯ КОШЕЛЬКОМ ===
+
+# ==== Функция для отображения списка кошельков ====
+async def show_wallets(callback: types.CallbackQuery):
+    wallets = db.get_all_wallets()
+    if not wallets:
+        await callback.message.edit_text("⚠️ У вас пока нет добавленных кошельков.", reply_markup=get_main_menu())
+        return
+
+    text = "📜 <b>Ваши кошельки:</b>\n\n"
+    for wallet in wallets:
+        text += f"🔹 <a href='https://arbiscan.io/address/{wallet['address']}'>{wallet['name']}</a>\n"
+
+    text += "\nВыберите кошелек для управления ⬇️"
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_wallets_keyboard(wallets))
+
+
+# ==== Функция для создания кнопок управления кошельком ====
+def get_wallets_keyboard(wallets):
+    builder = InlineKeyboardBuilder()
+    for wallet in wallets:
+        builder.button(text=f"⚙️ {wallet['name']}", callback_data=f"wallet_{wallet['id']}")
+    builder.button(text="⬅️ Назад", callback_data="home")
+    return builder.as_markup()
+
+
+# ==== Функция для управления кошельком ====
+async def wallet_control(callback: types.CallbackQuery):
+    wallet_id = callback.data.split("_")[1]
+    wallet = db.get_wallet_by_id(wallet_id)
+
+    if not wallet:
+        await callback.message.edit_text("⚠️ Кошелек не найден!", reply_markup=get_main_menu())
+        return
+
+    text = f"⚙️ <b>Управление кошельком</b>\n\n"
+    text += f"📍 <b>Название:</b> {wallet['name']}\n"
+    text += f"💳 <b>Адрес:</b> <a href='https://arbiscan.io/address/{wallet['address']}'>{wallet['address']}</a>\n"
+    text += f"🪙 <b>Отслеживаемые токены:</b> {wallet['tokens'] if wallet['tokens'] else 'Нет'}\n"
+
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=get_wallet_control_keyboard(wallet_id))
+
+
+# ==== Функция для кнопок управления конкретным кошельком ====
 def get_wallet_control_keyboard(wallet_id):
     builder = InlineKeyboardBuilder()
     builder.button(text="🗑 Удалить", callback_data=f"delete_wallet_{wallet_id}")
     builder.button(text="🔄 Изменить токены", callback_data=f"edit_tokens_{wallet_id}")
     builder.button(text="✏️ Переименовать", callback_data=f"rename_wallet_{wallet_id}")
-    builder.button(text="⬅️ Назад к списку кошельков", callback_data="wallets_menu")
-    
+    builder.button(text="⬅️ Назад", callback_data="show_wallets")
     return builder.as_markup()
 
-# === КНОПКИ ВЫБОРА ТОКЕНОВ ===
-def get_tokens_keyboard(selected_tokens):
-    builder = InlineKeyboardBuilder()
-    
-    for token_name, config in TOKEN_CONFIG.items():
-        is_selected = "✅ " if token_name in selected_tokens else ""
-        builder.button(text=f"{is_selected}{token_name}", callback_data=f"toggle_token_{token_name}")
 
-    builder.button(text="✅ Подтвердить", callback_data="confirm_tokens")
-    builder.button(text="⬅️ Вернуться в главное меню", callback_data="home")
-    
-    return builder.as_markup()
-
-# === ГЛАВНОЕ МЕНЮ ===
-async def start_command(message: types.Message):
-    await message.answer("🏠 Главное меню:", reply_markup=get_main_keyboard())
-
-# === ОТКРЫТЬ МЕНЮ КОШЕЛЬКОВ ===
-async def wallets_menu(callback: types.CallbackQuery):
-    await callback.message.edit_text("📜 Ваши кошельки:", reply_markup=get_wallets_keyboard())
-
-# === ОТКРЫТЬ МЕНЮ КОНКРЕТНОГО КОШЕЛЬКА ===
-async def wallet_callback(callback: types.CallbackQuery):
-    wallet_id = callback.data.split("_")[1]
-    await callback.message.edit_text(f"⚙️ Управление кошельком:", reply_markup=get_wallet_control_keyboard(wallet_id))
-
-# === НАЧАЛО ДОБАВЛЕНИЯ КОШЕЛЬКА ===
+# ==== Начало добавления кошелька ====
 async def add_wallet_start(callback: types.CallbackQuery, state: FSMContext):
-    await state.set_state(AddWalletState.address)
-    await callback.message.edit_text("📝 Введите адрес кошелька:")
+    await state.set_state(WalletState.waiting_for_address)
+    await callback.message.edit_text("📝 Введите адрес кошелька:", reply_markup=get_cancel_keyboard())
 
-# === ВВОД АДРЕСА КОШЕЛЬКА ===
+
+# ==== Ввод адреса кошелька ====
 async def process_wallet_address(message: types.Message, state: FSMContext):
     await state.update_data(wallet_address=message.text)
-    await state.set_state(AddWalletState.name)
-    await message.answer("✏️ Введите имя кошелька:")
+    await state.set_state(WalletState.waiting_for_name)
+    await message.answer("✏️ Введите название кошелька:", reply_markup=get_cancel_keyboard())
 
-# === ВВОД ИМЕНИ КОШЕЛЬКА ===
+
+# ==== Ввод имени кошелька ====
 async def process_wallet_name(message: types.Message, state: FSMContext):
     await state.update_data(wallet_name=message.text)
-    await state.set_state(AddWalletState.tokens)
+    await state.set_state(WalletState.waiting_for_tokens)
     await message.answer("🪙 Выберите токены для отслеживания:", reply_markup=get_tokens_keyboard([]))
 
-# === ВЫБОР ТОКЕНОВ ===
+
+# ==== Выбор токенов (работает как галочки) ====
 async def toggle_token(callback: types.CallbackQuery, state: FSMContext):
     token = callback.data.split("_")[1]
     data = await state.get_data()
@@ -100,7 +110,8 @@ async def toggle_token(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(selected_tokens=selected_tokens)
     await callback.message.edit_text("🪙 Выберите токены для отслеживания:", reply_markup=get_tokens_keyboard(selected_tokens))
 
-# === ПОДТВЕРЖДЕНИЕ ВЫБОРА ТОКЕНОВ ===
+
+# ==== Подтверждение выбора токенов ====
 async def confirm_tokens(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     wallet_address = data.get("wallet_address")
@@ -113,27 +124,56 @@ async def confirm_tokens(callback: types.CallbackQuery, state: FSMContext):
 
     db.add_wallet(wallet_address, wallet_name, ",".join(selected_tokens))
     await state.clear()
-    await callback.message.edit_text("✅ Кошелек добавлен!", reply_markup=get_wallets_keyboard())
+    await callback.message.edit_text("✅ Кошелек добавлен!", reply_markup=get_main_menu())
 
-# === УДАЛЕНИЕ КОШЕЛЬКА ===
+
+# ==== Удаление кошелька ====
 async def delete_wallet(callback: types.CallbackQuery):
     wallet_id = callback.data.split("_")[2]
     db.remove_wallet(wallet_id)
-    await callback.message.edit_text("🗑 Кошелек удален!", reply_markup=get_wallets_keyboard())
+    await callback.message.edit_text("🗑 Кошелек удален!", reply_markup=get_main_menu())
 
-# === ВОЗВРАТ В ГЛАВНОЕ МЕНЮ ===
-async def go_home(callback: types.CallbackQuery):
-    await callback.message.edit_text("🏠 Главное меню:", reply_markup=get_main_keyboard())
 
-# === РЕГИСТРАЦИЯ ХЕНДЛЕРОВ ===
+# ==== Отмена операции ====
+async def cancel_operation(callback: types.CallbackQuery, state: FSMContext):
+    await state.clear()
+    await callback.message.edit_text("🚫 Операция отменена!", reply_markup=get_main_menu())
+
+
+# ==== Функция для кнопок отмены ====
+def get_cancel_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.button(text="❌ Отмена", callback_data="cancel")
+    return builder.as_markup()
+
+
+# ==== Функция для создания клавиатуры выбора токенов (в два ряда) ====
+def get_tokens_keyboard(selected_tokens):
+    builder = InlineKeyboardBuilder()
+    buttons = []
+
+    for token_name, config in TOKEN_CONFIG.items():
+        is_selected = "✅ " if token_name in selected_tokens else ""
+        buttons.append(types.InlineKeyboardButton(text=f"{is_selected}{token_name}", callback_data=f"toggle_token_{token_name}"))
+
+    # Делаем кнопки в два ряда
+    for i in range(0, len(buttons), 2):
+        builder.row(*buttons[i:i+2])
+
+    builder.button(text="✅ Добавить", callback_data="confirm_tokens")
+    builder.button(text="❌ Отмена", callback_data="cancel")
+
+    return builder.as_markup()
+
+
+# ==== Регистрация обработчиков ====
 def register_handlers(dp: Dispatcher):
-    dp.message.register(start_command, Command("start"))
-    dp.callback_query.register(wallets_menu, F.data == "wallets_menu")
-    dp.callback_query.register(wallet_callback, F.data.startswith("wallet_"))
-    dp.callback_query.register(add_wallet_start, F.data == "add_wallet")
-    dp.message.register(process_wallet_address, StateFilter(AddWalletState.address))
-    dp.message.register(process_wallet_name, StateFilter(AddWalletState.name))
-    dp.callback_query.register(toggle_token, F.data.startswith("toggle_token_"))
-    dp.callback_query.register(confirm_tokens, F.data == "confirm_tokens")
-    dp.callback_query.register(delete_wallet, F.data.startswith("delete_wallet_"))
-    dp.callback_query.register(go_home, F.data == "home")
+    dp.message.register(wallet_control, Text(startswith="wallet_"))
+    dp.message.register(process_wallet_address, WalletState.waiting_for_address)
+    dp.message.register(process_wallet_name, WalletState.waiting_for_name)
+    dp.callback_query.register(toggle_token, Text(startswith="toggle_token_"))
+    dp.callback_query.register(confirm_tokens, Text("confirm_tokens"))
+    dp.callback_query.register(delete_wallet, Text(startswith="delete_wallet_"))
+    dp.callback_query.register(cancel_operation, Text("cancel"))
+    dp.callback_query.register(add_wallet_start, Text("add_wallet"))
+    dp.callback_query.register(show_wallets, Text("show_wallets"))
