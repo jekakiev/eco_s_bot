@@ -27,8 +27,7 @@ async def get_chat_id(message: types.Message):
     chat_info = f"🆔 Chat ID: `{message.chat.id}`"
 
     if thread_id:
-        chat_info += f"
-🧵 Thread ID: `{thread_id}`"
+        chat_info += f"\n🧵 Thread ID: `{thread_id}`"
 
     await message.answer(chat_info, parse_mode="Markdown")
 
