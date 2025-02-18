@@ -48,23 +48,19 @@ def get_wallet_control_keyboard(wallet_id):
     builder.button(text="⬅️ В головне меню", callback_data="home")
     return builder.as_markup()
 
-# === ВИБІР ТОКЕНІВ (2 в ряд) ===
+# === ВИБІР ТОКЕНІВ (✅ ПРАЦЮЄ) ===
 def get_tokens_keyboard(selected_tokens):
     builder = InlineKeyboardBuilder()
-    
+
     for token_name in TOKEN_CONFIG:
         is_selected = "✅ " if token_name in selected_tokens else ""
         builder.button(text=f"{is_selected}{token_name}", callback_data=f"toggle_token_{token_name}")
 
-    builder.adjust(2)  # Фіксовано 2 кнопки в ряд
+    builder.adjust(2)  # Дві кнопки в ряд
     builder.button(text="✅ Додати", callback_data="confirm_tokens")
     builder.button(text="⬅️ В головне меню", callback_data="home")
     
     return builder.as_markup()
-
-# === ВІДОБРАЖЕННЯ СПИСКУ ГАМАНЦІВ ===
-async def wallets_command(message: types.Message):
-    await message.answer(get_wallets_list(), parse_mode="Markdown", disable_web_page_preview=True, reply_markup=get_main_menu())
 
 # === ПОКАЗАТИ ГАМАНЦІ ===
 async def show_wallets(callback: types.CallbackQuery):
@@ -85,6 +81,7 @@ async def process_wallet_address(message: types.Message, state: FSMContext):
 async def process_wallet_name(message: types.Message, state: FSMContext):
     await state.update_data(wallet_name=message.text)
     await state.set_state(WalletStates.waiting_for_tokens)
+    await state.update_data(selected_tokens=[])  # Очищаємо вибрані токени
     await message.answer("🪙 Виберіть монети для відстежування:", reply_markup=get_tokens_keyboard([]))
 
 # === ВИБІР ТОКЕНІВ (✅ працює) ===
@@ -99,7 +96,9 @@ async def toggle_token(callback: types.CallbackQuery, state: FSMContext):
         selected_tokens.append(token)
 
     await state.update_data(selected_tokens=selected_tokens)
-    await callback.message.edit_text("🪙 Виберіть монети для відстежування:", reply_markup=get_tokens_keyboard(selected_tokens))
+
+    # Оновлюємо кнопки з галочками
+    await callback.message.edit_reply_markup(reply_markup=get_tokens_keyboard(selected_tokens))
 
 # === ПІДТВЕРДЖЕННЯ ТОКЕНІВ ===
 async def confirm_tokens(callback: types.CallbackQuery, state: FSMContext):
@@ -129,7 +128,6 @@ async def go_home(callback: types.CallbackQuery, state: FSMContext):
 
 # === РЕЄСТРАЦІЯ ОБРОБНИКІВ ===
 def register_handlers(dp: Dispatcher):
-    dp.message.register(wallets_command, Command("wallets"))
     dp.callback_query.register(show_wallets, F.data == "show_wallets")
     dp.callback_query.register(add_wallet_start, F.data == "add_wallet")
     dp.message.register(process_wallet_address, WalletStates.waiting_for_address)
