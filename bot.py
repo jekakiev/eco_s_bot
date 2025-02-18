@@ -42,7 +42,7 @@ async def check_transactions():
                     f"🔗 [Деталі](https://arbiscan.io/tx/{latest_tx['hash']})"
                 )
 
-                chat_id = 123456789  # ТУТ ВСТАВ СВІЙ CHAT_ID
+                chat_id = 1002458140371  # ТУТ ВСТАВ СВІЙ CHAT_ID
                 await bot.send_message(chat_id=chat_id, text=text, disable_web_page_preview=True)
 
         await asyncio.sleep(CHECK_INTERVAL)  # Затримка перед наступним запитом
