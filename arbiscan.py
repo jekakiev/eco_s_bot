@@ -2,14 +2,13 @@ import requests
 import config  
 
 ARBISCAN_API_URL = "https://api.arbiscan.io/api"
-TOKEN_ADDRESS = "0xcdfb52783591231ea098d9e3207dc6c699513b00"
 
 def get_token_transactions(wallet_address):
-    """Получает последние транзакции для конкретного токена"""
+    """Отримує останні транзакції для гаманця"""
     params = {
         "module": "account",
         "action": "tokentx",
-        "address": wallet_address,  # Убираем contractaddress, чтобы получить все токены
+        "address": wallet_address,
         "startblock": 0,
         "endblock": 99999999,
         "sort": "desc",
@@ -20,11 +19,10 @@ def get_token_transactions(wallet_address):
 
     if response.status_code == 200:
         data = response.json()
-        print("🔍 API Response:", data)  
 
         if data.get("status") == "1" and "result" in data:
             transactions = data["result"]
-            tx_dict = {}  
+            tx_dict = {}
 
             for tx in transactions:
                 tx_hash = tx["hash"]
@@ -34,10 +32,12 @@ def get_token_transactions(wallet_address):
 
                 tx_dict[tx_hash].append(tx)
 
+            # Логування без виводу всіх транзакцій
+            print(f"✅ Отримано {len(transactions)} транзакцій. Останній хеш: {transactions[0]['hash']}")
             return tx_dict  
         else:
-            print(f"❌ Ошибка API: {data.get('message', 'Нет данных')}")
+            print(f"❌ Помилка API: {data.get('message', 'Немає даних')}")
             return {}
     else:
-        print(f"❌ Ошибка запроса: {response.status_code}")
+        print(f"❌ Помилка запиту: {response.status_code}")
         return {}
