@@ -1,7 +1,8 @@
 import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.filters import Command, Text
+from aiogram.filters import Command
+from aiogram.filters.text import Text
 from database import Database
 from threads_config import TOKEN_CONFIG
 
