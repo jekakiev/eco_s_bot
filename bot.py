@@ -1,25 +1,23 @@
 import asyncio
 from aiogram import Bot, Dispatcher, types
+from aiogram.filters import Command  # Оновлено для aiogram 3.x
 from config import BOT_TOKEN  # Імпортуємо токен напряму
 
-
-
-
-# Ініціалізація бота з токеном із config.py
+# Ініціалізуємо бота та диспетчер
 bot = Bot(token=BOT_TOKEN)
-
 dp = Dispatcher()
 
-@dp.message_handler(commands=["start"])
+# Обробник команди /start
+@dp.message(Command("start"))
 async def start_command(message: types.Message):
-    await message.reply("✅ Бот запущено!")
+    await message.answer("✅ Бот запущено!")
 
-@dp.message_handler(commands=["help"])
+# Обробник команди /help
+@dp.message(Command("help"))
 async def help_command(message: types.Message):
-    await message.reply("❓ Це бот для відстеження транзакцій.")
+    await message.answer("❓ Це бот для відстеження транзакцій.")
 
-# Тут можна додавати ще хендлери, якщо були в оригінальному коді
-
+# Запуск бота
 async def main():
     await dp.start_polling(bot)
 
