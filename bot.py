@@ -5,7 +5,7 @@ from config import BOT_TOKEN
 from arbiscan import get_token_transactions  # Функция получения транзакций
 from message_formatter import format_swap_message  # Форматирование сообщений
 from wallets_config import WATCHED_WALLETS  # Загружаем настройки кошельков
-from threads_config import TOKEN_THREADS, DEFAULT_THREAD_ID  # Мапінг тредів
+from threads_config import TOKEN_CONFIG, DEFAULT_THREAD_ID  # Мапінг тредів
 
 # Ініціалізуємо бота та диспетчер
 bot = Bot(token=BOT_TOKEN)
