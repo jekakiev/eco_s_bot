@@ -45,7 +45,7 @@ async def check_token_transactions():
                 if last_tx_hash.get(wallet_address) != latest_tx["hash"]:  # Если это новая транзакция
                     last_tx_hash[wallet_address] = latest_tx["hash"]
 
-                    text = format_swap_message(
+                    text, parse_mode = format_swap_message(
                         tx_hash=latest_tx["hash"],
                         sender=wallet_name,  # Используем имя кошелька
                         sender_url=f"https://arbiscan.io/address/{wallet_address}",
@@ -58,7 +58,13 @@ async def check_token_transactions():
                         usd_value=latest_tx.get("usd_value", "Неизвестно")
                     )
 
-                    await bot.send_message(chat_id=CHAT_ID, message_thread_id=THREAD_ID, text=text, disable_web_page_preview=True)
+                    await bot.send_message(
+                        chat_id=CHAT_ID, 
+                        message_thread_id=THREAD_ID, 
+                        text=text, 
+                        parse_mode=parse_mode, 
+                        disable_web_page_preview=True
+                    )
 
         await asyncio.sleep(CHECK_INTERVAL)  # Задержка перед следующим запросом
 

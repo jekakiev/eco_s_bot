@@ -9,4 +9,4 @@ def format_swap_message(tx_hash, sender, sender_url, amount_in, token_in, token_
         f"💰 *Приблизительная стоимость:* ~${usd_value}\n"
         f"🔗 [Детали транзакции](https://arbiscan.io/tx/{tx_hash})"
     )
-    return message
+    return message, "Markdown"  # Добавляем "Markdown" как второй аргумент
