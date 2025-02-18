@@ -16,32 +16,37 @@ dp = Dispatcher()
 CHECK_INTERVAL = 10  # Перевірка кожні 10 секунд
 CHAT_ID = -1002458140371  # Chat ID групи
 
-# Обробник команди /start
-@dp.message(Command("start"))
-async def start_command(message: types.Message):
-    await message.answer("✅ Бот запущений!")
+# Останні хеші транзакцій
+last_tx_hash = {}
 
-# Функція перевірки нових транзакцій конкретного токена
+# Функція перевірки нових транзакцій
 async def check_token_transactions():
-    last_tx_hash = {}  # Зберігаємо останні транзакції для кожного гаманця
+    global last_tx_hash
 
     while True:
+        logger.info("🔍 Починаємо перевірку нових транзакцій...")
+        
         for wallet_address, wallet_name in WATCHED_WALLETS.items():
             transactions = get_token_transactions(wallet_address)
+            
+            if not isinstance(transactions, list) or not transactions:
+                logger.warning(f"⚠️ Не знайдено транзакцій для {wallet_address}")
+                continue
+            
+            for tx in transactions:
+                tx_hash = tx["hash"]
 
-            if isinstance(transactions, list) and transactions:
-                latest_tx = transactions[0]  # Беремо останню транзакцію
+                # Логуємо кожну транзакцію перед перевіркою
+                logger.info(f"📡 Отримана транзакція {tx_hash} для {wallet_name}")
 
-                logger.info(f"🔍 Перевіряємо транзакцію {latest_tx['hash']}")
+                if last_tx_hash.get(wallet_address) == tx_hash:
+                    logger.info(f"🔄 Транзакція {tx_hash} вже була оброблена, пропускаємо.")
+                    continue
 
-                # Перевіряємо, чи ця транзакція нова
-                if last_tx_hash.get(wallet_address) == latest_tx["hash"]:
-                    logger.info(f"🔄 Транзакція {latest_tx['hash']} вже була оброблена, пропускаємо.")
-                    continue  # Пропускаємо, якщо це та ж сама транзакція
+                # Зберігаємо новий останній хеш транзакції
+                last_tx_hash[wallet_address] = tx_hash
 
-                last_tx_hash[wallet_address] = latest_tx["hash"]
-
-                token_name = latest_tx.get("token_in", "Невідомий токен")
+                token_name = tx.get("token_in", "Невідомий токен")
                 token_data = TOKEN_CONFIG.get(token_name, {})
 
                 if not token_data:
@@ -49,23 +54,23 @@ async def check_token_transactions():
                 
                 thread_id = token_data.get("thread_id", DEFAULT_THREAD_ID)
 
-                logger.info(f"📩 Нова транзакція {latest_tx['hash']} для токена {token_name} -> Тред {thread_id}")
+                logger.info(f"📩 Готуємо повідомлення для токена {token_name} у тред {thread_id}")
 
                 # Формуємо повідомлення
                 text, parse_mode = format_swap_message(
-                    tx_hash=latest_tx["hash"],
-                    sender=wallet_name,  # Використовуємо ім'я гаманця
+                    tx_hash=tx_hash,
+                    sender=wallet_name,
                     sender_url=f"https://arbiscan.io/address/{wallet_address}",
-                    amount_in=latest_tx.get("amount_in", 0),
-                    token_in=latest_tx.get("token_in", "Невідомо"),
-                    token_in_url=f"https://arbiscan.io/token/{latest_tx.get('token_in_address', '')}",
-                    amount_out=latest_tx.get("amount_out", 0),
-                    token_out=latest_tx.get("token_out", "Невідомо"),
-                    token_out_url=f"https://arbiscan.io/token/{latest_tx.get('token_out_address', '')}",
-                    usd_value=latest_tx.get("usd_value", "Невідомо")
+                    amount_in=tx.get("amount_in", 0),
+                    token_in=tx.get("token_in", "Невідомо"),
+                    token_in_url=f"https://arbiscan.io/token/{tx.get('token_in_address', '')}",
+                    amount_out=tx.get("amount_out", 0),
+                    token_out=tx.get("token_out", "Невідомо"),
+                    token_out_url=f"https://arbiscan.io/token/{tx.get('token_out_address', '')}",
+                    usd_value=tx.get("usd_value", "Невідомо")
                 )
 
-                # Відправляємо повідомлення в Telegram
+                # Відправляємо повідомлення
                 try:
                     logger.info(f"📤 Надсилаємо повідомлення у тред {thread_id}...")
                     await bot.send_message(
@@ -75,11 +80,12 @@ async def check_token_transactions():
                         parse_mode=parse_mode, 
                         disable_web_page_preview=True
                     )
-                    logger.info(f"✅ Повідомлення надіслано у тред {thread_id}: {latest_tx['hash']}")
+                    logger.info(f"✅ Повідомлення успішно відправлено для {token_name} у тред {thread_id}")
                 except Exception as e:
                     logger.error(f"❌ ПОМИЛКА відправки повідомлення: {str(e)}")
 
-        await asyncio.sleep(CHECK_INTERVAL)  # Затримка перед наступним запитом
+        logger.info("⏳ Чекаємо наступний цикл перевірки...")
+        await asyncio.sleep(CHECK_INTERVAL)
 
 # Запуск бота
 async def main():
