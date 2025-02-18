@@ -1,9 +1,13 @@
 import asyncio
 from aiogram import Bot, Dispatcher, types
-import config  # Імпортуємо токени та API-ключі
+from config import BOT_TOKEN  # Імпортуємо токен напряму
+
+
+
 
 # Ініціалізація бота з токеном із config.py
-bot = Bot(token=config.BOT_TOKEN)
+bot = Bot(token=BOT_TOKEN)
+
 dp = Dispatcher()
 
 @dp.message_handler(commands=["start"])
