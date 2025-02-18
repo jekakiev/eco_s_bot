@@ -11,6 +11,8 @@ dp = Dispatcher()
 # Тестовий гаманець
 WATCHED_WALLET = "0x0CCe04C23E9e2D64759fc79BA728234Cff5d9A7f"
 CHECK_INTERVAL = 10  # Оновлення кожні 10 секунд
+THREAD_ID = 7  # Вставлений Thread ID гілки
+CHAT_ID = -1002458140371  # Встав свій Chat ID
 
 # Обробник команди /start
 @dp.message(Command("start"))
@@ -31,7 +33,6 @@ async def get_chat_id(message: types.Message):
 # Функція перевірки нових транзакцій конкретного токена
 async def check_token_transactions():
     last_tx_hash = None  # Зберігаємо останню транзакцію
-    thread_id = None  # Буде отримано через команду /get_chat_id
 
     while True:
         transactions = get_token_transactions(WATCHED_WALLET)
@@ -51,11 +52,7 @@ async def check_token_transactions():
                     f"🔗 [Деталі](https://arbiscan.io/tx/{latest_tx['hash']})"
                 )
 
-                chat_id = -1002458140371  # Встав свій Chat ID
-                if thread_id:
-                    await bot.send_message(chat_id=chat_id, message_thread_id=thread_id, text=text, disable_web_page_preview=True)
-                else:
-                    await bot.send_message(chat_id=chat_id, text=text, disable_web_page_preview=True)
+                await bot.send_message(chat_id=CHAT_ID, message_thread_id=THREAD_ID, text=text, disable_web_page_preview=True)
 
         await asyncio.sleep(CHECK_INTERVAL)  # Затримка перед наступним запитом
 
