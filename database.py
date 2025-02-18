@@ -61,6 +61,12 @@ class Database:
         row = self.cursor.fetchone()
         return {"id": row[0], "address": row[1], "name": row[2], "tokens": row[3]} if row else None
 
+    def get_wallet_by_address(self, address):
+        """Отримує інформацію про гаманець за адресою"""
+        self.cursor.execute("SELECT id, address, name, tokens FROM wallets WHERE address = ?", (address,))
+        row = self.cursor.fetchone()
+        return {"id": row[0], "address": row[1], "name": row[2], "tokens": row[3]} if row else None
+
     # ====== ФУНКЦІЇ ДЛЯ ТРАНЗАКЦІЙ ======
 
     def add_transaction(self, tx_hash, wallet_address, token_name, usd_value):
@@ -85,3 +91,9 @@ class Database:
             "usd_value": row[3],
             "timestamp": row[4]
         } if row else None
+
+    def get_wallet_transactions(self, wallet_address, limit=10):
+        """Отримує останні N транзакцій для конкретного гаманця"""
+        self.cursor.execute("SELECT tx_hash, token_name, usd_value, timestamp FROM transactions WHERE wallet_address = ? ORDER BY timestamp DESC LIMIT ?", (wallet_address, limit))
+        rows = self.cursor.fetchall()
+        return [{"tx_hash": row[0], "token_name": row[1], "usd_value": row[2], "timestamp": row[3]} for row in rows]

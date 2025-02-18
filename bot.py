@@ -22,6 +22,9 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 db = Database()
 
+# Реєструємо хендлери
+register_handlers(dp)
+
 # Налаштування
 CHECK_INTERVAL = 2  # Перевірка кожні 2 секунди
 CHAT_ID = -1002458140371  # Chat ID групи
