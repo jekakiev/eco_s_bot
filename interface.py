@@ -97,7 +97,7 @@ async def toggle_token(callback: types.CallbackQuery, state: FSMContext):
 
     await state.update_data(selected_tokens=selected_tokens)
 
-    # Оновлюємо кнопки з галочками
+    # Оновлюємо кнопку натисканням, а не повністю змінюємо повідомлення
     await callback.message.edit_reply_markup(reply_markup=get_tokens_keyboard(selected_tokens))
 
 # === ПІДТВЕРДЖЕННЯ ТОКЕНІВ ===
