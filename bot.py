@@ -17,9 +17,22 @@ CHECK_INTERVAL = 10  # Оновлення кожні 10 секунд
 async def start_command(message: types.Message):
     await message.answer("✅ Бот запущено!")
 
+# Обробник команди /get_chat_id (Отримання ID гілки)
+@dp.message(Command("get_chat_id"))
+async def get_chat_id(message: types.Message):
+    thread_id = message.message_thread_id  # ID треда (гілки)
+    chat_info = f"🆔 Chat ID: `{message.chat.id}`"
+
+    if thread_id:
+        chat_info += f"
+🧵 Thread ID: `{thread_id}`"
+
+    await message.answer(chat_info, parse_mode="Markdown")
+
 # Функція перевірки нових транзакцій конкретного токена
 async def check_token_transactions():
     last_tx_hash = None  # Зберігаємо останню транзакцію
+    thread_id = None  # Буде отримано через команду /get_chat_id
 
     while True:
         transactions = get_token_transactions(WATCHED_WALLET)
@@ -31,16 +44,25 @@ async def check_token_transactions():
                 last_tx_hash = latest_tx["hash"]
 
                 text = (
-                    f"🔔 Нова транзакція токена!\n\n"
-                    f"🔹 Hash: {latest_tx['hash']}\n"
-                    f"💰 Value: {int(latest_tx['value']) / 10**18} {latest_tx['tokenSymbol']}\n"
-                    f"📤 Відправник: {latest_tx['from']}\n"
-                    f"📥 Одержувач: {latest_tx['to']}\n"
+                    f"🔔 Нова транзакція токена!
+
+"
+                    f"🔹 Hash: {latest_tx['hash']}
+"
+                    f"💰 Value: {int(latest_tx['value']) / 10**18} {latest_tx['tokenSymbol']}
+"
+                    f"📤 Відправник: {latest_tx['from']}
+"
+                    f"📥 Одержувач: {latest_tx['to']}
+"
                     f"🔗 [Деталі](https://arbiscan.io/tx/{latest_tx['hash']})"
                 )
 
-                chat_id = -1002458140371  # ТУТ ВСТАВ CHAT ID гілки
-                await bot.send_message(chat_id=chat_id, text=text, disable_web_page_preview=True)
+                chat_id = -1002458140371  # Встав свій Chat ID
+                if thread_id:
+                    await bot.send_message(chat_id=chat_id, message_thread_id=thread_id, text=text, disable_web_page_preview=True)
+                else:
+                    await bot.send_message(chat_id=chat_id, text=text, disable_web_page_preview=True)
 
         await asyncio.sleep(CHECK_INTERVAL)  # Затримка перед наступним запитом
 
