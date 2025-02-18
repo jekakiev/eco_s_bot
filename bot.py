@@ -3,18 +3,10 @@ import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from config import BOT_TOKEN
-from arbiscan import get_token_transactions  # Функція отримання транзакцій
-from message_formatter import format_swap_message  # Форматування повідомлень
-from wallets_config import WATCHED_WALLETS  # Налаштування відстежуваних гаманців
+from arbiscan import get_token_transactions
+from message_formatter import format_swap_message
+from wallets_config import WATCHED_WALLETS
 from threads_config import TOKEN_CONFIG, DEFAULT_THREAD_ID  # Мапінг тредів
-
-# Ініціалізуємо бота та диспетчер
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
-
-# Налаштування
-CHECK_INTERVAL = 10  # Перевірка кожні 10 секунд
-CHAT_ID = -1002458140371  # ID групи
 
 # Налаштування логування
 logging.basicConfig(
@@ -23,14 +15,23 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-async def start_command(message: types.Message):
-    """Обробник команди /start"""
-    await message.answer("✅ Бот запущено!")
-    logger.info("Бот успішно запущено!")
+# Ініціалізуємо бота і диспетчер
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
 
+# Налаштування
+CHECK_INTERVAL = 10  # Перевірка кожні 10 секунд
+CHAT_ID = -1002458140371  # Chat ID групи
+
+# Обробник команди /start
+@dp.message(Command("start"))
+async def start_command(message: types.Message):
+    await message.answer("✅ Бот запущений та моніторить транзакції!")
+
+# Обробник команди /get_chat_id (Отримання ID треда)
+@dp.message(Command("get_chat_id"))
 async def get_chat_id(message: types.Message):
-    """Обробник команди /get_chat_id"""
-    thread_id = message.message_thread_id  # ID треда
+    thread_id = message.message_thread_id  # ID треда (гілки)
     chat_info = f"🆔 Chat ID: `{message.chat.id}`"
 
     if thread_id:
@@ -38,6 +39,7 @@ async def get_chat_id(message: types.Message):
 
     await message.answer(chat_info, parse_mode="Markdown")
 
+# Функція перевірки нових транзакцій конкретного токена
 async def check_token_transactions():
     """Перевіряє нові транзакції у відстежуваних гаманцях"""
     last_tx_hash = {}
@@ -47,8 +49,13 @@ async def check_token_transactions():
         for wallet_address, wallet_name in WATCHED_WALLETS.items():
             transactions = get_token_transactions(wallet_address)
 
+            # Додаємо перевірку
+            if not isinstance(transactions, list):
+                logger.error(f"❌ Помилка: get_token_transactions повернула не список для {wallet_address}. Отримано: {transactions}")
+                continue
+
             if not transactions:
-                logger.warning(f"⚠️ Не знайдено транзакцій для {wallet_address}")
+                logger.warning(f"⚠️ Не знайдено нових транзакцій для {wallet_address}")
                 continue
 
             latest_tx = transactions[0]  # Остання транзакція
@@ -107,13 +114,10 @@ async def check_token_transactions():
 
         await asyncio.sleep(CHECK_INTERVAL)  # Чекаємо перед наступною перевіркою
 
+# Запуск бота
 async def main():
-    """Запуск бота"""
-    dp.message.register(start_command, Command("start"))
-    dp.message.register(get_chat_id, Command("get_chat_id"))
-
-    asyncio.create_task(check_token_transactions())  # Запускаємо перевірку транзакцій
     logger.info("🚀 Бот запущено та очікує нові транзакції!")
+    asyncio.create_task(check_token_transactions())  # Запускаємо моніторинг транзакцій
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
