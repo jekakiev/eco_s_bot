@@ -48,7 +48,7 @@ def get_wallet_control_keyboard(wallet_id):
     builder.button(text="⬅️ В головне меню", callback_data="home")
     return builder.as_markup()
 
-# === ВИБІР ТОКЕНІВ (✅ ПРАЦЮЄ) ===
+# === ВИБІР ТОКЕНІВ (КНОПКИ ПО ДВІ В РЯД, ✅ ПРАЦЮЄ) ===
 def get_tokens_keyboard(selected_tokens):
     builder = InlineKeyboardBuilder()
 
@@ -56,10 +56,14 @@ def get_tokens_keyboard(selected_tokens):
         is_selected = "✅ " if token_name in selected_tokens else ""
         builder.button(text=f"{is_selected}{token_name}", callback_data=f"toggle_token_{token_name}")
 
-    builder.adjust(2)  # Дві кнопки в ряд
+    # Робимо кнопки по 2 в ряд
+    builder.adjust(2)
+
+    # В самому низу робимо кнопку "Додати" і "Назад" по дві в ряд
     builder.button(text="✅ Додати", callback_data="confirm_tokens")
     builder.button(text="⬅️ В головне меню", callback_data="home")
-    
+    builder.adjust(2)  # Щоб вони теж були в ряд
+
     return builder.as_markup()
 
 # === ПОКАЗАТИ ГАМАНЦІ ===
