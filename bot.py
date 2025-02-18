@@ -17,6 +17,11 @@ CHECK_INTERVAL = 10  # Кожні 10 секунд оновлення
 async def start_command(message: types.Message):
     await message.answer("✅ Бот запущено!")
 
+# Обробник команди /get_chat_id (Отримання ID гілки)
+@dp.message(Command("get_chat_id"))
+async def get_chat_id(message: types.Message):
+    await message.answer(f"🆔 Chat ID: `{message.chat.id}`", parse_mode="Markdown")
+
 # Функція перевірки нових транзакцій
 async def check_transactions():
     last_tx_hash = None  # Зберігаємо останню транзакцію
