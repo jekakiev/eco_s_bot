@@ -48,7 +48,7 @@ def get_wallet_control_keyboard(wallet_id):
     builder.button(text="⬅️ В головне меню", callback_data="home")
     return builder.as_markup()
 
-# === ВИБІР ТОКЕНІВ (2 В РЯД) ===
+# === ВИБІР ТОКЕНІВ (2 в ряд) ===
 def get_tokens_keyboard(selected_tokens):
     builder = InlineKeyboardBuilder()
     
@@ -56,7 +56,7 @@ def get_tokens_keyboard(selected_tokens):
         is_selected = "✅ " if token_name in selected_tokens else ""
         builder.button(text=f"{is_selected}{token_name}", callback_data=f"toggle_token_{token_name}")
 
-    builder.adjust(2)
+    builder.adjust(2)  # Фіксовано 2 кнопки в ряд
     builder.button(text="✅ Додати", callback_data="confirm_tokens")
     builder.button(text="⬅️ В головне меню", callback_data="home")
     
@@ -87,7 +87,7 @@ async def process_wallet_name(message: types.Message, state: FSMContext):
     await state.set_state(WalletStates.waiting_for_tokens)
     await message.answer("🪙 Виберіть монети для відстежування:", reply_markup=get_tokens_keyboard([]))
 
-# === ВИБІР ТОКЕНІВ ===
+# === ВИБІР ТОКЕНІВ (✅ працює) ===
 async def toggle_token(callback: types.CallbackQuery, state: FSMContext):
     token = callback.data.split("_")[1]
     data = await state.get_data()
