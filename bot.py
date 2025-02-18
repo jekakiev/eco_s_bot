@@ -3,12 +3,11 @@ import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from config import BOT_TOKEN
-from interface import register_handlers
+from interface import register_handlers, get_main_menu
 from arbiscan import get_token_transactions
 from message_formatter import format_swap_message
 from database import Database
-from threads_config import TOKEN_CONFIG, DEFAULT_THREAD_ID  # Мапінг тредів
-
+from threads_config import TOKEN_CONFIG, DEFAULT_THREAD_ID
 
 # Налаштування логування
 logging.basicConfig(
@@ -29,10 +28,10 @@ register_handlers(dp)
 CHECK_INTERVAL = 2  # Перевірка кожні 2 секунди
 CHAT_ID = -1002458140371  # Chat ID групи
 
-# Обробник команди /start
+# Обробник команди /start (головне меню)
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
-    await message.answer("✅ Бот запущений та моніторить транзакції!")
+    await message.answer("✅ Бот запущений та моніторить транзакції!", reply_markup=get_main_menu())
 
 # Обробник команди /get_chat_id (Отримання ID треда)
 @dp.message(Command("get_chat_id"))
