@@ -21,6 +21,7 @@ async def start_command(message: types.Message):
 async def check_transactions():
     last_tx_hash = None  # Зберігаємо останню транзакцію
 
+
     while True:
         transactions = get_transactions(WATCHED_WALLET)
         
@@ -29,9 +30,15 @@ async def check_transactions():
 
             if last_tx_hash != latest_tx["hash"]:  # Якщо це нова транзакція
                 last_tx_hash = latest_tx["hash"]
-                text = f"🔔 Нова транзакція!\n\n🔹 Hash: {latest_tx['hash']}\n💰 Value: {int(latest_tx['value']) / 10**18} ETH\n🔗 [Деталі](https://arbiscan.io/tx/{latest_tx['hash']})"
+                text = f"🔔 Нова транзакція!
+
+🔹 Hash: {latest_tx['hash']}
+💰 Value: {int(latest_tx['value']) / 10**18} ETH
+🔗 [Деталі](https://arbiscan.io/tx/{latest_tx['hash']})"
                 
-                await bot.send_message(chat_id=message.chat.id, text=text, disable_web_page_preview=True)
+                # Надсилаємо сповіщення (тимчасово використовуємо chat_id = 123456789, заміни на свій)
+                chat_id = 123456789  # Замінити на актуальний chat_id
+                await bot.send_message(chat_id=chat_id, text=text, disable_web_page_preview=True)
 
         await asyncio.sleep(CHECK_INTERVAL)  # Затримка перед наступним запитом
 
@@ -41,4 +48,4 @@ async def main():
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-   
+    asyncio.run(main())
