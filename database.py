@@ -6,7 +6,7 @@ import logging
 # Налаштування логування
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelень)s - %(повідомлення)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class Database:
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 address VARCHAR(255) UNIQUE NOT NULL,
                 name VARCHAR(255) DEFAULT 'Невідомий',
-                tokens TEXT DEFAULT ''
+                tokens TEXT
             )
         """)
         self.cursor.execute("""
