@@ -2,7 +2,7 @@ import asyncio
 import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from interface import register_handlers, get_main_menu
+from interface import register_handlers, get_main_menu, get_wallet_control_keyboard
 from arbiscan import get_token_transactions
 from message_formatter import format_swap_message
 from database import Database
@@ -13,14 +13,14 @@ import os
 # Загрузка переменных окружения
 load_dotenv()
 
-# Налаштування логування
+# Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(message)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
-# Логування завантаження перемінних оточення
+# Логирование загрузки переменных окружения
 logger.info("Загрузка переменных окружения:")
 logger.info(f"MYSQL_HOST: {os.getenv('MYSQL_HOST')}")
 logger.info(f"MYSQL_USER: {os.getenv('MYSQL_USER')}")
@@ -28,49 +28,49 @@ logger.info(f"MYSQL_PASSWORD: {os.getenv('MYSQL_PASSWORD')}")
 logger.info(f"MYSQL_DATABASE: {os.getenv('MYSQL_DATABASE')}")
 logger.info(f"MYSQL_PORT: {os.getenv('MYSQL_PORT', 3306)}")
 
-# Ініціалізуємо бота, диспетчер та базу даних
+# Инициализация бота, диспетчера и базы данных
 bot = Bot(token=os.getenv("BOT_TOKEN"))
 dp = Dispatcher()
 db = Database()
 
-# Реєструємо хендлери
+# Регистрация хендлеров
 register_handlers(dp)
 
-# Налаштування
-CHECK_INTERVAL = 2  # Перевірка кожні 2 секунди
-CHAT_ID = -1002458140371  # Chat ID групи
+# Настройки
+CHECK_INTERVAL = 2  # Проверка каждые 2 секунды
+CHAT_ID = -1002458140371  # Chat ID группы
 
-# Обробник команди /start (головне меню)
+# Обработчик команды /start (главное меню)
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
-    await message.answer("✅ Бот запущений та моніторить транзакції!", reply_markup=get_main_menu())
+    await message.answer("✅ Бот запущен и мониторит транзакции!", reply_markup=get_main_menu())
 
-# Функція перевірки нових транзакцій
+# Функция проверки новых транзакций
 async def check_token_transactions():
-    """Перевіряє нові транзакції у відстежуваних гаманцях"""
+    """Проверяет новые транзакции в отслеживаемых кошельках"""
     while True:
-        logger.info("🔍 Починаємо перевірку нових транзакцій...")
+        logger.info("🔍 Начинаем проверку новых транзакций...")
 
-        watched_wallets = db.get_all_wallets()  # Отримуємо гаманці з БД
+        watched_wallets = db.get_all_wallets()  # Получаем кошельки из БД
         for wallet in watched_wallets:
             wallet_address = wallet["address"]
             wallet_name = wallet["name"]
             transactions = get_token_transactions(wallet_address)
 
             if not isinstance(transactions, list):
-                logger.error(f"❌ Помилка: get_token_transactions повернула не список для {wallet_address}. Отримано: {transactions}")
+                logger.error(f"❌ Ошибка: get_token_transactions вернула не список для {wallet_address}. Получено: {transactions}")
                 continue
 
             if not transactions:
-                logger.warning(f"⚠️ Не знайдено нових транзакцій для {wallet_address}")
+                logger.warning(f"⚠️ Не найдено новых транзакций для {wallet_address}")
                 continue
 
-            latest_tx = transactions[0]  # Остання транзакція
+            latest_tx = transactions[0]  # Последняя транзакция
             tx_hash = latest_tx["hash"]
-            token_out = latest_tx.get("token_out", "Невідомо")
+            token_out = latest_tx.get("token_out", "Неизвестно")
             contract_address = latest_tx.get("token_out_address", "").lower()
 
-            if db.is_transaction_exist(tx_hash):  # Перевіряємо, чи є транзакція в БД
+            if db.is_transaction_exist(tx_hash):  # Проверяем, существует ли транзакция в БД
                 continue
 
             db.add_transaction(tx_hash, wallet_address, token_out, latest_tx.get("usd_value", "0"))
@@ -79,26 +79,26 @@ async def check_token_transactions():
             for token_name, config in TOKEN_CONFIG.items():
                 if contract_address == config["contract_address"].lower():
                     thread_id = config["thread_id"]
-                    logger.info(f"✅ Знайдено відповідність: {token_name} -> Тред {thread_id}")
+                    logger.info(f"✅ Найдено соответствие: {token_name} -> Тред {thread_id}")
                     break
             else:
-                logger.warning(f"⚠️ Токен {token_out} ({contract_address}) не знайдено в мапінгу, відправляємо в {DEFAULT_THREAD_ID}")
+                logger.warning(f"⚠️ Токен {token_out} ({contract_address}) не найден в маппинге, отправляем в {DEFAULT_THREAD_ID}")
 
             text, parse_mode = format_swap_message(
                 tx_hash=tx_hash,
                 sender=wallet_name,
                 sender_url=f"https://arbiscan.io/address/{wallet_address}",
-                amount_in=latest_tx.get("amount_in", "Невідомо"),
-                token_in=latest_tx.get("token_in", "Невідомо"),
+                amount_in=latest_tx.get("amount_in", "Неизвестно"),
+                token_in=latest_tx.get("token_in", "Неизвестно"),
                 token_in_url=f"https://arbiscan.io/token/{latest_tx.get('token_in_address', '')}",
-                amount_out=latest_tx.get("amount_out", "Невідомо"),
+                amount_out=latest_tx.get("amount_out", "Неизвестно"),
                 token_out=token_out,
                 token_out_url=f"https://arbiscan.io/token/{latest_tx.get('token_out_address', '')}",
-                usd_value=latest_tx.get("usd_value", "Невідомо")
+                usd_value=latest_tx.get("usd_value", "Неизвестно")
             )
 
             try:
-                logger.info(f"📩 Відправляємо повідомлення у тред {thread_id} для {wallet_address}...")
+                logger.info(f"📩 Отправляем сообщение в тред {thread_id} для {wallet_address}...")
                 await bot.send_message(
                     chat_id=CHAT_ID,
                     message_thread_id=thread_id,
@@ -106,11 +106,11 @@ async def check_token_transactions():
                     parse_mode=parse_mode,
                     disable_web_page_preview=True
                 )
-                logger.info(f"✅ Повідомлення надіслано у тред {thread_id}")
+                logger.info(f"✅ Сообщение отправлено в тред {thread_id}")
             except Exception as e:
-                logger.error(f"❌ Помилка надсилання повідомлення: {str(e)}")
+                logger.error(f"❌ Ошибка отправки сообщения: {str(e)}")
 
-        await asyncio.sleep(CHECK_INTERVAL)  # Чекаємо перед наступною перевіркою
+        await asyncio.sleep(CHECK_INTERVAL)  # Ждем перед следующей проверкой
 
 # Обработчик команды для редактирования кошельков
 @dp.message(Command("EDITw"))
