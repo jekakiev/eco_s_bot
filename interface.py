@@ -36,7 +36,7 @@ def get_wallets_list():
 
     text = "📜 *Ваши кошельки:*\n\n"
     for wallet in wallets:
-        text += f"🔹 [{wallet['name'] or wallet['address'][:6] + '...'}](https://arbiscan.io/address/{wallet['address']})\n"
+        text += f"🔹 [{wallet['name'] or wallet['address'][:6] + '...'}](https://arbiscan.io/address/{wallet['address']}) - /edit_{wallet['id']}\n"
 
     return text
 
