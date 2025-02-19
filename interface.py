@@ -13,6 +13,7 @@ class WalletStates(StatesGroup):
     waiting_for_address = State()
     waiting_for_name = State()
     waiting_for_tokens = State()
+    waiting_for_new_name = State()
 
 # === ГЛАВНОЕ МЕНЮ ===
 def get_main_menu():
@@ -125,6 +126,21 @@ async def delete_wallet(callback: types.CallbackQuery):
     db.remove_wallet(wallet_id)
     await callback.message.edit_text("🗑 Кошелек удален!", reply_markup=get_main_menu())
 
+# === ПЕРЕИМЕНОВАНИЕ КОШЕЛЬКА ===
+async def rename_wallet_start(callback: types.CallbackQuery, state: FSMContext):
+    wallet_id = callback.data.split("_")[2]
+    await state.update_data(wallet_id=wallet_id)
+    await state.set_state(WalletStates.waiting_for_new_name)
+    await callback.message.edit_text("✏️ Введите новое имя кошелька:", reply_markup=get_back_button())
+
+async def process_new_wallet_name(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    wallet_id = data.get("wallet_id")
+    new_name = message.text
+    db.update_wallet_name(wallet_id, new_name)
+    await state.clear()
+    await message.answer(f"✅ Имя кошелька обновлено на: {new_name}", reply_markup=get_main_menu())
+
 # === ГЛАВНОЕ МЕНЮ ===
 async def go_home(callback: types.CallbackQuery, state: FSMContext):
     await state.clear()
@@ -139,4 +155,6 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(toggle_token, F.data.startswith("toggle_token_"))
     dp.callback_query.register(confirm_tokens, F.data == "confirm_tokens")
     dp.callback_query.register(delete_wallet, F.data.startswith("delete_wallet_"))
+    dp.callback_query.register(rename_wallet_start, F.data.startswith("rename_wallet_"))
+    dp.message.register(process_new_wallet_name, WalletStates.waiting_for_new_name)
     dp.callback_query.register(go_home, F.data == "home")

@@ -2,7 +2,6 @@ import asyncio
 import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from config import BOT_TOKEN
 from interface import register_handlers, get_main_menu
 from arbiscan import get_token_transactions
 from message_formatter import format_swap_message
@@ -17,7 +16,7 @@ load_dotenv()
 # Налаштування логування
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelень)s - %(повідомлення)s"
+    format="%(asctime)s - %(message)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -30,7 +29,7 @@ logger.info(f"MYSQL_DATABASE: {os.getenv('MYSQL_DATABASE')}")
 logger.info(f"MYSQL_PORT: {os.getenv('MYSQL_PORT', 3306)}")
 
 # Ініціалізуємо бота, диспетчер та базу даних
-bot = Bot(token=BOT_TOKEN)
+bot = Bot(token=os.getenv("BOT_TOKEN"))
 dp = Dispatcher()
 db = Database()
 
