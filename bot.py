@@ -49,66 +49,70 @@ async def start_command(message: types.Message):
 async def check_token_transactions():
     """Проверяет новые транзакции в отслеживаемых кошельках"""
     while True:
-        logger.info("🔍 Начинаем проверку новых транзакций...")
+        try:
+            logger.info("🔍 Начинаем проверку новых транзакций...")
 
-        watched_wallets = db.get_all_wallets()  # Получаем кошельки из БД
-        for wallet in watched_wallets:
-            wallet_address = wallet["address"]
-            wallet_name = wallet["name"]
-            transactions = get_token_transactions(wallet_address)
+            watched_wallets = db.get_all_wallets()  # Получаем кошельки из БД
+            for wallet in watched_wallets:
+                wallet_address = wallet["address"]
+                wallet_name = wallet["name"]
+                transactions = get_token_transactions(wallet_address)
 
-            if not isinstance(transactions, list):
-                logger.error(f"❌ Ошибка: get_token_transactions вернула не список для {wallet_address}. Получено: {transactions}")
-                continue
+                if not isinstance(transactions, list):
+                    logger.error(f"❌ Ошибка: get_token_transactions вернула не список для {wallet_address}. Получено: {transactions}")
+                    continue
 
-            if not transactions:
-                logger.warning(f"⚠️ Не найдено новых транзакций для {wallet_address}")
-                continue
+                if not transactions:
+                    logger.warning(f"⚠️ Не найдено новых транзакций для {wallet_address}")
+                    continue
 
-            latest_tx = transactions[0]  # Последняя транзакция
-            tx_hash = latest_tx["hash"]
-            token_out = latest_tx.get("token_out", "Неизвестно")
-            contract_address = latest_tx.get("token_out_address", "").lower()
+                latest_tx = transactions[0]  # Последняя транзакция
+                tx_hash = latest_tx["hash"]
+                token_out = latest_tx.get("token_out", "Неизвестно")
+                contract_address = latest_tx.get("token_out_address", "").lower()
 
-            if db.is_transaction_exist(tx_hash):  # Проверяем, существует ли транзакция в БД
-                continue
+                if db.is_transaction_exist(tx_hash):  # Проверяем, существует ли транзакция в БД
+                    continue
 
-            db.add_transaction(tx_hash, wallet_address, token_out, latest_tx.get("usd_value", "0"))
+                db.add_transaction(tx_hash, wallet_address, token_out, latest_tx.get("usd_value", "0"))
 
-            thread_id = DEFAULT_THREAD_ID
-            for token_name, config in TOKEN_CONFIG.items():
-                if contract_address == config["contract_address"].lower():
-                    thread_id = config["thread_id"]
-                    logger.info(f"✅ Найдено соответствие: {token_name} -> Тред {thread_id}")
-                    break
-            else:
-                logger.warning(f"⚠️ Токен {token_out} ({contract_address}) не найден в маппинге, отправляем в {DEFAULT_THREAD_ID}")
+                thread_id = DEFAULT_THREAD_ID
+                for token_name, config in TOKEN_CONFIG.items():
+                    if contract_address == config["contract_address"].lower():
+                        thread_id = config["thread_id"]
+                        logger.info(f"✅ Найдено соответствие: {token_name} -> Тред {thread_id}")
+                        break
+                else:
+                    logger.warning(f"⚠️ Токен {token_out} ({contract_address}) не найден в маппинге, отправляем в {DEFAULT_THREAD_ID}")
 
-            text, parse_mode = format_swap_message(
-                tx_hash=tx_hash,
-                sender=wallet_name,
-                sender_url=f"https://arbiscan.io/address/{wallet_address}",
-                amount_in=latest_tx.get("amount_in", "Неизвестно"),
-                token_in=latest_tx.get("token_in", "Неизвестно"),
-                token_in_url=f"https://arbiscan.io/token/{latest_tx.get('token_in_address', '')}",
-                amount_out=latest_tx.get("amount_out", "Неизвестно"),
-                token_out=token_out,
-                token_out_url=f"https://arbiscan.io/token/{latest_tx.get('token_out_address', '')}",
-                usd_value=latest_tx.get("usd_value", "Неизвестно")
-            )
-
-            try:
-                logger.info(f"📩 Отправляем сообщение в тред {thread_id} для {wallet_address}...")
-                await bot.send_message(
-                    chat_id=CHAT_ID,
-                    message_thread_id=thread_id,
-                    text=text,
-                    parse_mode=parse_mode,
-                    disable_web_page_preview=True
+                text, parse_mode = format_swap_message(
+                    tx_hash=tx_hash,
+                    sender=wallet_name,
+                    sender_url=f"https://arbiscan.io/address/{wallet_address}",
+                    amount_in=latest_tx.get("amount_in", "Неизвестно"),
+                    token_in=latest_tx.get("token_in", "Неизвестно"),
+                    token_in_url=f"https://arbiscan.io/token/{latest_tx.get('token_in_address', '')}",
+                    amount_out=latest_tx.get("amount_out", "Неизвестно"),
+                    token_out=token_out,
+                    token_out_url=f"https://arbiscan.io/token/{latest_tx.get('token_out_address', '')}",
+                    usd_value=latest_tx.get("usd_value", "Неизвестно")
                 )
-                logger.info(f"✅ Сообщение отправлено в тред {thread_id}")
-            except Exception as e:
-                logger.error(f"❌ Ошибка отправки сообщения: {str(e)}")
+
+                try:
+                    logger.info(f"📩 Отправляем сообщение в тред {thread_id} для {wallet_address}...")
+                    await bot.send_message(
+                        chat_id=CHAT_ID,
+                        message_thread_id=thread_id,
+                        text=text,
+                        parse_mode=parse_mode,
+                        disable_web_page_preview=True
+                    )
+                    logger.info(f"✅ Сообщение отправлено в тред {thread_id}")
+                except Exception as e:
+                    logger.error(f"❌ Ошибка отправки сообщения: {str(e)}")
+
+        except Exception as e:
+            logger.error(f"Произошла ошибка: {str(e)}")
 
         await asyncio.sleep(CHECK_INTERVAL)  # Ждем перед следующей проверкой
 
