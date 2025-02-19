@@ -112,11 +112,22 @@ async def check_token_transactions():
 
         await asyncio.sleep(CHECK_INTERVAL)  # Чекаємо перед наступною перевіркою
 
-# Запуск бота
-async def main():
-    logger.info("🚀 Бот запущено та очікує нові транзакції!")
-    asyncio.create_task(check_token_transactions())  # Запускаємо моніторинг транзакцій
-    await dp.start_polling(bot)
+# Обработчик команды для редактирования кошельков
+@dp.message(Command("EDITw"))
+async def edit_wallet_command(message: types.Message):
+    wallet_id = int(message.get_args().split('_')[1])
+    wallet = db.get_wallet_by_id(wallet_id)
+    if not wallet:
+        await message.answer("❌ Кошелек не найден.")
+        return
+
+    text = f"Имя кошелька: {wallet['name']}\nАдрес кошелька: {wallet['address']}"
+    await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet_id))
+
+# Функция для регистрации обработчиков команд и сообщений
+def register_handlers(dp: Dispatcher):
+    dp.message.register(start_command, Command("start"))
+    dp.message.register(edit_wallet_command, Command("EDITw"))
 
 if __name__ == "__main__":
     asyncio.run(main())
