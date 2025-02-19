@@ -1,5 +1,4 @@
 aiogram
 python-dotenv
 requests
-
-
+mysql-connector-python
