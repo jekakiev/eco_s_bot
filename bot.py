@@ -131,7 +131,7 @@ async def edit_wallet_command(message: types.Message):
 # Функция для регистрации обработчиков команд и сообщений
 def register_handlers(dp: Dispatcher):
     dp.message.register(start_command, Command("start"))
-    dp.message.register(edit_wallet_command, Command("EDITw"))
+    dp.message.register(edit_wallet_command, 
 
 # Запуск бота
 async def main():
