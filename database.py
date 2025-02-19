@@ -1,14 +1,31 @@
 import mysql.connector
 import os
+from dotenv import load_dotenv
+
+# Загружаем переменные окружения из файла .env
+load_dotenv()
 
 class Database:
     def __init__(self):
+        host = os.getenv("MYSQL_HOST")
+        user = os.getenv("MYSQL_USER")
+        password = os.getenv("MYSQL_PASSWORD")
+        database = os.getenv("MYSQL_DATABASE")
+        port = os.getenv("MYSQL_PORT", 3306)
+
+        # Выводим значения переменных для отладки
+        print(f"MYSQL_HOST: {host}")
+        print(f"MYSQL_USER: {user}")
+        print(f"MYSQL_PASSWORD: {password}")
+        print(f"MYSQL_DATABASE: {database}")
+        print(f"MYSQL_PORT: {port}")
+
         self.conn = mysql.connector.connect(
-            host=os.getenv("MYSQL_HOST"),
-            user=os.getenv("MYSQL_USER"),
-            password=os.getenv("MYSQL_PASSWORD"),
-            database=os.getenv("MYSQL_DATABASE"),
-            port=os.getenv("MYSQL_PORT", 3306)
+            host=host,
+            user=user,
+            password=password,
+            database=database,
+            port=port
         )
         self.cursor = self.conn.cursor()
         self.create_tables()
