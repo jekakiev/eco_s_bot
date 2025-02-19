@@ -87,5 +87,4 @@ class Database:
 
     def get_wallet_by_address(self, address):
         """Получает информацию о кошельке по адресу"""
-        self.cursor.execute("SELECT id, address, name, tokens FROM wallets WHERE address = %s", (address,))
-        row = self.cursor
+        self.cursor

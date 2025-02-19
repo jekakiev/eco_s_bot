@@ -21,6 +21,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Логування завантаження перемінних оточення
+logger.info("Загрузка переменных окружения:")
+logger.info(f"MYSQL_HOST: {os.getenv('MYSQL_HOST')}")
+logger.info(f"MYSQL_USER: {os.getenv('MYSQL_USER')}")
+logger.info(f"MYSQL_PASSWORD: {os.getenv('MYSQL_PASSWORD')}")
+logger.info(f"MYSQL_DATABASE: {os.getenv('MYSQL_DATABASE')}")
+logger.info(f"MYSQL_PORT: {os.getenv('MYSQL_PORT', 3306)}")
+
 # Ініціалізуємо бота, диспетчер та базу даних
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
