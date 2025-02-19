@@ -129,5 +129,11 @@ def register_handlers(dp: Dispatcher):
     dp.message.register(start_command, Command("start"))
     dp.message.register(edit_wallet_command, Command("EDITw"))
 
+# Запуск бота
+async def main():
+    logger.info("🚀 Бот запущен и ждет новые транзакции!")
+    asyncio.create_task(check_token_transactions())  # Запускаем мониторинг транзакций
+    await dp.start_polling(bot)
+
 if __name__ == "__main__":
     asyncio.run(main())
