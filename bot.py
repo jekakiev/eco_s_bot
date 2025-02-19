@@ -21,12 +21,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Логирование загрузки переменных окружения
-logger.info("Загрузка переменных окружения:")
-logger.info(f"MYSQL_HOST: {os.getenv('MYSQL_HOST')}")
-logger.info(f"MYSQL_USER: {os.getenv('MYSQL_USER')}")
-logger.info(f"MYSQL_PASSWORD: {os.getenv('MYSQL_PASSWORD')}")
-logger.info(f"MYSQL_DATABASE: {os.getenv('MYSQL_DATABASE')}")
-logger.info(f"MYSQL_PORT: {os.getenv('MYSQL_PORT', 3306)}")
+try:
+    logger.info("Загрузка переменных окружения:")
+    logger.info(f"MYSQL_HOST: {os.getenv('MYSQL_HOST')}")
+    logger.info(f"MYSQL_USER: {os.getenv('MYSQL_USER')}")
+    logger.info(f"MYSQL_PASSWORD: {os.getenv('MYSQL_PASSWORD')}")
+    logger.info(f"MYSQL_DATABASE: {os.getenv('MYSQL_DATABASE')}")
+    logger.info(f"MYSQL_PORT: {os.getenv('MYSQL_PORT', 3306)}")
+except Exception as e:
+    print(f"Ошибка логирования: {e}")
 
 # Инициализация бота, диспетчера и базы данных
 bot = Bot(token=os.getenv("BOT_TOKEN"))
@@ -137,9 +140,12 @@ def register_handlers(dp: Dispatcher):
 
 # Запуск бота
 async def main():
-    logger.info("🚀 Бот запущен и ждет новые транзакции!")
-    asyncio.create_task(check_token_transactions())  # Запускаем мониторинг транзакций
-    await dp.start_polling(bot)
+    try:
+        logger.info("🚀 Бот запущен и ждет новые транзакции!")
+        asyncio.create_task(check_token_transactions())  # Запускаем мониторинг транзакций
+        await dp.start_polling(bot)
+    except Exception as e:
+        print(f"Ошибка запуска бота: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())
