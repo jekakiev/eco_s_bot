@@ -11,7 +11,7 @@ class Database:
         user = os.getenv("MYSQL_USER")
         password = os.getenv("MYSQL_PASSWORD")
         database = os.getenv("MYSQL_DATABASE")
-        port = os.getenv("MYSQL_PORT", 3306)
+        port = int(os.getenv("MYSQL_PORT", 3306))
 
         # Выводим значения переменных для отладки
         print(f"MYSQL_HOST: {host}")
@@ -88,36 +88,4 @@ class Database:
     def get_wallet_by_address(self, address):
         """Получает информацию о кошельке по адресу"""
         self.cursor.execute("SELECT id, address, name, tokens FROM wallets WHERE address = %s", (address,))
-        row = self.cursor.fetchone()
-        return {"id": row[0], "address": row[1], "name": row[2], "tokens": row[3]} if row else None
-
-    # ====== ФУНКЦІЇ ДЛЯ ТРАНЗАКЦІЙ ======
-
-    def add_transaction(self, tx_hash, wallet_address, token_name, usd_value):
-        """Добавляет новую транзакцию в базу данных"""
-        self.cursor.execute("INSERT IGNORE INTO transactions (tx_hash, wallet_address, token_name, usd_value) VALUES (%s, %s, %s, %s)",
-                            (tx_hash, wallet_address, token_name, usd_value))
-        self.conn.commit()
-
-    def is_transaction_exist(self, tx_hash):
-        """Проверяет, существует ли такая транзакция в базе данных"""
-        self.cursor.execute("SELECT 1 FROM transactions WHERE tx_hash = %s", (tx_hash,))
-        return self.cursor.fetchone() is not None
-
-    def get_last_transaction(self):
-        """Получает последнюю транзакцию"""
-        self.cursor.execute("SELECT tx_hash, wallet_address, token_name, usd_value, timestamp FROM transactions ORDER BY timestamp DESC LIMIT 1")
-        row = self.cursor.fetchone()
-        return {
-            "tx_hash": row[0],
-            "wallet_address": row[1],
-            "token_name": row[2],
-            "usd_value": row[3],
-            "timestamp": row[4]
-        } if row else None
-
-    def get_wallet_transactions(self, wallet_address, limit=10):
-        """Получает последние N транзакций для конкретного кошелька"""
-        self.cursor.execute("SELECT tx_hash, token_name, usd_value, timestamp FROM transactions WHERE wallet_address = %s ORDER BY timestamp DESC LIMIT %s", (wallet_address, limit))
-        rows = self.cursor.fetchall()
-        return [{"tx_hash": row[0], "token_name": row[1], "usd_value": row[2], "timestamp": row[3]} for row in rows]
+        row = self.cursor

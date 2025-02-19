@@ -8,11 +8,16 @@ from arbiscan import get_token_transactions
 from message_formatter import format_swap_message
 from database import Database
 from threads_config import TOKEN_CONFIG, DEFAULT_THREAD_ID
+from dotenv import load_dotenv
+import os
+
+# Загрузка переменных окружения
+load_dotenv()
 
 # Налаштування логування
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelень)s - %(повідомлення)s"
 )
 logger = logging.getLogger(__name__)
 
