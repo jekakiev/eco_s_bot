@@ -8,7 +8,7 @@ from threads_config import TOKEN_CONFIG
 
 db = Database()
 
-# === СОСТОЯНИЯ ДЛЯ ДОБАВЛЕНИЯ КОШЕЛЬКА ===
+# === СОСТОЯНИЯ ДЛЯ ДОБАВЛЕНИЯ И РЕДАКТИРОВАНИЯ КОШЕЛЬКА ===
 class WalletStates(StatesGroup):
     waiting_for_address = State()
     waiting_for_name = State()
@@ -36,7 +36,7 @@ def get_wallets_list():
 
     text = "📜 *Ваши кошельки:*\n\n"
     for wallet in wallets:
-        text += f"🔹 [{wallet['name'] or wallet['address'][:6] + '...'}](https://arbiscan.io/address/{wallet['address']}) - /edit_{wallet['id']}\n"
+        text += f"🔹 {wallet['name']} · {wallet['address'][:6]} /EDITw_{wallet['id']}\n"
 
     return text
 
@@ -141,6 +141,13 @@ async def process_new_wallet_name(message: types.Message, state: FSMContext):
     await state.clear()
     await message.answer(f"✅ Имя кошелька обновлено на: {new_name}", reply_markup=get_main_menu())
 
+# === РЕДАКТИРОВАНИЕ КОШЕЛЬКА ===
+async def edit_wallet(callback: types.CallbackQuery):
+    wallet_id = callback.data.split("_")[1]
+    wallet = db.get_wallet_by_id(wallet_id)
+    text = f"Имя кошелька: {wallet['name']}\nАдрес кошелька: {wallet['address']}"
+    await callback.message.edit_text(text, reply_markup=get_wallet_control_keyboard(wallet_id))
+
 # === ГЛАВНОЕ МЕНЮ ===
 async def go_home(callback: types.CallbackQuery, state: FSMContext):
     await state.clear()
@@ -157,4 +164,5 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(delete_wallet, F.data.startswith("delete_wallet_"))
     dp.callback_query.register(rename_wallet_start, F.data.startswith("rename_wallet_"))
     dp.message.register(process_new_wallet_name, WalletStates.waiting_for_new_name)
+    dp.callback_query.register(edit_wallet, F.data.startswith("EDITw_"))
     dp.callback_query.register(go_home, F.data == "home")
