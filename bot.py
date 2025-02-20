@@ -109,6 +109,9 @@ async def edit_wallet_command(message: types.Message):
     if LOG_SUCCESSFUL_TRANSACTIONS:
         logger.info(f"Получена команда: {message.text}")
     try:
+        # Добавим логирование для проверки команды
+        logger.info(f"Обработка команды: {message.text}")
+        
         short_address = message.text.split("_")[1]
         if LOG_SUCCESSFUL_TRANSACTIONS:
             logger.info(f"Получен короткий адрес: {short_address}")
