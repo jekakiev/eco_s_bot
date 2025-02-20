@@ -23,14 +23,13 @@ def get_wallets_list():
     if not wallets:
         return "📭 У вас пока нет кошельков."
 
-    builder = InlineKeyboardBuilder()
     text = "📜 *Ваши кошельки:*\n\n"
     for wallet in wallets:
-        text += f"🔹 {wallet['name']} · {wallet['address'][:6]}\n"
-        builder.button(text="Изменить", callback_data=f"EDITw_{wallet['id']}")
+        text += f"🔹 {wallet['name']} · {wallet['address'][:6]} [Изменить](callback:EDITw_{wallet['id']})\n"
 
+    builder = InlineKeyboardBuilder()
     builder.button(text="⬅️ Назад", callback_data="home")
-    builder.adjust(1)  # Располагаем кнопки в один ряд
+    builder.adjust(1)  # Располагаем кнопку в один ряд
 
     return text, builder.as_markup()
 
@@ -41,6 +40,7 @@ def get_wallet_control_keyboard(wallet_id):
     builder.button(text="🔄 Изменить монеты", callback_data=f"edit_tokens_{wallet_id}")
     builder.button(text="✏️ Переименовать", callback_data=f"rename_wallet_{wallet_id}")
     builder.button(text="⬅️ В главное меню", callback_data="home")
+    builder.adjust(2)  # Располагаем кнопки по 2 в ряд
     return builder.as_markup()
 
 # === ВЫБОР ТОКЕНОВ (2 КНОПКИ В РЯД) ===
