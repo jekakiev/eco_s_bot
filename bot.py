@@ -28,6 +28,8 @@ async def check_token_transactions():
         try:
             if LOG_SUCCESSFUL_TRANSACTIONS:
                 logger.info("🔍 Начинаем проверку новых транзакций...")
+            else:
+                logger.info("✅ Логирование успешных транзакций отключено")
 
             watched_wallets = db.get_all_wallets()  # Получаем кошельки из БД
             for wallet in watched_wallets:
@@ -45,6 +47,8 @@ async def check_token_transactions():
                         logger.warning(f"⚠️ Не найдено новых транзакций для {wallet_address}")
                     continue
 
+                # Добавим вывод значения LOG_SUCCESSFUL_TRANSACTIONS перед логированием
+                logger.info(f"LOG_SUCCESSFUL_TRANSACTIONS: {LOG_SUCCESSFUL_TRANSACTIONS}")
                 if LOG_SUCCESSFUL_TRANSACTIONS:
                     logger.info(f"✅ Отримано {len(transactions)} транзакцій. Останній хеш: {transactions[0]['hash']}")
 
