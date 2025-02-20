@@ -35,63 +35,65 @@ async def check_token_transactions():
                 wallet_name = wallet["name"]
                 transactions = get_token_transactions(wallet_address)
 
-                if LOG_TRANSACTIONS:
-                    if not isinstance(transactions, list):
-                        logger.error(f"❌ Ошибка: get_token_transactions вернула не список для {wallet_address}. Получено: {len(transactions)} транзакций")
-                        continue
+                if not isinstance(transactions, list):
+                    logger.error(f"❌ Ошибка: get_token_transactions вернула не список для {wallet_address}. Получено: {len(transactions)} транзакций")
+                    continue
 
-                    if not transactions:
-                        logger.warning(f"⚠️ Не найдено новых транзакций для {wallet_address}")
-                        continue
+                if not transactions:
+                    logger.warning(f"⚠️ Не найдено новых транзакций для {wallet_address}")
+                    continue
 
-                    latest_tx = transactions[0]  # Последняя транзакция
-                    tx_hash = latest_tx["hash"]
-                    token_out = latest_tx.get("token_out", "Неизвестно")
-                    contract_address = latest_tx.get("token_out_address", "").lower()
+                if LOG_SUCCESSFUL_TRANSACTIONS:
+                    logger.info(f"✅ Отримано {len(transactions)} транзакцій. Останній хеш: {transactions[0]['hash']}")
 
-                    if db.is_transaction_exist(tx_hash):  # Проверяем, существует ли транзакция в БД
-                        continue
+                latest_tx = transactions[0]  # Последняя транзакция
+                tx_hash = latest_tx["hash"]
+                token_out = latest_tx.get("token_out", "Неизвестно")
+                contract_address = latest_tx.get("token_out_address", "").lower()
 
-                    db.add_transaction(tx_hash, wallet_address, token_out, latest_tx.get("usd_value", "0"))
+                if db.is_transaction_exist(tx_hash):  # Проверяем, существует ли транзакция в БД
+                    continue
 
-                    thread_id = DEFAULT_THREAD_ID
-                    for token_name, config in TOKEN_CONFIG.items():
-                        if contract_address == config["contract_address"].lower():
-                            thread_id = config["thread_id"]
-                            if LOG_SUCCESSFUL_TRANSACTIONS:
-                                logger.info(f"✅ Найдено соответствие: {token_name} -> Тред {thread_id}")
-                            break
-                    else:
+                db.add_transaction(tx_hash, wallet_address, token_out, latest_tx.get("usd_value", "0"))
+
+                thread_id = DEFAULT_THREAD_ID
+                for token_name, config in TOKEN_CONFIG.items():
+                    if contract_address == config["contract_address"].lower():
+                        thread_id = config["thread_id"]
                         if LOG_SUCCESSFUL_TRANSACTIONS:
-                            logger.warning(f"⚠️ Токен {token_out} ({contract_address}) не найден в маппинге, отправляем в {DEFAULT_THREAD_ID}")
+                            logger.info(f"✅ Найдено соответствие: {token_name} -> Тред {thread_id}")
+                        break
+                else:
+                    if LOG_SUCCESSFUL_TRANSACTIONS:
+                        logger.warning(f"⚠️ Токен {token_out} ({contract_address}) не найден в маппинге, отправляем в {DEFAULT_THREAD_ID}")
 
-                    text, parse_mode = format_swap_message(
-                        tx_hash=tx_hash,
-                        sender=wallet_name,
-                        sender_url=f"https://arbiscan.io/address/{wallet_address}",
-                        amount_in=latest_tx.get("amount_in", "Неизвестно"),
-                        token_in=latest_tx.get("token_in", "Неизвестно"),
-                        token_in_url=f"https://arbiscan.io/token/{latest_tx.get('token_in_address', '')}",
-                        amount_out=latest_tx.get("amount_out", "Неизвестно"),
-                        token_out=token_out,
-                        token_out_url=f"https://arbiscan.io/token/{latest_tx.get('token_out_address', '')}",
-                        usd_value=latest_tx.get("usd_value", "Неизвестно")
+                text, parse_mode = format_swap_message(
+                    tx_hash=tx_hash,
+                    sender=wallet_name,
+                    sender_url=f"https://arbiscan.io/address/{wallet_address}",
+                    amount_in=latest_tx.get("amount_in", "Неизвестно"),
+                    token_in=latest_tx.get("token_in", "Неизвестно"),
+                    token_in_url=f"https://arbiscan.io/token/{latest_tx.get('token_in_address', '')}",
+                    amount_out=latest_tx.get("amount_out", "Неизвестно"),
+                    token_out=token_out,
+                    token_out_url=f"https://arbiscan.io/token/{latest_tx.get('token_out_address', '')}",
+                    usd_value=latest_tx.get("usd_value", "Неизвестно")
+                )
+
+                try:
+                    if LOG_SUCCESSFUL_TRANSACTIONS:
+                        logger.info(f"📩 Отправляем сообщение в тред {thread_id} для {wallet_address}...")
+                    await bot.send_message(
+                        chat_id=CHAT_ID,
+                        message_thread_id=thread_id,
+                        text=text,
+                        parse_mode=parse_mode,
+                        disable_web_page_preview=True
                     )
-
-                    try:
-                        if LOG_SUCCESSFUL_TRANSACTIONS:
-                            logger.info(f"📩 Отправляем сообщение в тред {thread_id} для {wallet_address}...")
-                        await bot.send_message(
-                            chat_id=CHAT_ID,
-                            message_thread_id=thread_id,
-                            text=text,
-                            parse_mode=parse_mode,
-                            disable_web_page_preview=True
-                        )
-                        if LOG_SUCCESSFUL_TRANSACTIONS:
-                            logger.info(f"✅ Сообщение отправлено в тред {thread_id}")
-                    except Exception as e:
-                        logger.error(f"❌ Ошибка отправки сообщения: {str(e)}")
+                    if LOG_SUCCESSFUL_TRANSACTIONS:
+                        logger.info(f"✅ Сообщение отправлено в тред {thread_id}")
+                except Exception as e:
+                    logger.error(f"❌ Ошибка отправки сообщения: {str(e)}")
 
         except Exception as e:
             logger.error(f"Произошла ошибка: {str(e)}")
