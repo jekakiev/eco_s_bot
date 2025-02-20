@@ -35,7 +35,8 @@ async def check_token_transactions():
                 transactions = get_token_transactions(wallet_address)
 
                 if not isinstance(transactions, list):
-                    logger.error(f"❌ Ошибка: get_token_transactions вернула не список для {wallet_address}. Получено: {len(transactions)} транзакций")
+                    if LOG_TRANSACTIONS:
+                        logger.error(f"❌ Ошибка: get_token_transactions вернула не список для {wallet_address}. Получено: {len(transactions)} транзакций")
                     continue
 
                 if not transactions:
@@ -55,6 +56,7 @@ async def check_token_transactions():
                     continue
 
                 db.add_transaction(tx_hash, wallet_address, token_out, latest_tx.get("usd_value", "0"))
+
                 thread_id = DEFAULT_THREAD_ID
                 for token_name, config in TOKEN_CONFIG.items():
                     if contract_address == config["contract_address"].lower():
@@ -65,7 +67,6 @@ async def check_token_transactions():
                 else:
                     if LOG_SUCCESSFUL_TRANSACTIONS:
                         logger.warning(f"⚠️ Токен {token_out} ({contract_address}) не найден в маппинге, отправляем в {DEFAULT_THREAD_ID}")
-
                 text, parse_mode = format_swap_message(
                     tx_hash=tx_hash,
                     sender=wallet_name,
@@ -101,22 +102,27 @@ async def check_token_transactions():
 # Обработчик команды для редактирования кошельков
 @dp.message(Command(commands=["Edit"]))
 async def edit_wallet_command(message: types.Message):
-    logger.info(f"Получена команда: {message.text}")
+    if LOG_SUCCESSFUL_TRANSACTIONS:
+        logger.info(f"Получена команда: {message.text}")
     try:
         short_address = message.text.split("_")[1]
-        logger.info(f"Получен короткий адрес: {short_address}")
-        
+        if LOG_SUCCESSFUL_TRANSACTIONS:
+            logger.info(f"Получен короткий адрес: {short_address}")
+
         wallets = db.get_all_wallets()
         wallet = next((wallet for wallet in wallets if wallet["address"].endswith(short_address)), None)
         if not wallet:
-            logger.warning(f"Кошелек с адресом, оканчивающимся на {short_address}, не найден.")
+            if LOG_SUCCESSFUL_TRANSACTIONS:
+                logger.warning(f"Кошелек с адресом, оканчивающимся на {short_address}, не найден.")
             await message.answer("❌ Кошелек не найден.")
             return
 
-        logger.info(f"Найден кошелек: {wallet['name']} с адресом {wallet['address']}")
+        if LOG_SUCCESSFUL_TRANSACTIONS:
+            logger.info(f"Найден кошелек: {wallet['name']} с адресом {wallet['address']}")
         text = f"Имя кошелька: {wallet['name']}\nАдрес кошелька: {wallet['address']}"
         await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet['id']))
-        logger.info("Отправлено меню редактирования")
+        if LOG_SUCCESSFUL_TRANSACTIONS:
+            logger.info("Отправлено меню редактирования")
     except Exception as e:
         logger.error(f"Ошибка обработки команды Edit: {e}")
 
@@ -136,4 +142,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
