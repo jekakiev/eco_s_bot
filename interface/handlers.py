@@ -1,4 +1,4 @@
-from aiogram import Dispatcher
+from aiogram import Dispatcher, F
 from .callbacks import (
     show_wallets, add_wallet_start, process_wallet_address, process_wallet_name,
     toggle_token, confirm_tokens, delete_wallet, rename_wallet_start, process_new_wallet_name,
