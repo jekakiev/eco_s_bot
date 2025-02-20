@@ -20,6 +20,7 @@ register_handlers(dp)
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
     await message.answer("✅ Бот запущен и мониторит транзакции!", reply_markup=get_main_menu())
+
 # Функция проверки новых транзакций
 async def check_token_transactions():
     """Проверяет новые транзакции в отслеживаемых кошельках"""
@@ -67,6 +68,7 @@ async def check_token_transactions():
                 else:
                     if LOG_SUCCESSFUL_TRANSACTIONS:
                         logger.warning(f"⚠️ Токен {token_out} ({contract_address}) не найден в маппинге, отправляем в {DEFAULT_THREAD_ID}")
+
                 text, parse_mode = format_swap_message(
                     tx_hash=tx_hash,
                     sender=wallet_name,
