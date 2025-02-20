@@ -5,7 +5,7 @@ from interface import register_handlers, get_main_menu, get_wallet_control_keybo
 from arbiscan import get_token_transactions
 from message_formatter import format_swap_message
 from database import Database
-from settings import BOT_TOKEN, CHECK_INTERVAL, CHAT_ID, LOG_TRANSACTIONS
+from settings import BOT_TOKEN, CHECK_INTERVAL, CHAT_ID, LOG_TRANSACTIONS, LOG_SUCCESSFUL_TRANSACTIONS
 from logger_config import logger
 
 # Инициализация бота, диспетчера и базы данных
@@ -26,7 +26,8 @@ async def check_token_transactions():
     """Проверяет новые транзакции в отслеживаемых кошельках"""
     while True:
         try:
-            logger.info("🔍 Начинаем проверку новых транзакций...")
+            if LOG_SUCCESSFUL_TRANSACTIONS:
+                logger.info("🔍 Начинаем проверку новых транзакций...")
 
             watched_wallets = db.get_all_wallets()  # Получаем кошельки из БД
             for wallet in watched_wallets:
@@ -57,10 +58,12 @@ async def check_token_transactions():
                     for token_name, config in TOKEN_CONFIG.items():
                         if contract_address == config["contract_address"].lower():
                             thread_id = config["thread_id"]
-                            logger.info(f"✅ Найдено соответствие: {token_name} -> Тред {thread_id}")
+                            if LOG_SUCCESSFUL_TRANSACTIONS:
+                                logger.info(f"✅ Найдено соответствие: {token_name} -> Тред {thread_id}")
                             break
                     else:
-                        logger.warning(f"⚠️ Токен {token_out} ({contract_address}) не найден в маппинге, отправляем в {DEFAULT_THREAD_ID}")
+                        if LOG_SUCCESSFUL_TRANSACTIONS:
+                            logger.warning(f"⚠️ Токен {token_out} ({contract_address}) не найден в маппинге, отправляем в {DEFAULT_THREAD_ID}")
 
                     text, parse_mode = format_swap_message(
                         tx_hash=tx_hash,
@@ -76,7 +79,8 @@ async def check_token_transactions():
                     )
 
                     try:
-                        logger.info(f"📩 Отправляем сообщение в тред {thread_id} для {wallet_address}...")
+                        if LOG_SUCCESSFUL_TRANSACTIONS:
+                            logger.info(f"📩 Отправляем сообщение в тред {thread_id} для {wallet_address}...")
                         await bot.send_message(
                             chat_id=CHAT_ID,
                             message_thread_id=thread_id,
@@ -84,7 +88,8 @@ async def check_token_transactions():
                             parse_mode=parse_mode,
                             disable_web_page_preview=True
                         )
-                        logger.info(f"✅ Сообщение отправлено в тред {thread_id}")
+                        if LOG_SUCCESSFUL_TRANSACTIONS:
+                            logger.info(f"✅ Сообщение отправлено в тред {thread_id}")
                     except Exception as e:
                         logger.error(f"❌ Ошибка отправки сообщения: {str(e)}")
 
