@@ -20,13 +20,13 @@ register_handlers(dp)
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
     await message.answer("✅ Бот запущен и мониторит транзакции!", reply_markup=get_main_menu())
-
 # Функция проверки новых транзакций
 async def check_token_transactions():
     """Проверяет новые транзакции в отслеживаемых кошельках"""
     while True:
         try:
-            logger.info("🔍 Начинаем проверку новых транзакций...")
+            if LOG_SUCCESSFUL_TRANSACTIONS:
+                logger.info("🔍 Начинаем проверку новых транзакций...")
 
             watched_wallets = db.get_all_wallets()  # Получаем кошельки из БД
             for wallet in watched_wallets:
@@ -39,10 +39,12 @@ async def check_token_transactions():
                     continue
 
                 if not transactions:
-                    logger.warning(f"⚠️ Не найдено новых транзакций для {wallet_address}")
+                    if LOG_SUCCESSFUL_TRANSACTIONS:
+                        logger.warning(f"⚠️ Не найдено новых транзакций для {wallet_address}")
                     continue
 
-                logger.info(f"✅ Отримано {len(transactions)} транзакцій. Останній хеш: {transactions[0]['hash']}")
+                if LOG_SUCCESSFUL_TRANSACTIONS:
+                    logger.info(f"✅ Отримано {len(transactions)} транзакцій. Останній хеш: {transactions[0]['hash']}")
 
                 latest_tx = transactions[0]  # Последняя транзакция
                 tx_hash = latest_tx["hash"]
@@ -53,15 +55,16 @@ async def check_token_transactions():
                     continue
 
                 db.add_transaction(tx_hash, wallet_address, token_out, latest_tx.get("usd_value", "0"))
-
                 thread_id = DEFAULT_THREAD_ID
                 for token_name, config in TOKEN_CONFIG.items():
                     if contract_address == config["contract_address"].lower():
                         thread_id = config["thread_id"]
-                        logger.info(f"✅ Найдено соответствие: {token_name} -> Тред {thread_id}")
+                        if LOG_SUCCESSFUL_TRANSACTIONS:
+                            logger.info(f"✅ Найдено соответствие: {token_name} -> Тред {thread_id}")
                         break
                 else:
-                    logger.warning(f"⚠️ Токен {token_out} ({contract_address}) не найден в маппинге, отправляем в {DEFAULT_THREAD_ID}")
+                    if LOG_SUCCESSFUL_TRANSACTIONS:
+                        logger.warning(f"⚠️ Токен {token_out} ({contract_address}) не найден в маппинге, отправляем в {DEFAULT_THREAD_ID}")
 
                 text, parse_mode = format_swap_message(
                     tx_hash=tx_hash,
@@ -75,9 +78,9 @@ async def check_token_transactions():
                     token_out_url=f"https://arbiscan.io/token/{latest_tx.get('token_out_address', '')}",
                     usd_value=latest_tx.get("usd_value", "Неизвестно")
                 )
-
                 try:
-                    logger.info(f"📩 Отправляем сообщение в тред {thread_id} для {wallet_address}...")
+                    if LOG_SUCCESSFUL_TRANSACTIONS:
+                        logger.info(f"📩 Отправляем сообщение в тред {thread_id} для {wallet_address}...")
                     await bot.send_message(
                         chat_id=CHAT_ID,
                         message_thread_id=thread_id,
@@ -85,7 +88,8 @@ async def check_token_transactions():
                         parse_mode=parse_mode,
                         disable_web_page_preview=True
                     )
-                    logger.info(f"✅ Сообщение отправлено в тред {thread_id}")
+                    if LOG_SUCCESSFUL_TRANSACTIONS:
+                        logger.info(f"✅ Сообщение отправлено в тред {thread_id}")
                 except Exception as e:
                     logger.error(f"❌ Ошибка отправки сообщения: {str(e)}")
 
@@ -132,3 +136,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
