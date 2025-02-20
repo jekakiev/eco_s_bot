@@ -3,6 +3,7 @@ from aiogram.fsm.context import FSMContext
 from .keyboards import get_main_menu, get_back_button, get_tokens_keyboard, get_wallet_control_keyboard, get_wallets_list
 from .states import WalletStates
 from database import Database
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 db = Database()
 
@@ -12,6 +13,7 @@ async def show_wallets(callback: types.CallbackQuery):
     builder.button(text="➕ Добавить кошелек", callback_data="add_wallet")
     builder.button(text="⬅️ Назад", callback_data="home")
     await callback.message.edit_text(get_wallets_list(), parse_mode="Markdown", disable_web_page_preview=True, reply_markup=builder.as_markup())
+
 
 # === ДОБАВЛЕНИЕ КОШЕЛЬКА: НАЧАЛО ===
 async def add_wallet_start(callback: types.CallbackQuery, state: FSMContext):

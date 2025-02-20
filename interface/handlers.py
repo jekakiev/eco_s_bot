@@ -1,4 +1,5 @@
 from aiogram import Dispatcher, F
+
 from .callbacks import (
     show_wallets, add_wallet_start, process_wallet_address, process_wallet_name,
     toggle_token, confirm_tokens, delete_wallet, rename_wallet_start, process_new_wallet_name,
@@ -7,7 +8,6 @@ from .callbacks import (
 from aiogram.filters import Command
 from .states import WalletStates
 
-# === РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ ===
 def register_handlers(dp: Dispatcher):
     dp.callback_query.register(show_wallets, F.data == "show_wallets")
     dp.callback_query.register(add_wallet_start, F.data == "add_wallet")
