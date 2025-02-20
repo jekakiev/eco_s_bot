@@ -95,7 +95,7 @@ async def check_token_transactions():
 # Обработчик команды для редактирования кошельков
 @dp.message(Command("Edit"))
 async def edit_wallet_command(message: types.Message):
-    short_address = message.get_args().split('_')[1]
+    short_address = message.text.split('_')[1]
     wallets = db.get_all_wallets()
     wallet = next((wallet for wallet in wallets if wallet['address'].endswith(short_address)), None)
     if not wallet:
