@@ -1,14 +1,6 @@
 import mysql.connector
 import os
 from dotenv import load_dotenv
-import logging
-
-# Налаштування логування
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelень)s - %(повідомлення)s"
-)
-logger = logging.getLogger(__name__)
 
 # Загружаем переменные окружения из файла .env
 load_dotenv()
@@ -20,13 +12,6 @@ class Database:
         password = os.getenv("MYSQL_PASSWORD")
         database = os.getenv("MYSQL_DATABASE")
         port = int(os.getenv("MYSQL_PORT", 3306))
-
-        # Логування значень перемінних оточення
-        logger.info(f"MYSQL_HOST: {host}")
-        logger.info(f"MYSQL_USER: {user}")
-        logger.info(f"MYSQL_PASSWORD: {password}")
-        logger.info(f"MYSQL_DATABASE: {database}")
-        logger.info(f"MYSQL_PORT: {port}")
 
         self.conn = mysql.connector.connect(
             host=host,
