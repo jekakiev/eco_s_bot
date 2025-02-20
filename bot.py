@@ -114,6 +114,7 @@ async def edit_wallet_command(message: types.Message):
             logger.info(f"Получен короткий адрес: {short_address}")
 
         wallets = db.get_all_wallets()
+        logger.info(f"Wallets: {wallets}")
         wallet = next((wallet for wallet in wallets if wallet["address"].endswith(short_address)), None)
         if not wallet:
             if LOG_SUCCESSFUL_TRANSACTIONS:
@@ -134,7 +135,6 @@ async def edit_wallet_command(message: types.Message):
 def register_handlers(dp: Dispatcher):
     dp.message.register(start_command, Command("start"))
     dp.message.register(edit_wallet_command, Command("Edit"))
-
 
 # Запуск бота
 async def main():
