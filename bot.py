@@ -96,7 +96,8 @@ async def check_token_transactions():
 @dp.message(Command("Edit"))
 async def edit_wallet_command(message: types.Message):
     short_address = message.get_args().split('_')[1]
-    wallet = db.get_wallet_by_short_address(short_address)
+    wallets = db.get_all_wallets()
+    wallet = next((wallet for wallet in wallets if wallet['address'].endswith(short_address)), None)
     if not wallet:
         await message.answer("❌ Кошелек не найден.")
         return
