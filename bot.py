@@ -28,8 +28,6 @@ async def check_token_transactions():
         try:
             if LOG_SUCCESSFUL_TRANSACTIONS:
                 logger.info("🔍 Начинаем проверку новых транзакций...")
-            else:
-                logger.info("✅ Логирование успешных транзакций отключено")
 
             watched_wallets = db.get_all_wallets()  # Получаем кошельки из БД
             for wallet in watched_wallets:
@@ -136,6 +134,7 @@ async def edit_wallet_command(message: types.Message):
 def register_handlers(dp: Dispatcher):
     dp.message.register(start_command, Command("start"))
     dp.message.register(edit_wallet_command, Command("Edit"))
+
 
 # Запуск бота
 async def main():
