@@ -1,5 +1,5 @@
 import requests
-import config  
+from settings import ARBISCAN_API_KEY
 
 ARBISCAN_API_URL = "https://api.arbiscan.io/api"
 
@@ -12,7 +12,7 @@ def get_token_transactions(wallet_address):
         "startblock": 0,
         "endblock": 99999999,
         "sort": "desc",
-        "apikey": config.ARBISCAN_API_KEY
+        "apikey": ARBISCAN_API_KEY
     }
 
     response = requests.get(ARBISCAN_API_URL, params=params)
