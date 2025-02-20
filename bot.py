@@ -35,7 +35,7 @@ async def check_token_transactions():
                 transactions = get_token_transactions(wallet_address)
 
                 if not isinstance(transactions, list):
-                    logger.error(f"❌ Ошибка: get_token_transactions вернула не список для {wallet_address}. Получено: {transactions}")
+                    logger.error(f"❌ Ошибка: get_token_transactions вернула не список для {wallet_address}. Получено: {len(transactions)} транзакций")
                     continue
 
                 if not transactions:
