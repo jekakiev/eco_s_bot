@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from interface import register_handlers, get_main_menu, get_wallet_control_keyboard
@@ -7,38 +6,16 @@ from arbiscan import get_token_transactions
 from message_formatter import format_swap_message
 from database import Database
 from threads_config import TOKEN_CONFIG, DEFAULT_THREAD_ID
-from dotenv import load_dotenv
-import os
-
-# Загрузка переменных окружения
-load_dotenv()
-
-# Настройка логирования
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
-
-# Логирование загрузки переменных окружения
-logger.info("Загрузка переменных окружения:")
-logger.info(f"MYSQL_HOST: {os.getenv('MYSQL_HOST')}")
-logger.info(f"MYSQL_USER: {os.getenv('MYSQL_USER')}")
-logger.info(f"MYSQL_PASSWORD: {os.getenv('MYSQL_PASSWORD')}")
-logger.info(f"MYSQL_DATABASE: {os.getenv('MYSQL_DATABASE')}")
-logger.info(f"MYSQL_PORT: {os.getenv('MYSQL_PORT', 3306)}")
+from settings import BOT_TOKEN, CHECK_INTERVAL, CHAT_ID
+from logger_config import logger
 
 # Инициализация бота, диспетчера и базы данных
-bot = Bot(token=os.getenv("BOT_TOKEN"))
+bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 db = Database()
 
 # Регистрация хендлеров
 register_handlers(dp)
-
-# Настройки
-CHECK_INTERVAL = 2  # Проверка каждые 2 секунды
-CHAT_ID = -1002458140371  # Chat ID группы
 
 # Обработчик команды /start (главное меню)
 @dp.message(Command("start"))
