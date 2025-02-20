@@ -83,7 +83,7 @@ async def process_new_wallet_name(message: types.Message, state: FSMContext):
 
 # === РЕДАКТИРОВАНИЕ КОШЕЛЬКА ===
 async def edit_wallet(callback: types.CallbackQuery):
-    wallet_id = callback.data.split("_")[1]
+    wallet_id = callback.data.split("_")[2]
     wallet = db.get_wallet_by_id(wallet_id)
     text = f"Имя кошелька: {wallet['name']}\nАдрес кошелька: {wallet['address']}"
     await callback.message.edit_text(text, reply_markup=get_wallet_control_keyboard(wallet_id))
