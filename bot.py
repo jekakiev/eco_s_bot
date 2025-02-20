@@ -1,7 +1,7 @@
 import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
-from interface import register_handlers, get_main_menu, get_wallet_control_keyboard
+from interface import register_handlers, get_main_menu
 from arbiscan import get_token_transactions
 from message_formatter import format_swap_message
 from database import Database
