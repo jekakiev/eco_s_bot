@@ -9,6 +9,7 @@ from .states import WalletStates
 from database import Database
 from logger_config import logger
 from interface import get_wallet_control_keyboard
+from settings import LOG_SUCCESSFUL_TRANSACTIONS  # Добавим импорт настройки логирования
 
 db = Database()
 
@@ -29,30 +30,30 @@ def register_handlers(dp: Dispatcher):
 
 # Обработчик команды для редактирования кошельков
 async def edit_wallet_command(message: types.Message):
-    if LOG_SUCCESSFUL_TRANSACTIONS:
-        logger.info(f"Получена команда: {message.text}")
+    logger.info(f"Получена команда: {message.text}")
     try:
         # Добавим логирование для проверки команды
         logger.info(f"Обработка команды: {message.text}")
         
+        if "_" not in message.text:
+            logger.warning("Команда не содержит символа '_'")
+            await message.answer("❌ Неверный формат команды.")
+            return
+        
         short_address = message.text.split("_")[1]
-        if LOG_SUCCESSFUL_TRANSACTIONS:
-            logger.info(f"Получен короткий адрес: {short_address}")
+        logger.info(f"Получен короткий адрес: {short_address}")
 
         wallets = db.get_all_wallets()
         logger.info(f"Wallets: {wallets}")
         wallet = next((wallet for wallet in wallets if wallet["address"].endswith(short_address)), None)
         if not wallet:
-            if LOG_SUCCESSFUL_TRANSACTIONS:
-                logger.warning(f"Кошелек с адресом, оканчивающимся на {short_address}, не найден.")
+            logger.warning(f"Кошелек с адресом, оканчивающимся на {short_address}, не найден.")
             await message.answer("❌ Кошелек не найден.")
             return
 
-        if LOG_SUCCESSFUL_TRANSACTIONS:
-            logger.info(f"Найден кошелек: {wallet['name']} с адресом {wallet['address']}")
+        logger.info(f"Найден кошелек: {wallet['name']} с адресом {wallet['address']}")
         text = f"Имя кошелька: {wallet['name']}\nАдрес кошелька: {wallet['address']}"
         await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet['id']))
-        if LOG_SUCCESSFUL_TRANSACTIONS:
-            logger.info("Отправлено меню редактирования")
+        logger.info("Отправлено меню редактирования")
     except Exception as e:
         logger.error(f"Ошибка обработки команды Edit: {e}")
