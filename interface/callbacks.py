@@ -1,6 +1,6 @@
 from aiogram import types
 from aiogram.fsm.context import FSMContext
-from .keyboards import get_main_menu, get_back_button, get_tokens_keyboard, get_wallet_control_keyboard
+from .keyboards import get_main_menu, get_back_button, get_tokens_keyboard, get_wallet_control_keyboard, get_wallets_list
 from .states import WalletStates
 from database import Database
 
