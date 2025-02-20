@@ -40,7 +40,8 @@ async def check_token_transactions():
                     continue
 
                 if not transactions:
-                    logger.warning(f"⚠️ Не найдено новых транзакций для {wallet_address}")
+                    if LOG_SUCCESSFUL_TRANSACTIONS:
+                        logger.warning(f"⚠️ Не найдено новых транзакций для {wallet_address}")
                     continue
 
                 if LOG_SUCCESSFUL_TRANSACTIONS:
