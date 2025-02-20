@@ -28,7 +28,7 @@ class TransactionsFilter(logging.Filter):
 # Фильтр для отключения логов успешных транзакций
 class SuccessfulTransactionsFilter(logging.Filter):
     def filter(self, record):
-        if not LOG_SUCCESSFUL_TRANSACTIONS and ("Отримано" in record.getMessage() or "Найдено соответствие" in record.getMessage() или "Сообщение отправлено" in record.getMessage()):
+        if not LOG_SUCCESSFUL_TRANSACTIONS and ("Отримано" in record.getMessage() or "Найдено соответствие" in record.getMessage() or "Сообщение отправлено" in record.getMessage()):
             return False
         return True
 
