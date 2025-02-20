@@ -10,13 +10,17 @@ ARBISCAN_API_KEY = os.getenv("ARBISCAN_API_KEY", "5RT7WXVN4JQWWREGG584UXVCA3E7J5
 ADMIN_ID = int(os.getenv("ADMIN_ID", 123456789))
 
 # Настройки
-CHECK_INTERVAL = 2  # Проверка каждые 2 секунды
+CHECK_INTERVAL = 10  # Проверка каждые 2 секунды
 CHAT_ID = -1002458140371  # Chat ID группы
 
 # Другие настройки...
 
 # Настройка для включения/выключения логов о транзакциях
-LOG_TRANSACTIONS = 0  # 1 - включить логирование, 0 - отключить логирование
+LOG_TRANSACTIONS = int(os.getenv("LOG_TRANSACTIONS", "0"))  # 1 - включить логирование, 0 - отключить логирование
 
 # Настройка для включения/выключения логов успешных запросов
-LOG_SUCCESSFUL_TRANSACTIONS = 0  
+LOG_SUCCESSFUL_TRANSACTIONS = int(os.getenv("LOG_SUCCESSFUL_TRANSACTIONS", "0"))
+
+# Проверка значений переменных
+print(f"LOG_TRANSACTIONS: {LOG_TRANSACTIONS}")
+print(f"LOG_SUCCESSFUL_TRANSACTIONS: {LOG_SUCCESSFUL_TRANSACTIONS}")

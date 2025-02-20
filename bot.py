@@ -5,7 +5,7 @@ from interface import register_handlers, get_main_menu, get_wallet_control_keybo
 from arbiscan import get_token_transactions
 from message_formatter import format_swap_message
 from database import Database
-from settings import BOT_TOKEN, CHECK_INTERVAL, CHAT_ID
+from settings import BOT_TOKEN, CHECK_INTERVAL, CHAT_ID, LOG_TRANSACTIONS, LOG_SUCCESSFUL_TRANSACTIONS
 from logger_config import logger
 
 # Инициализация бота, диспетчера и базы данных
