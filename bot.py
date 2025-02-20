@@ -96,20 +96,23 @@ async def check_token_transactions():
 @dp.message(Command(commands=["Edit"]))
 async def edit_wallet_command(message: types.Message):
     logger.info(f"Получена команда: {message.text}")
-    short_address = message.text.split("_")[1]
-    logger.info(f"Получен короткий адрес: {short_address}")
-    
-    wallets = db.get_all_wallets()
-    wallet = next((wallet for wallet in wallets if wallet["address"].endswith(short_address)), None)
-    if not wallet:
-        logger.warning(f"Кошелек с адресом, оканчивающимся на {short_address}, не найден.")
-        await message.answer("❌ Кошелек не найден.")
-        return
+    try:
+        short_address = message.text.split("_")[1]
+        logger.info(f"Получен короткий адрес: {short_address}")
+        
+        wallets = db.get_all_wallets()
+        wallet = next((wallet for wallet in wallets if wallet["address"].endswith(short_address)), None)
+        if not wallet:
+            logger.warning(f"Кошелек с адресом, оканчивающимся на {short_address}, не найден.")
+            await message.answer("❌ Кошелек не найден.")
+            return
 
-    logger.info(f"Найден кошелек: {wallet['name']} с адресом {wallet['address']}")
-    text = f"Имя кошелька: {wallet['name']}\nАдрес кошелька: {wallet['address']}"
-    await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet['id']))
-    logger.info("Отправлено меню редактирования")
+        logger.info(f"Найден кошелек: {wallet['name']} с адресом {wallet['address']}")
+        text = f"Имя кошелька: {wallet['name']}\nАдрес кошелька: {wallet['address']}"
+        await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet['id']))
+        logger.info("Отправлено меню редактирования")
+    except Exception as e:
+        logger.error(f"Ошибка обработки команды Edit: {e}")
 
 # Функция для регистрации обработчиков команд и сообщений
 def register_handlers(dp: Dispatcher):
