@@ -1,120 +1,63 @@
-import asyncio
-from aiogram import Bot, Dispatcher, types
+from aiogram import Dispatcher, F, types
+from .callbacks import (
+    show_wallets, add_wallet_start, process_wallet_address, process_wallet_name,
+    toggle_token, confirm_tokens, delete_wallet, rename_wallet_start, process_new_wallet_name,
+    edit_wallet, go_home
+)
 from aiogram.filters import Command
-from interface import register_handlers, get_main_menu
-from arbiscan import get_token_transactions
-from message_formatter import format_swap_message
+from .states import WalletStates
 from database import Database
-from settings import BOT_TOKEN, CHECK_INTERVAL, CHAT_ID, LOG_TRANSACTIONS, LOG_SUCCESSFUL_TRANSACTIONS
 from logger_config import logger
+from interface import get_wallet_control_keyboard
+from settings import LOG_SUCCESSFUL_TRANSACTIONS
 
-# Инициализация бота, диспетчера и базы данных
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
 db = Database()
 
-# Регистрация хендлеров
-register_handlers(dp)
-
-# Обработчик команды /start (главное меню)
-@dp.message(Command("start"))
-async def start_command(message: types.Message):
-    await message.answer("✅ Бот запущен и мониторит транзакции!", reply_markup=get_main_menu())
-
-# Функция проверки новых транзакций
-async def check_token_transactions():
-    """Проверяет новые транзакции в отслеживаемых кошельках"""
-    while True:
-        try:
-            if LOG_SUCCESSFUL_TRANSACTIONS:
-                logger.info("🔍 Начинаем проверку новых транзакций...")
-
-            watched_wallets = db.get_all_wallets()  # Получаем кошельки из БД
-            for wallet in watched_wallets:
-                wallet_address = wallet["address"]
-                wallet_name = wallet["name"]
-                transactions = get_token_transactions(wallet_address)
-
-                if not isinstance(transactions, list):
-                    if LOG_TRANSACTIONS:
-                        logger.error(f"❌ Ошибка: get_token_transactions вернула не список для {wallet_address}. Получено: {len(transactions)} транзакций")
-                    continue
-
-                if not transactions:
-                    if LOG_SUCCESSFUL_TRANSACTIONS:
-                        logger.warning(f"⚠️ Не найдено новых транзакций для {wallet_address}")
-                    continue
-
-                # Добавим вывод значения LOG_SUCCESSFUL_TRANSACTIONS перед логированием
-                logger.info(f"LOG_SUCCESSFUL_TRANSACTIONS: {LOG_SUCCESSFUL_TRANSACTIONS}")
-                if LOG_SUCCESSFUL_TRANSACTIONS:
-                    logger.info(f"✅ Отримано {len(transactions)} транзакцій. Останній хеш: {transactions[0]['hash']}")
-
-                latest_tx = transactions[0]  # Последняя транзакция
-                tx_hash = latest_tx["hash"]
-                token_out = latest_tx.get("token_out", "Неизвестно")
-                contract_address = latest_tx.get("token_out_address", "").lower()
-
-                if db.is_transaction_exist(tx_hash):  # Проверяем, существует ли транзакция в БД
-                    continue
-
-                db.add_transaction(tx_hash, wallet_address, token_out, latest_tx.get("usd_value", "0"))
-
-                thread_id = DEFAULT_THREAD_ID
-                for token_name, config in TOKEN_CONFIG.items():
-                    if contract_address == config["contract_address"].lower():
-                        thread_id = config["thread_id"]
-                        if LOG_SUCCESSFUL_TRANSACTIONS:
-                            logger.info(f"✅ Найдено соответствие: {token_name} -> Тред {thread_id}")
-                        break
-                else:
-                    if LOG_SUCCESSFUL_TRANSACTIONS:
-                        logger.warning(f"⚠️ Токен {token_out} ({contract_address}) не найден в маппинге, отправляем в {DEFAULT_THREAD_ID}")
-
-                text, parse_mode = format_swap_message(
-                    tx_hash=tx_hash,
-                    sender=wallet_name,
-                    sender_url=f"https://arbiscan.io/address/{wallet_address}",
-                    amount_in=latest_tx.get("amount_in", "Неизвестно"),
-                    token_in=latest_tx.get("token_in", "Неизвестно"),
-                    token_in_url=f"https://arbiscan.io/token/{latest_tx.get('token_in_address', '')}",
-                    amount_out=latest_tx.get("amount_out", "Неизвестно"),
-                    token_out=token_out,
-                    token_out_url=f"https://arbiscan.io/token/{latest_tx.get('token_out_address', '')}",
-                    usd_value=latest_tx.get("usd_value", "Неизвестно")
-                )
-                try:
-                    if LOG_SUCCESSFUL_TRANSACTIONS:
-                        logger.info(f"📩 Отправляем сообщение в тред {thread_id} для {wallet_address}...")
-                    await bot.send_message(
-                        chat_id=CHAT_ID,
-                        message_thread_id=thread_id,
-                        text=text,
-                        parse_mode=parse_mode,
-                        disable_web_page_preview=True
-                    )
-                    if LOG_SUCCESSFUL_TRANSACTIONS:
-                        logger.info(f"✅ Сообщение отправлено в тред {thread_id}")
-                except Exception as e:
-                    logger.error(f"❌ Ошибка отправки сообщения: {str(e)}")
-
-        except Exception as e:
-            logger.error(f"Произошла ошибка: {str(e)}")
-
-        await asyncio.sleep(CHECK_INTERVAL)  # Ждем перед следующей проверкой
-
-# Функция для регистрации обработчиков команд и сообщений
+# === РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ ===
 def register_handlers(dp: Dispatcher):
-    dp.message.register(start_command, Command("start"))
+    dp.callback_query.register(show_wallets, F.data == "show_wallets")
+    dp.callback_query.register(add_wallet_start, F.data == "add_wallet")
+    dp.message.register(process_wallet_address, WalletStates.waiting_for_address)
+    dp.message.register(process_wallet_name, WalletStates.waiting_for_name)
+    dp.callback_query.register(toggle_token, F.data.startswith("toggle_token_"))
+    dp.callback_query.register(confirm_tokens, F.data == "confirm_tokens")
+    dp.callback_query.register(delete_wallet, F.data.startswith("delete_wallet_"))
+    dp.callback_query.register(rename_wallet_start, F.data.startswith("rename_wallet_"))
+    dp.message.register(process_new_wallet_name, WalletStates.waiting_for_new_name)
+    dp.callback_query.register(edit_wallet, F.data.startswith("EDITw_"))
+    dp.callback_query.register(go_home, F.data == "home")
+    dp.message.register(edit_wallet_command, Command("Edit"))  # Добавляем регистрацию команды Edit
 
-# Запуск бота
-async def main():
+# Обработчик команды для редактирования кошельков
+async def edit_wallet_command(message: types.Message):
+    logger.info(f"Получена команда: {message.text}")
     try:
-        logger.info("🚀 Бот запущен и ждет новые транзакции!")
-        asyncio.create_task(check_token_transactions())  # Запускаем мониторинг транзакций
-        await dp.start_polling(bot)
-    except Exception as e:
-        logger.error(f"Ошибка запуска бота: {e}")
+        # Проверка формата команды
+        if "_" not in message.text:
+            logger.warning("Команда не содержит символа '_'")
+            await message.answer("❌ Неверный формат команды.")
+            return
+        
+        # Извлечение короткого адреса
+        short_address = message.text.split("_")[1]
+        logger.info(f"Получен короткий адрес: {short_address}")
 
-if __name__ == "__main__":
-    asyncio.run(main())
+        # Получение всех кошельков из базы данных
+        wallets = db.get_all_wallets()
+        logger.info(f"Wallets: {wallets}")
+
+        # Поиск кошелька по короткому адресу
+        wallet = next((wallet for wallet in wallets if wallet["address"].endswith(short_address)), None)
+        if not wallet:
+            logger.warning(f"Кошелек с адресом, оканчивающимся на {short_address}, не найден.")
+            await message.answer("❌ Кошелек не найден.")
+            return
+
+        # Отправка информации о кошельке и клавиатуры для управления
+        logger.info(f"Найден кошелек: {wallet['name']} с адресом {wallet['address']}")
+        text = f"Имя кошелька: {wallet['name']}\nАдрес кошелька: {wallet['address']}"
+        await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet['id']))
+        logger.info("Отправлено меню редактирования")
+    except Exception as e:
+        logger.error(f"Ошибка обработки команды Edit: {e}")
+        await message.answer("❌ Произошла ошибка при обработке команды.")
