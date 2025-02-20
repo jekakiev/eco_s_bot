@@ -19,4 +19,4 @@ CHAT_ID = -1002458140371  # Chat ID группы
 LOG_TRANSACTIONS = 0  # 1 - включить логирование, 0 - отключить логирование
 
 # Настройка для включения/выключения логов успешных запросов
-LOG_SUCCESSFUL_TRANSACTIONS = 1  
+LOG_SUCCESSFUL_TRANSACTIONS = 0  
