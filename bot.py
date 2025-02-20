@@ -21,15 +21,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Логирование загрузки переменных окружения
-try:
-    logger.info("Загрузка переменных окружения:")
-    logger.info(f"MYSQL_HOST: {os.getenv('MYSQL_HOST')}")
-    logger.info(f"MYSQL_USER: {os.getenv('MYSQL_USER')}")
-    logger.info(f"MYSQL_PASSWORD: {os.getenv('MYSQL_PASSWORD')}")
-    logger.info(f"MYSQL_DATABASE: {os.getenv('MYSQL_DATABASE')}")
-    logger.info(f"MYSQL_PORT: {os.getenv('MYSQL_PORT', 3306)}")
-except Exception as e:
-    print(f"Ошибка логирования: {e}")
+logger.info("Загрузка переменных окружения:")
+logger.info(f"MYSQL_HOST: {os.getenv('MYSQL_HOST')}")
+logger.info(f"MYSQL_USER: {os.getenv('MYSQL_USER')}")
+logger.info(f"MYSQL_PASSWORD: {os.getenv('MYSQL_PASSWORD')}")
+logger.info(f"MYSQL_DATABASE: {os.getenv('MYSQL_DATABASE')}")
+logger.info(f"MYSQL_PORT: {os.getenv('MYSQL_PORT', 3306)}")
 
 # Инициализация бота, диспетчера и базы данных
 bot = Bot(token=os.getenv("BOT_TOKEN"))
@@ -135,8 +132,6 @@ async def edit_wallet_command(message: types.Message):
 def register_handlers(dp: Dispatcher):
     dp.message.register(start_command, Command("start"))
     dp.message.register(edit_wallet_command, Command("EDITw"))
-
-# Запуск бота
 
 # Запуск бота
 async def main():
