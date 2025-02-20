@@ -20,3 +20,4 @@ def register_handlers(dp: Dispatcher):
     dp.message.register(process_new_wallet_name, WalletStates.waiting_for_new_name)
     dp.callback_query.register(edit_wallet, F.data.startswith("EDITw_"))
     dp.callback_query.register(go_home, F.data == "home")
+    dp.message.register(edit_wallet_command, Command("Edit"))  # Добавляем регистрацию команды Edit

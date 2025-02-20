@@ -146,7 +146,7 @@ async def main():
         asyncio.create_task(check_token_transactions())  # Запускаем мониторинг транзакций
         await dp.start_polling(bot)
     except Exception as e:
-        print(f"Ошибка запуска бота: {e}")
+        logger.error(f"Ошибка запуска бота: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())
