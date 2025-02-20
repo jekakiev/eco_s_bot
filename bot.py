@@ -103,41 +103,9 @@ async def check_token_transactions():
 
         await asyncio.sleep(CHECK_INTERVAL)  # Ждем перед следующей проверкой
 
-# Обработчик команды для редактирования кошельков
-@dp.message(Command(commands=["Edit"]))
-async def edit_wallet_command(message: types.Message):
-    if LOG_SUCCESSFUL_TRANSACTIONS:
-        logger.info(f"Получена команда: {message.text}")
-    try:
-        # Добавим логирование для проверки команды
-        logger.info(f"Обработка команды: {message.text}")
-        
-        short_address = message.text.split("_")[1]
-        if LOG_SUCCESSFUL_TRANSACTIONS:
-            logger.info(f"Получен короткий адрес: {short_address}")
-
-        wallets = db.get_all_wallets()
-        logger.info(f"Wallets: {wallets}")
-        wallet = next((wallet for wallet in wallets if wallet["address"].endswith(short_address)), None)
-        if not wallet:
-            if LOG_SUCCESSFUL_TRANSACTIONS:
-                logger.warning(f"Кошелек с адресом, оканчивающимся на {short_address}, не найден.")
-            await message.answer("❌ Кошелек не найден.")
-            return
-
-        if LOG_SUCCESSFUL_TRANSACTIONS:
-            logger.info(f"Найден кошелек: {wallet['name']} с адресом {wallet['address']}")
-        text = f"Имя кошелька: {wallet['name']}\nАдрес кошелька: {wallet['address']}"
-        await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet['id']))
-        if LOG_SUCCESSFUL_TRANSACTIONS:
-            logger.info("Отправлено меню редактирования")
-    except Exception as e:
-        logger.error(f"Ошибка обработки команды Edit: {e}")
-
 # Функция для регистрации обработчиков команд и сообщений
 def register_handlers(dp: Dispatcher):
     dp.message.register(start_command, Command("start"))
-    dp.message.register(edit_wallet_command, Command("Edit"))
 
 # Запуск бота
 async def main():

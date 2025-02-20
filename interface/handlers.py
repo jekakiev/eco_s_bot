@@ -1,4 +1,4 @@
-from aiogram import Dispatcher, F
+from aiogram import Dispatcher, F, types
 from .callbacks import (
     show_wallets, add_wallet_start, process_wallet_address, process_wallet_name,
     toggle_token, confirm_tokens, delete_wallet, rename_wallet_start, process_new_wallet_name,
@@ -6,6 +6,11 @@ from .callbacks import (
 )
 from aiogram.filters import Command
 from .states import WalletStates
+from database import Database
+from logger_config import logger
+from interface import get_wallet_control_keyboard
+
+db = Database()
 
 # === РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ ===
 def register_handlers(dp: Dispatcher):
@@ -21,3 +26,33 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(edit_wallet, F.data.startswith("EDITw_"))
     dp.callback_query.register(go_home, F.data == "home")
     dp.message.register(edit_wallet_command, Command("Edit"))  # Добавляем регистрацию команды Edit
+
+# Обработчик команды для редактирования кошельков
+async def edit_wallet_command(message: types.Message):
+    if LOG_SUCCESSFUL_TRANSACTIONS:
+        logger.info(f"Получена команда: {message.text}")
+    try:
+        # Добавим логирование для проверки команды
+        logger.info(f"Обработка команды: {message.text}")
+        
+        short_address = message.text.split("_")[1]
+        if LOG_SUCCESSFUL_TRANSACTIONS:
+            logger.info(f"Получен короткий адрес: {short_address}")
+
+        wallets = db.get_all_wallets()
+        logger.info(f"Wallets: {wallets}")
+        wallet = next((wallet for wallet in wallets if wallet["address"].endswith(short_address)), None)
+        if not wallet:
+            if LOG_SUCCESSFUL_TRANSACTIONS:
+                logger.warning(f"Кошелек с адресом, оканчивающимся на {short_address}, не найден.")
+            await message.answer("❌ Кошелек не найден.")
+            return
+
+        if LOG_SUCCESSFUL_TRANSACTIONS:
+            logger.info(f"Найден кошелек: {wallet['name']} с адресом {wallet['address']}")
+        text = f"Имя кошелька: {wallet['name']}\nАдрес кошелька: {wallet['address']}"
+        await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet['id']))
+        if LOG_SUCCESSFUL_TRANSACTIONS:
+            logger.info("Отправлено меню редактирования")
+    except Exception as e:
+        logger.error(f"Ошибка обработки команды Edit: {e}")
