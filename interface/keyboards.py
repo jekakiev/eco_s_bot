@@ -25,7 +25,8 @@ def get_wallets_list():
 
     text = "📜 *Ваши кошельки:*\n\n"
     for wallet in wallets:
-        text += f"🔹 {wallet['name']} · {wallet['address'][:6]} [Изменить](callback:EDITw_{wallet['id']})\n"
+        short_address = wallet['address'][-4:]
+        text += f"🔹 {wallet['name']} · [Изменить](callback:EDITw_{short_address})\n"
 
     builder = InlineKeyboardBuilder()
     builder.button(text="⬅️ Назад", callback_data="home")
