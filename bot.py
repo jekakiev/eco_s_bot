@@ -5,7 +5,6 @@ from interface import register_handlers, get_main_menu, get_wallet_control_keybo
 from arbiscan import get_token_transactions
 from message_formatter import format_swap_message
 from database import Database
-from threads_config import TOKEN_CONFIG, DEFAULT_THREAD_ID
 from settings import BOT_TOKEN, CHECK_INTERVAL, CHAT_ID
 from logger_config import logger
 
@@ -94,21 +93,21 @@ async def check_token_transactions():
         await asyncio.sleep(CHECK_INTERVAL)  # Ждем перед следующей проверкой
 
 # Обработчик команды для редактирования кошельков
-@dp.message(Command("EDITw"))
+@dp.message(Command("Edit"))
 async def edit_wallet_command(message: types.Message):
-    wallet_id = int(message.get_args().split('_')[1])
-    wallet = db.get_wallet_by_id(wallet_id)
+    short_address = message.get_args().split('_')[1]
+    wallet = db.get_wallet_by_short_address(short_address)
     if not wallet:
         await message.answer("❌ Кошелек не найден.")
         return
 
     text = f"Имя кошелька: {wallet['name']}\nАдрес кошелька: {wallet['address']}"
-    await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet_id))
+    await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet['id']))
 
 # Функция для регистрации обработчиков команд и сообщений
 def register_handlers(dp: Dispatcher):
     dp.message.register(start_command, Command("start"))
-    dp.message.register(edit_wallet_command, Command("EDITw"))
+    dp.message.register(edit_wallet_command, Command("Edit"))
 
 # Запуск бота
 async def main():
