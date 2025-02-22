@@ -267,6 +267,11 @@ async def toggle_log_setting(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Нажата кнопка переключения логов: {callback.data}")
     setting_name = callback.data.split("_")[1]
     current_value = db.get_setting(setting_name)
+    if current_value is None:
+        current_value = "0"  # Дефолтное значение, если настройка отсутствует
+        db.update_setting(setting_name, current_value)
+        logger.warning(f"Настройка {setting_name} не найдена в базе, установлено значение по умолчанию: {current_value}")
+    
     new_value = "1" if int(current_value) == 0 else "0"
     db.update_setting(setting_name, new_value)
     text, reply_markup = get_settings_list()

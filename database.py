@@ -65,11 +65,11 @@ class Database:
             ("LOG_SUCCESSFUL_TRANSACTIONS", "0")
         ]
         for name, value in defaults:
-            cursor.execute("INSERT IGNORE INTO bot_settings (setting_name, setting_value) VALUES (%s, %s)", (name, value))
+            cursor.execute("INSERT INTO bot_settings (setting_name, setting_value) VALUES (%s, %s) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)", (name, value))
         conn.commit()
 
     # ====== ФУНКЦІЇ ДЛЯ ГАМАНЦІВ ======
-    def add_wallet(self, address, name="Невідомий", tokens=""):
+    def add_wallet(self, address, name="Невідомый", tokens=""):
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute("INSERT IGNORE INTO wallets (address, name, tokens) VALUES (%s, %s, %s)", (address, name, tokens))
