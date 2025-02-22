@@ -341,3 +341,54 @@ class Database:
         finally:
             cursor.close()
             conn.close()
+
+    # ====== ФУНКЦІЇ ДЛЯ НАСТРОЄК ======
+    def get_all_settings(self):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT setting_name, setting_value FROM bot_settings")
+            settings = {row[0]: row[1] for row in cursor.fetchall()}
+            logger.debug(f"Получены настройки из базы: {settings}")
+            return settings
+        except mysql.connector.Error as e:
+            logger.error(f"Ошибка при получении настроек: {str(e)}")
+            return {}
+        finally:
+            cursor.close()
+            conn.close()
+
+    def get_setting(self, setting_name):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT setting_value FROM bot_settings WHERE setting_name = %s", (setting_name,))
+            result = cursor.fetchone()
+            logger.debug(f"Получено значение настройки {setting_name}: {result[0] if result else None}")
+            return result[0] if result else None
+        except mysql.connector.Error as e:
+            logger.error(f"Ошибка при получении настройки {setting_name}: {str(e)}")
+            return None
+        finally:
+            cursor.close()
+            conn.close()
+
+    def update_setting(self, setting_name, setting_value):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("INSERT INTO bot_settings (setting_name, setting_value) VALUES (%s, %s) "
+                          "ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)", (setting_name, setting_value))
+            conn.commit()
+            logger.info(f"Настройка {setting_name} обновлена на: {setting_value}")
+        except mysql.connector.Error as e:
+            logger.error(f"Ошибка при обновлении настройки {setting_name}: {str(e)}")
+            conn.rollback()
+        finally:
+            cursor.close()
+            conn.close()
+
+    def close(self):
+        # Метод для закрытия подключения (если нужно вручную закрыть)
+        if hasattr(self, 'conn') and self.conn:
+            self.conn.close()
