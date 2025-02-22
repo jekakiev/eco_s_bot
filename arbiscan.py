@@ -56,13 +56,13 @@ def get_token_transactions(wallet_addresses):
                     all_transactions[wallet_address] = []
                 all_transactions[wallet_address].append({
                     "tx_hash": tx.get("hash"),
-                    "token_in": tx.get("tokenSymbol", "Unknown"),  # Может быть неверное поле, проверим в логе
+                    "token_in": tx.get("tokenSymbol", "Unknown"),  # Проверяем поле
                     "token_in_address": tx.get("contractAddress", ""),
-                    "amount_in": tx.get("value", "0"),  # Может быть в wei, нужно конвертировать
-                    "token_out": tx.get("tokenSymbol", "Unknown"),  # Может быть неверное поле, проверим в логе
+                    "amount_in": tx.get("value", "0"),  # В wei, нужно конвертировать
+                    "token_out": tx.get("tokenSymbol", "Unknown"),  # Проверяем поле
                     "token_out_address": tx.get("contractAddress", ""),
-                    "amount_out": tx.get("value", "0"),  # Может быть в wei, нужно конвертировать
-                    "usd_value": tx.get("valueUSD", "0")  # Может быть отсутствует, проверим в логе
+                    "amount_out": tx.get("value", "0"),  # В wei, нужно конвертировать
+                    "usd_value": tx.get("valueUSD", "0")  # Может отсутствовать, проверяем в логе
                 })
 
             logger.info(f"Успешно получены транзакции для {len(chunk_addresses)} адресов: {chunk_addresses}")
