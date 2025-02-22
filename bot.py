@@ -7,15 +7,14 @@ from message_formatter import format_swap_message
 from database import Database
 from settings import BOT_TOKEN, CHECK_INTERVAL, CHAT_ID, LOG_TRANSACTIONS, LOG_SUCCESSFUL_TRANSACTIONS
 from logger_config import logger
-from threads_config import DEFAULT_THREAD_ID, TOKEN_CONFIG
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 db = Database()
 
 logger.info("Статус логов при запуске бота:")
-logger.info(f"- Логи транзакций: {'Включены' if LOG_TRANSACTIONS else 'Выключены'} (LOG_TRANSACTIONS = {LOG_TRANSACTIONS})")
-logger.info(f"- Логи успешных транзакций: {'Включены' if LOG_SUCCESSFUL_TRANSACTIONS else 'Выключены'} (LOG_SUCCESSFUL_TRANSACTIONS = {LOG_SUCCESSFUL_TRANSACTIONS})")
+logger.info(f"- Логи транзакций: {'Включены' if LOG_TRANSACTIONS else 'Выключены'}")
+logger.info(f"- Логи успешных транзакций: {'Включены' if LOG_SUCCESSFUL_TRANSACTIONS else 'Выключены'}")
 
 register_handlers(dp)
 
@@ -23,19 +22,24 @@ register_handlers(dp)
 async def start_command(message: types.Message):
     await message.answer("✅ Бот запущен и мониторит транзакции!", reply_markup=get_main_menu())
 
+@dp.message(Command("get_thread_id"))
+async def get_thread_id_command(message: types.Message):
+    thread_id = message.message_thread_id if message.is_topic_message else "Нет треда (основной чат)"
+    await message.answer(f"ID текущего треда: `{thread_id}`", parse_mode="Markdown")
+
 async def check_token_transactions():
     while True:
         try:
             watched_wallets = db.get_all_wallets()
+            tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}
+            default_thread_id = 60
+
             for wallet in watched_wallets:
                 wallet_address = wallet["address"]
                 wallet_name = wallet["name"]
                 transactions = get_token_transactions(wallet_address)
 
-                if not isinstance(transactions, dict):
-                    continue
-
-                if not transactions:
+                if not isinstance(transactions, dict) or not transactions:
                     continue
 
                 for tx_hash, tx_list in transactions.items():
@@ -48,11 +52,9 @@ async def check_token_transactions():
 
                     db.add_transaction(tx_hash, wallet_address, token_out, latest_tx.get("usd_value", "0"))
 
-                    thread_id = DEFAULT_THREAD_ID
-                    for token_name, config in TOKEN_CONFIG.items():
-                        if contract_address == config["contract_address"].lower():
-                            thread_id = config["thread_id"]
-                            break
+                    thread_id = default_thread_id
+                    if contract_address in tracked_tokens:
+                        thread_id = tracked_tokens[contract_address]["thread_id"]
 
                     text, parse_mode = format_swap_message(
                         tx_hash=tx_hash,

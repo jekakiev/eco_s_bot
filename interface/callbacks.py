@@ -1,9 +1,15 @@
 from aiogram import types
 from aiogram.fsm.context import FSMContext
-from .keyboards import get_main_menu, get_back_button, get_tokens_keyboard, get_wallet_control_keyboard, get_wallets_list
-from .states import WalletStates
+from .keyboards import (
+    get_main_menu, get_back_button, get_tokens_keyboard, get_wallet_control_keyboard,
+    get_wallets_list, get_tracked_tokens_list, get_token_control_keyboard,
+    get_token_name_confirmation_keyboard, get_thread_confirmation_keyboard, get_commands_list
+)
+from .states import WalletStates, TokenStates
 from database import Database
 from logger_config import logger
+import requests
+from settings import ARBISCAN_API_KEY
 
 db = Database()
 
@@ -11,16 +17,11 @@ db = Database()
 async def show_wallets(callback: types.CallbackQuery):
     logger.info("Кнопка 'Показать кошельки' нажата")
     try:
-        wallets = db.get_all_wallets()
-        if not wallets:
-            text = "📭 У вас пока нет кошельков."
-            reply_markup = get_back_button()
-        else:
-            text, reply_markup = get_wallets_list()
+        text, reply_markup = get_wallets_list()
         await callback.message.answer(text, disable_web_page_preview=True, reply_markup=reply_markup)
     except Exception as e:
         logger.error(f"Ошибка при отправке списка кошельков: {str(e)}")
-        await callback.message.answer("❌ Произошла ошибка при показе кошельков.", reply_markup=get_back_button())
+        await callback.message.answer("❌ Произошла ошибка.", reply_markup=get_back_button())
 
 # === ДОБАВИТЬ КОШЕЛЕК: НАЧАЛО ===
 async def add_wallet_start(callback: types.CallbackQuery, state: FSMContext):
@@ -116,6 +117,99 @@ async def edit_tokens_start(callback: types.CallbackQuery, state: FSMContext):
     current_tokens = wallet["tokens"].split(",") if wallet["tokens"] else []
     await state.update_data(wallet_id=wallet_id, selected_tokens=current_tokens)
     await callback.message.edit_text("🪙 Выберите монеты для отслеживания:", reply_markup=get_tokens_keyboard(current_tokens, is_edit=True))
+
+# === ПОКАЗАТЬ ОТСЛЕЖИВАЕМЫЕ ТОКЕНЫ ===
+async def show_tokens(callback: types.CallbackQuery):
+    text, reply_markup = get_tracked_tokens_list()
+    await callback.message.answer(text, disable_web_page_preview=True, reply_markup=reply_markup)
+
+# === ДОБАВИТЬ ТОКЕН: НАЧАЛО ===
+async def add_token_start(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(TokenStates.waiting_for_contract_address)
+    await callback.message.edit_text("📝 Введите адрес контракта токена:", reply_markup=get_back_button())
+
+# === ВВОД АДРЕСА ТОКЕНА ===
+async def process_contract_address(message: types.Message, state: FSMContext):
+    contract_address = message.text.lower()
+    response = requests.get(f"https://api.arbiscan.io/api?module=token&action=tokeninfo&contractaddress={contract_address}&apikey={ARBISCAN_API_KEY}")
+    if response.status_code == 200 and response.json().get("status") == "1":
+        token_info = response.json()["result"][0]
+        token_name = token_info.get("tokenName", "Неизвестно")
+        await state.update_data(contract_address=contract_address, token_name=token_name)
+        await state.set_state(TokenStates.waiting_for_name_confirmation)
+        await message.answer(f"🪙 Название токена: *{token_name}*. Всё верно?", parse_mode="Markdown", reply_markup=get_token_name_confirmation_keyboard())
+    else:
+        await message.answer("❌ Не удалось проверить токен. Попробуйте ещё раз.", reply_markup=get_back_button())
+
+# === ПОДТВЕРЖДЕНИЕ НАЗВАНИЯ ТОКЕНА ===
+async def confirm_token_name(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(TokenStates.waiting_for_thread_confirmation)
+    await callback.message.edit_text("🧵 Создана ли уже ветка для этого токена?", reply_markup=get_thread_confirmation_keyboard())
+
+async def reject_token_name(callback: types.CallbackQuery, state: FSMContext):
+    text, reply_markup = get_tracked_tokens_list()
+    await state.clear()
+    await callback.message.edit_text(f"😂 Ой, промахнулся! Но не переживай, ты всё равно молодец.\n_________\n{text}", reply_markup=reply_markup)
+
+# === ПОДТВЕРЖДЕНИЕ СУЩЕСТВОВАНИЯ ТРЕДА ===
+async def thread_exists(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(TokenStates.waiting_for_thread_id)
+    await callback.message.edit_text("📌 Введите ID треда для сигналов:", reply_markup=get_back_button())
+
+async def thread_not_exists(callback: types.CallbackQuery, state: FSMContext):
+    text, reply_markup = get_tracked_tokens_list()
+    await state.clear()
+    await callback.message.edit_text(f"😅 Ветка не готова? Ничего страшного, создай её и возвращайся!\n_________\n{text}", reply_markup=reply_markup)
+
+# === ВВОД ID ТРЕДА ===
+async def process_thread_id(message: types.Message, state: FSMContext):
+    try:
+        thread_id = int(message.text)
+        data = await state.get_data()
+        db.add_tracked_token(data["token_name"], data["contract_address"], thread_id)
+        await state.clear()
+        text, reply_markup = get_tracked_tokens_list()
+        await message.answer(f"✅ Токен успешно добавлен!\n_________\n{text}", reply_markup=reply_markup)
+    except ValueError:
+        await message.answer("❌ ID треда должен быть числом. Попробуйте ещё раз:", reply_markup=get_back_button())
+
+# === РЕДАКТИРОВАНИЕ ТОКЕНА ===
+async def edit_token_start(callback: types.CallbackQuery, state: FSMContext):
+    token_id = callback.data.split("_")[2]
+    token = db.get_tracked_token_by_id(token_id)
+    text = f"Токен: {token['token_name']}\nАдрес: {token['contract_address']}\nТекущий тред: {token['thread_id']}"
+    await callback.message.edit_text(text, reply_markup=get_token_control_keyboard(token_id))
+
+async def edit_token_thread(callback: types.CallbackQuery, state: FSMContext):
+    token_id = callback.data.split("_")[2]
+    await state.update_data(token_id=token_id)
+    await state.set_state(TokenStates.waiting_for_edit_thread_id)
+    await callback.message.edit_text("📌 Введите новый ID треда:", reply_markup=get_back_button())
+
+async def process_edit_thread_id(message: types.Message, state: FSMContext):
+    try:
+        thread_id = int(message.text)
+        data = await state.get_data()
+        token_id = data["token_id"]
+        token = db.get_tracked_token_by_id(token_id)
+        db.update_tracked_token(token_id, token["token_name"], thread_id)
+        text = f"✅ Тред обновлён!\n_________\nТокен: {token['token_name']}\nАдрес: {token['contract_address']}\nТекущий тред: {thread_id}"
+        await state.clear()
+        await message.answer(text, reply_markup=get_token_control_keyboard(token_id))
+    except ValueError:
+        await message.answer("❌ ID треда должен быть числом. Попробуйте ещё раз:", reply_markup=get_back_button())
+
+# === УДАЛЕНИЕ ТОКЕНА ===
+async def delete_token(callback: types.CallbackQuery):
+    token_id = callback.data.split("_")[2]
+    db.remove_tracked_token(token_id)
+    text, reply_markup = get_tracked_tokens_list()
+    await callback.message.edit_text(f"🗑 Токен удалён!\n_________\n{text}", reply_markup=reply_markup)
+
+# === ПОКАЗАТЬ КОМАНДЫ ===
+async def show_commands(callback: types.CallbackQuery):
+    text, reply_markup = get_commands_list()
+    await callback.message.answer(text, parse_mode="Markdown", reply_markup=reply_markup)
 
 # === ГЛАВНОЕ МЕНЮ ===
 async def go_home(callback: types.CallbackQuery, state: FSMContext):
