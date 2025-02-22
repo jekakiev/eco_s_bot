@@ -45,7 +45,7 @@ async def get_last_transaction_command(message: types.Message):
         wallet_name = wallet['name'] if wallet else last_transaction['wallet_address']
         tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}  # Приводим к нижнему регистру
         thread_id = DEFAULT_THREAD_ID  # Дефолтный тред
-        contract_address = last_transaction.get('token_name', '').lower()  # Используем token_name как временное решение, если contract_address отсутствует
+        contract_address = last_transaction.get('token_name', '').lower()  # Используем token_name как временное решение
         logger.debug(f"Проверка токена для транзакции: token_name={last_transaction['token_name']}, contract_address={contract_address}, tracked_tokens={tracked_tokens}")
 
         if contract_address in tracked_tokens:
