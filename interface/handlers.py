@@ -29,12 +29,17 @@ def register_handlers(dp: Dispatcher):
 
 # Обработчик команды для редактирования кошельков
 async def edit_wallet_command(message: types.Message):
-    logger.info(f"Получена команда: {message.text}")
+    logger.info(f"Получена команда /Edit: {message.text}")
     try:
+        # Логируем точное время и текст команды
+        logger.info(f"Время получения команды: {message.date}")
+        logger.info(f"Полный текст сообщения: {message.text}")
+
         # Проверка формата команды
         if "_" not in message.text:
             logger.warning("Команда не содержит символа '_'")
             await message.answer("❌ Неверный формат команды. Используйте /Edit_КОРОТКИЙ_АДРЕС (например, /Edit_9A7f)")
+            logger.info("Отправлен ответ об ошибке формата")
             return
         
         # Извлечение короткого адреса
@@ -43,20 +48,26 @@ async def edit_wallet_command(message: types.Message):
 
         # Получение всех кошельков из базы данных
         wallets = db.get_all_wallets()
-        logger.info(f"Кошельки: {wallets}")
+        logger.info(f"Кошельки из БД: {wallets}")
 
         # Поиск кошелька по короткому адресу
         wallet = next((wallet for wallet in wallets if wallet["address"].endswith(short_address)), None)
         if not wallet:
             logger.warning(f"Кошелек с адресом, заканчивающимся на {short_address}, не найден.")
             await message.answer("❌ Кошелек не найден.")
+            logger.info("Отправлен ответ: кошелек не найден")
             return
 
-        # Отправка информации о кошельке и клавиатуры для управления
+        # Логируем найденный кошелек
         logger.info(f"Найден кошелек: {wallet['name']} с адресом {wallet['address']}")
+        
+        # Отправка информации о кошельке и клавиатуры для управления
         text = f"Имя кошелька: {wallet['name']}\nАдрес кошелька: {wallet['address']}"
-        await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet['id']))
-        logger.info("Отправлено меню редактирования")
+        response = await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet['id']))
+        logger.info(f"Отправлено меню редактирования. Message ID: {response.message_id}")
+        logger.info(f"Текст отправленного сообщения: {text}")
+
     except Exception as e:
-        logger.error(f"Ошибка обработки команды Edit: {str(e)}")
-        await message.answer("❌ Произошла ошибка при обработке команды.")
+        logger.error(f"Ошибка обработки команды /Edit: {str(e)}")
+        await message.answer("❌ Произошла ошибка при обработке команды. Проверьте логи.")
+        logger.info("Отправлен ответ об ошибке")

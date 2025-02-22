@@ -21,14 +21,17 @@ logger.addHandler(file_handler)
 # Фильтр для отключения логов о транзакциях
 class TransactionsFilter(logging.Filter):
     def filter(self, record):
-        if not LOG_TRANSACTIONS and "get_token_transactions вернула не список" in record.getMessage():
+        if not LOG_TRANSACTIONS and "get_token_transactions вернула не словарь" in record.getMessage():
             return False
         return True
 
 # Фильтр для отключения логов успешных транзакций
 class SuccessfulTransactionsFilter(logging.Filter):
     def filter(self, record):
-        if not LOG_SUCCESSFUL_TRANSACTIONS and ("Отримано" in record.getMessage() or "Найдено соответствие" in record.getMessage() or "Сообщение отправлено" in record.getMessage()):
+        if not LOG_SUCCESSFUL_TRANSACTIONS and any(keyword in record.getMessage() for keyword in [
+            "Отримано", "Получено", "Начинаем проверку новых транзакций", "Найдено соответствие", 
+            "Сообщение отправлено", "уникальных транзакций для"
+        ]):
             return False
         return True
 
