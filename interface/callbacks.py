@@ -236,11 +236,13 @@ async def show_commands(callback: types.CallbackQuery):
 
 # === ПОКАЗАТЬ НАСТРОЙКИ ===
 async def show_settings(callback: types.CallbackQuery):
+    logger.info("Кнопка 'Настройки' нажата")
     text, reply_markup = get_settings_list()
     await callback.message.answer(text, disable_web_page_preview=True, reply_markup=reply_markup)
 
 # === РЕДАКТИРОВАНИЕ НАСТРОЙКИ ===
 async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
+    logger.info(f"Нажата кнопка настройки: {callback.data}")
     setting_name = callback.data.split("_")[2]
     current_value = db.get_setting(setting_name)
     if setting_name == "CHECK_INTERVAL":
@@ -253,6 +255,7 @@ async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(setting_name=setting_name)
 
 async def process_setting_value(message: types.Message, state: FSMContext):
+    logger.info(f"Введено значение настройки: {message.text}")
     try:
         new_value = message.text
         data = await state.get_data()
@@ -272,6 +275,7 @@ async def process_setting_value(message: types.Message, state: FSMContext):
 
 # === УСТАНОВКА ЗНАЧЕНИЯ ЛОГОВ ===
 async def set_log_value(callback: types.CallbackQuery, state: FSMContext):
+    logger.info(f"Нажата кнопка вкл/выкл логов: {callback.data}")
     parts = callback.data.split("_")
     setting_name = parts[1]
     value = parts[2]
