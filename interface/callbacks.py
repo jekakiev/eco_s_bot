@@ -140,6 +140,8 @@ async def process_contract_address(message: types.Message, state: FSMContext):
         "startblock": 0,
         "endblock": 99999999,
         "sort": "desc",
+        "offset": 0,
+        "limit": 10,  # Ограничение на 10 последних транзакций
         "apikey": ARBISCAN_API_KEY
     }
     response = requests.get("https://api.arbiscan.io/api", params=params)

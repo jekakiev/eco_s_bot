@@ -6,7 +6,7 @@ from arbiscan import get_token_transactions
 from message_formatter import format_swap_message
 from database import Database
 from settings import BOT_TOKEN, CHAT_ID
-from logger_config import logger
+from logger_config import logger, update_log_settings
 import time
 
 bot = Bot(token=BOT_TOKEN)
@@ -31,11 +31,15 @@ register_handlers(dp)
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
     await message.answer("✅ Бот запущен и мониторит транзакции!", reply_markup=get_main_menu())
+    if LOG_SUCCESSFUL_TRANCTIONS:
+        logger.info("Команда /start была обработана успешно (тестовое сообщение для успешных логов)")
 
 @dp.message(Command("get_thread_id"))
 async def get_thread_id_command(message: types.Message):
     thread_id = message.message_thread_id if message.is_topic_message else "Нет треда (основной чат)"
     await message.answer(f"ID текущего треда: `{thread_id}`", parse_mode="Markdown")
+    if LOG_SUCCESSFUL_TRANSACTIONS:
+        logger.info(f"Команда /get_thread_id была обработана успешно для чата {message.chat.id} (тестовое сообщение для успешных логов)")
 
 async def check_token_transactions():
     while True:
@@ -43,56 +47,65 @@ async def check_token_transactions():
         try:
             watched_wallets = db.get_all_wallets()
             tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}
-            default_thread_id = 60
+            default_thread_id = 60  # Базовый тред, если токен не отслеживается
 
-            for wallet in watched_wallets:
-                wallet_address = wallet["address"]
-                wallet_name = wallet["name"]
-                transactions = get_token_transactions(wallet_address)
+            # Логируем начало проверки, если LOG_TRANSACTIONS включён
+            if LOG_TRANSACTIONS:
+                logger.info(f"Начинаем проверку новых транзакций. Количество кошельков для проверки: {len(watched_wallets)}")
 
-                if not isinstance(transactions, dict) or not transactions:
-                    if LOG_TRANSACTIONS:
-                        logger.info(f"get_token_transactions вернула не словарь для кошелька {wallet_address}")
+            # Получаем транзакции для всех кошельков одним запросом
+            wallet_addresses = [wallet["address"] for wallet in watched_wallets]
+            transactions = get_token_transactions(wallet_addresses)
+
+            new_transactions_count = 0
+            for wallet_address, tx_list in transactions.items():
+                wallet = next((w for w in watched_wallets if w["address"].lower() == wallet_address.lower()), None)
+                if not wallet:
                     continue
 
-                for tx_hash, tx_list in transactions.items():
-                    latest_tx = tx_list[0]
-                    token_out = latest_tx.get("token_out", "Неизвестно")
-                    contract_address = latest_tx.get("token_out_address", "").lower()
+                wallet_name = wallet["name"]
+                for tx in tx_list:
+                    tx_hash = tx.get("tx_hash", "")
+                    token_out = tx.get("token_out", "Неизвестно")
+                    contract_address = tx.get("token_out_address", "").lower()
 
-                    if db.is_transaction_exist(tx_hash):
-                        continue
+                    if not db.is_transaction_exist(tx_hash):
+                        db.add_transaction(tx_hash, wallet_address, token_out, tx.get("usd_value", "0"))
+                        new_transactions_count += 1
 
-                    db.add_transaction(tx_hash, wallet_address, token_out, latest_tx.get("usd_value", "0"))
+                        # Определяем тред для отправки сообщения
+                        thread_id = default_thread_id
+                        if contract_address in tracked_tokens:
+                            thread_id = tracked_tokens[contract_address]["thread_id"]
 
-                    thread_id = default_thread_id
-                    if contract_address in tracked_tokens:
-                        thread_id = tracked_tokens[contract_address]["thread_id"]
+                        text, parse_mode = format_swap_message(
+                            tx_hash=tx_hash,
+                            sender=wallet_name,
+                            sender_url=f"https://arbiscan.io/address/{wallet_address}",
+                            amount_in=tx.get("amount_in", "Неизвестно"),
+                            token_in=tx.get("token_in", "Неизвестно"),
+                            token_in_url=f"https://arbiscan.io/token/{tx.get('token_in_address', '')}",
+                            amount_out=tx.get("amount_out", "Неизвестно"),
+                            token_out=token_out,
+                            token_out_url=f"https://arbiscan.io/token/{tx.get('token_out_address', '')}",
+                            usd_value=tx.get("usd_value", "Неизвестно")
+                        )
 
-                    text, parse_mode = format_swap_message(
-                        tx_hash=tx_hash,
-                        sender=wallet_name,
-                        sender_url=f"https://arbiscan.io/address/{wallet_address}",
-                        amount_in=latest_tx.get("amount_in", "Неизвестно"),
-                        token_in=latest_tx.get("token_in", "Неизвестно"),
-                        token_in_url=f"https://arbiscan.io/token/{latest_tx.get('token_in_address', '')}",
-                        amount_out=latest_tx.get("amount_out", "Неизвестно"),
-                        token_out=token_out,
-                        token_out_url=f"https://arbiscan.io/token/{latest_tx.get('token_out_address', '')}",
-                        usd_value=latest_tx.get("usd_value", "Неизвестно")
-                    )
-                    if LOG_SUCCESSFUL_TRANSACTIONS:
-                        logger.info(f"Начинаем проверку новых транзакций для кошелька {wallet_address}")
-                        logger.info(f"Найдено соответствие для токена {token_out} в транзакции {tx_hash}")
-                        logger.info(f"Сообщение отправлено в тред {thread_id}")
-                    await bot.send_message(
-                        chat_id=CHAT_ID,
-                        message_thread_id=thread_id,
-                        text=text,
-                        parse_mode=parse_mode,
-                        disable_web_page_preview=True
-                    )
-            logger.info(f"Проверка транзакций заняла {time.time() - start_time} сек")
+                        if LOG_SUCCESSFUL_TRANSACTIONS:
+                            logger.info(f"Кошелёк '{wallet_name}' обнаружено {new_transactions_count} новых транзакций, сообщение отправлено в тред с ID {thread_id}")
+
+                        await bot.send_message(
+                            chat_id=CHAT_ID,
+                            message_thread_id=thread_id,
+                            text=text,
+                            parse_mode=parse_mode,
+                            disable_web_page_preview=True
+                        )
+
+            # Логируем время обработки и количество проверенных кошельков, если LOG_TRANSACTIONS включён
+            if LOG_TRANSACTIONS:
+                logger.info(f"Проверка транзакций завершена. Время обработки: {time.time() - start_time:.2f} сек. Количество проверенных кошельков: {len(watched_wallets)}")
+
         except Exception as e:
             logger.error(f"Произошла ошибка: {str(e)}")
 

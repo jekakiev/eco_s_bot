@@ -27,7 +27,12 @@ logger.addHandler(file_handler)
 class TransactionsFilter(logging.Filter):
     def filter(self, record):
         global LOG_TRANSACTIONS
-        if not LOG_TRANSACTIONS and "get_token_transactions вернула не словарь" in record.getMessage():
+        if not LOG_TRANSACTIONS and any(keyword in record.getMessage() for keyword in [
+            "get_token_transactions вернула не словарь",
+            "Найдена транзакция",
+            "Транзакция уже существует",
+            "Проверка транзакций завершена"
+        ]):
             return False
         return True
 
@@ -36,8 +41,11 @@ class SuccessfulTransactionsFilter(logging.Filter):
     def filter(self, record):
         global LOG_TRANSACTIONS, LOG_SUCCESSFUL_TRANSACTIONS
         if not LOG_SUCCESSFUL_TRANSACTIONS and any(keyword in record.getMessage() for keyword in [
-            "Отримано", "Получено", "Начинаем проверку новых транзакций", "Найдено соответствие", 
-            "Сообщение отправлено", "уникальных транзакций для"
+            "Начинаем проверку новых транзакций",
+            "Обработка кошелька началась",
+            "Кошелёк '",
+            "обнаружено новых транзакций",
+            "сообщение отправлено в тред"
         ]):
             return False
         return True
@@ -58,3 +66,6 @@ logger.addFilter(SuccessfulTransactionsFilter())
 
 # Вызываем обновление настроек при запуске
 update_log_settings()
+
+# Дополнительная отладка для проверки значений
+logger.debug(f"Инициализированы настройки логов: LOG_TRANSACTIONS={LOG_TRANSACTIONS}, LOG_SUCCESSFUL_TRANSACTIONS={LOG_SUCCESSFUL_TRANSACTIONS}")
