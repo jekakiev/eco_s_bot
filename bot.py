@@ -13,12 +13,12 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 db = Database()
 
-# Загружаем настройки из базы с дефолтными значениями
+# Загружаем настройки из базы с дефолтными значениями, только если их нет
 settings = db.get_all_settings()
-CHECK_INTERVAL = int(settings.get("CHECK_INTERVAL", "10"))
-LOG_TRANSACTIONS = int(settings.get("LOG_TRANSACTIONS", "0"))
-LOG_SUCCESSFUL_TRANSACTIONS = int(settings.get("LOG_SUCCESSFUL_TRANSACTIONS", "0"))
-SEND_LAST_TRANSACTION = int(settings.get("SEND_LAST_TRANSACTION", "0"))  # Новая настройка
+CHECK_INTERVAL = int(settings.get("CHECK_INTERVAL", "60"))  # Установим дефолт 60, как в базе
+LOG_TRANSACTIONS = int(settings.get("LOG_TRANSACTIONS", "1"))  # Установим дефолт 1, как в базе
+LOG_SUCCESSFUL_TRANSACTIONS = int(settings.get("LOG_SUCCESSFUL_TRANSACTIONS", "1"))  # Установим дефолт 1, как в базе
+SEND_LAST_TRANSACTION = int(settings.get("SEND_LAST_TRANSACTION", "0"))  # Новая настройка с дефолтом 0
 
 logger.info("Статус логов и настроек при запуске бота:")
 logger.info(f"- Логи транзакций: {'Включены' if LOG_TRANSACTIONS else 'Выключены'}")
@@ -193,12 +193,9 @@ async def check_token_transactions():
         except Exception as e:
             logger.error(f"Произошла ошибка: {str(e)}")
 
-        await asyncio.sleep(CHECK_INTERVAL)  # Установим 60 секунд позже через настройки
+        await asyncio.sleep(CHECK_INTERVAL)
 
 async def main():
-    # Устанавливаем CHECK_INTERVAL на 60 секунд для тестирования
-    db.update_setting("CHECK_INTERVAL", "60")
-    logger.info("Интервал проверки обновлён на 60 секунд для тестирования.")
     logger.info("🚀 Бот запущен и ждет новые транзакции!")
     asyncio.create_task(check_token_transactions())
     await dp.start_polling(bot)
