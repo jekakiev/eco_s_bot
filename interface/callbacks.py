@@ -181,11 +181,15 @@ async def process_thread_id(message: types.Message, state: FSMContext):
         thread_id = int(message.text)
         data = await state.get_data()
         db.add_tracked_token(data["token_name"], data["contract_address"], thread_id)
-        await state.clear()
+        logger.info(f"Добавлен токен: {data['token_name']} ({data['contract_address']}) с тредом {thread_id}")
         text, reply_markup = get_tracked_tokens_list()
+        await state.clear()
         await message.answer(f"✅ Токен успешно добавлен!\n_________\n{text}", reply_markup=reply_markup)
     except ValueError:
         await message.answer("❌ ID треда должен быть числом. Попробуйте ещё раз:", reply_markup=get_back_button())
+    except Exception as e:
+        logger.error(f"Ошибка при добавлении токена: {str(e)}")
+        await message.answer("❌ Произошла ошибка при добавлении токена.", reply_markup=get_back_button())
 
 # === РЕДАКТИРОВАНИЕ ТОКЕНА ===
 async def edit_token_start(callback: types.CallbackQuery, state: FSMContext):
