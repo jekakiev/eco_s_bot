@@ -9,8 +9,16 @@ db = Database()
 
 # === ПОКАЗАТЬ КОШЕЛЬКИ ===
 async def show_wallets(callback: types.CallbackQuery):
+    logger.info("Кнопка 'Показать кошельки' нажата")
+    wallets = db.get_all_wallets()
+    logger.info(f"Получено кошельков из БД: {len(wallets) if wallets else 0}")
     text, reply_markup = get_wallets_list()
-    await callback.message.edit_text(text, parse_mode="Markdown", disable_web_page_preview=True, reply_markup=reply_markup)
+    logger.info(f"Текст для отправки: {text}")
+    try:
+        await callback.message.edit_text(text, parse_mode="Markdown", disable_web_page_preview=True, reply_markup=reply_markup)
+        logger.info("Сообщение успешно отправлено")
+    except Exception as e:
+        logger.error(f"Ошибка при отправке списка кошельков: {str(e)}")
 
 # === ДОБАВЛЕНИЕ КОШЕЛЬКА: НАЧАЛО ===
 async def add_wallet_start(callback: types.CallbackQuery, state: FSMContext):
@@ -84,8 +92,11 @@ async def process_new_wallet_name(message: types.Message, state: FSMContext):
 
 # === РЕДАКТИРОВАНИЕ КОШЕЛЬКА ===
 async def edit_wallet(callback: types.CallbackQuery):
-    wallet_id = callback.data.split("_")[2]
+    wallet_id = callback.data.split("_")[1]  # Изменено на [1], так как callback_data теперь "EDITw_{id}"
     wallet = db.get_wallet_by_id(wallet_id)
+    if not wallet:
+        await callback.answer("❌ Кошелек не найден", show_alert=True)
+        return
     text = f"Имя кошелька: {wallet['name']}\nАдрес кошелька: {wallet['address']}"
     await callback.message.edit_text(text, reply_markup=get_wallet_control_keyboard(wallet_id))
 
