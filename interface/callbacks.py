@@ -7,29 +7,29 @@ from logger_config import logger  # Убедимся, что логгер имп
 
 db = Database()
 
-# === ПОКАЗАТЬ КОШЕЛЬКИ ===
+# === ПОКАЗАТЬ ГАМАНЦЫ ===
 async def show_wallets(callback: types.CallbackQuery):
-    logger.info("Кнопка 'Показать кошельки' нажата")
+    logger.info("Кнопка 'Показать гаманцы' нажата")
     wallets = db.get_all_wallets()
-    logger.info(f"Получено кошельков из БД: {len(wallets) if wallets else 0}")
+    logger.info(f"Получено гаманцев из БД: {len(wallets) if wallets else 0}")
     text, reply_markup = get_wallets_list()
     logger.info(f"Текст для отправки: {text}")
     try:
         await callback.message.edit_text(text, parse_mode="Markdown", disable_web_page_preview=True, reply_markup=reply_markup)
         logger.info("Сообщение успешно отправлено")
     except Exception as e:
-        logger.error(f"Ошибка при отправке списка кошельков: {str(e)}")
+        logger.error(f"Ошибка при отправке списка гаманцев: {str(e)}")
 
-# === ДОБАВЛЕНИЕ КОШЕЛЬКА: НАЧАЛО ===
+# === ДОБАВИТЬ ГАМАНЕЦ: НАЧАЛО ===
 async def add_wallet_start(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state(WalletStates.waiting_for_address)
-    await callback.message.edit_text("📝 Введите адрес кошелька:", reply_markup=get_back_button())
+    await callback.message.edit_text("📝 Введите адрес гаманца:", reply_markup=get_back_button())
 
 # === ВВОД АДРЕСА ===
 async def process_wallet_address(message: types.Message, state: FSMContext):
     await state.update_data(wallet_address=message.text)
     await state.set_state(WalletStates.waiting_for_name)
-    await message.answer("✏️ Введите название кошелька:", reply_markup=get_back_button())
+    await message.answer("✏️ Введите название гаманца:", reply_markup=get_back_button())
 
 # === ВВОД ИМЕНИ ===
 async def process_wallet_name(message: types.Message, state: FSMContext):
@@ -62,25 +62,25 @@ async def confirm_tokens(callback: types.CallbackQuery, state: FSMContext):
     selected_tokens = data.get("selected_tokens", [])
 
     if not selected_tokens:
-        await callback.answer("⚠️ Вы не выбрали ни одного токена!", show_alert=True)
+        await callback.answer("⚠️ Вы не выбрали ни одной монеты!", show_alert=True)
         return
 
     db.add_wallet(wallet_address, wallet_name, ",".join(selected_tokens))
     await state.clear()
-    await callback.message.edit_text("✅ Кошелек добавлен!", reply_markup=get_main_menu())
+    await callback.message.edit_text("✅ Гаманец добавлен!", reply_markup=get_main_menu())
 
-# === УДАЛЕНИЕ КОШЕЛЬКА ===
+# === УДАЛЕНИЕ ГАМАНЦА ===
 async def delete_wallet(callback: types.CallbackQuery):
     wallet_id = callback.data.split("_")[2]
     db.remove_wallet(wallet_id)
-    await callback.message.edit_text("🗑 Кошелек удален!", reply_markup=get_main_menu())
+    await callback.message.edit_text("🗑 Гаманец удалён!", reply_markup=get_main_menu())
 
-# === ПЕРЕИМЕНОВАНИЕ КОШЕЛЬКА ===
+# === ПЕРЕИМЕНОВАНИЕ ГАМАНЦА ===
 async def rename_wallet_start(callback: types.CallbackQuery, state: FSMContext):
     wallet_id = callback.data.split("_")[2]
     await state.update_data(wallet_id=wallet_id)
     await state.set_state(WalletStates.waiting_for_new_name)
-    await callback.message.edit_text("✏️ Введите новое имя кошелька:", reply_markup=get_back_button())
+    await callback.message.edit_text("✏️ Введите новое имя гаманца:", reply_markup=get_back_button())
 
 async def process_new_wallet_name(message: types.Message, state: FSMContext):
     data = await state.get_data()
@@ -88,7 +88,7 @@ async def process_new_wallet_name(message: types.Message, state: FSMContext):
     new_name = message.text
     db.update_wallet_name(wallet_id, new_name)
     await state.clear()
-    await message.answer(f"✅ Имя кошелька обновлено на: {new_name}", reply_markup=get_main_menu())
+    await message.answer(f"✅ Имя гаманца обновлено на: {new_name}", reply_markup=get_main_menu())
 
 # === ГЛАВНОЕ МЕНЮ ===
 async def go_home(callback: types.CallbackQuery, state: FSMContext):

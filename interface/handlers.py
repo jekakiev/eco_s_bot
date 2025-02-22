@@ -13,7 +13,7 @@ from settings import LOG_SUCCESSFUL_TRANSACTIONS
 
 db = Database()
 
-# === РЕЄСТРАЦІЯ ОБРОБНИКІВ ===
+# === РЕГИСТРАЦИЯ ОБРАБОТЧИКОВ ===
 def register_handlers(dp: Dispatcher):
     dp.callback_query.register(show_wallets, F.data == "show_wallets")
     dp.callback_query.register(add_wallet_start, F.data == "add_wallet")
@@ -25,38 +25,38 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(rename_wallet_start, F.data.startswith("rename_wallet_"))
     dp.message.register(process_new_wallet_name, WalletStates.waiting_for_new_name)
     dp.callback_query.register(go_home, F.data == "home")
-    dp.message.register(edit_wallet_command, Command("Edit"))  # Реєстрація команди Edit
+    dp.message.register(edit_wallet_command, Command("Edit"))  # Регистрация команды Edit
 
-# Обробник команди для редагування гаманців
+# Обработчик команды для редактирования гаманцев
 async def edit_wallet_command(message: types.Message):
-    logger.info(f"Отримано команду: {message.text}")
+    logger.info(f"Получена команда: {message.text}")
     try:
-        # Перевірка формату команди
+        # Проверка формата команды
         if "_" not in message.text:
-            logger.warning("Команда не містить символу '_'")
-            await message.answer("❌ Неправильний формат команди. Використовуйте /Edit_КОРОТКИЙ_АДРЕС (наприклад, /Edit_9A7f)")
+            logger.warning("Команда не содержит символа '_'")
+            await message.answer("❌ Неверный формат команды. Используйте /Edit_КОРОТКИЙ_АДРЕС (например, /Edit_9A7f)")
             return
         
-        # Видобуття короткого адреси
+        # Извлечение короткого адреса
         short_address = message.text.split("_")[1]
-        logger.info(f"Отримано короткий адрес: {short_address}")
+        logger.info(f"Получен короткий адрес: {short_address}")
 
-        # Отримання всіх гаманців з бази даних
+        # Получение всех гаманцев из базы данных
         wallets = db.get_all_wallets()
-        logger.info(f"Гаманці: {wallets}")
+        logger.info(f"Гаманцы: {wallets}")
 
-        # Пошук гаманця за коротким адресом
+        # Поиск гаманца по короткому адресу
         wallet = next((wallet for wallet in wallets if wallet["address"].endswith(short_address)), None)
         if not wallet:
-            logger.warning(f"Гаманець з адресою, що закінчується на {short_address}, не знайдено.")
-            await message.answer("❌ Гаманець не знайдено.")
+            logger.warning(f"Гаманец с адресом, заканчивающимся на {short_address}, не найден.")
+            await message.answer("❌ Гаманец не найден.")
             return
 
-        # Надсилання інформації про гаманець і клавіатури для управління
-        logger.info(f"Знайдено гаманець: {wallet['name']} з адресою {wallet['address']}")
-        text = f"Ім’я гаманця: {wallet['name']}\nАдреса гаманця: {wallet['address']}"
+        # Отправка информации о гаманце и клавиатуры для управления
+        logger.info(f"Найден гаманец: {wallet['name']} с адресом {wallet['address']}")
+        text = f"Имя гаманца: {wallet['name']}\nАдрес гаманца: {wallet['address']}"
         await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet['id']))
-        logger.info("Надіслано меню редагування")
+        logger.info("Отправлено меню редактирования")
     except Exception as e:
-        logger.error(f"Помилка обробки команди Edit: {str(e)}")
-        await message.answer("❌ Сталася помилка при обробці команди.")
+        logger.error(f"Ошибка обработки команды Edit: {str(e)}")
+        await message.answer("❌ Произошла ошибка при обработке команды.")
