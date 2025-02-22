@@ -31,7 +31,7 @@ register_handlers(dp)
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
     await message.answer("✅ Бот запущен и мониторит транзакции!", reply_markup=get_main_menu())
-    if LOG_SUCCESSFUL_TRANCTIONS:
+    if LOG_SUCCESSFUL_TRANSACTIONS:
         logger.info("Команда /start была обработана успешно (тестовое сообщение для успешных логов)")
 
 @dp.message(Command("get_thread_id"))
@@ -55,10 +55,16 @@ async def check_token_transactions():
 
             # Получаем транзакции для всех кошельков одним запросом
             wallet_addresses = [wallet["address"] for wallet in watched_wallets]
-            transactions = get_token_transactions(wallet_addresses)
+            # Ограничиваем количество адресов, чтобы не превышать лимит Arbiscan (например, 20 адресов)
+            max_addresses_per_request = 20
+            all_transactions = {}
+            for i in range(0, len(wallet_addresses), max_addresses_per_request):
+                chunk_addresses = wallet_addresses[i:i + max_addresses_per_request]
+                transactions = get_token_transactions(chunk_addresses)
+                all_transactions.update(transactions)
 
             new_transactions_count = 0
-            for wallet_address, tx_list in transactions.items():
+            for wallet_address, tx_list in all_transactions.items():
                 wallet = next((w for w in watched_wallets if w["address"].lower() == wallet_address.lower()), None)
                 if not wallet:
                     continue
