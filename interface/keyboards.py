@@ -139,12 +139,18 @@ def get_commands_list():
 
 def get_settings_list():
     settings = db.get_all_settings()
-    check_interval = settings.get("CHECK_INTERVAL", "10")
-    log_transactions = "✅" if settings.get("LOG_TRANSACTIONS", "0") == "1" else "❌"
-    log_successful = "✅" if settings.get("LOG_SUCCESSFUL_TRANSACTIONS", "0") == "1" else "❌"
+    check_interval = settings.get("CHECK_INTERVAL", "60")
+    log_transactions = "✅" if settings.get("LOG_TRANSACTIONS", "1") == "1" else "❌"
+    log_successful = "✅" if settings.get("LOG_SUCCESSFUL_TRANSACTIONS", "1") == "1" else "❌"
     send_last = "✅" if settings.get("SEND_LAST_TRANSACTION", "0") == "1" else "❌"
     
-    text = "⚙️ Настройки бота:"
+    text = (
+        "⚙️ Настройки бота:\n\n"
+        "⏱ Интервал проверки — интервал между проверками транзакций (в секундах).\n"
+        "📝 Логи транзакций — включение детального логирования всех транзакций.\n"
+        "✅ Логи успешных транзакций — включение логирования успешных транзакций и их отправки.\n"
+        "📨 Последняя транзакция — отправка данных последней транзакции в тред каждые CHECK_INTERVAL секунд."
+    )
     keyboard = [
         [
             InlineKeyboardButton(text=f"⏱ Интервал проверки ({check_interval} сек)", callback_data="edit_setting_CHECK_INTERVAL")

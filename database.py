@@ -8,6 +8,7 @@ class Database:
             self.create_tables()
         else:
             self.conn = sqlite3.connect("database.db")
+            self.initialize_default_settings()  # Добавляем настройки при загрузке существующей базы
 
     def create_tables(self):
         cursor = self.conn.cursor()
@@ -43,7 +44,21 @@ class Database:
                 setting_value TEXT NOT NULL
             )
         """)
-        # Добавляем дефолтные настройки, если их нет
+        # Добавляем дефолтные настройки
+        default_settings = {
+            "CHECK_INTERVAL": "60",
+            "LOG_TRANSACTIONS": "1",
+            "LOG_SUCCESSFUL_TRANSACTIONS": "1",
+            "SEND_LAST_TRANSACTION": "0"
+        }
+        for setting_name, setting_value in default_settings.items():
+            cursor.execute("INSERT OR IGNORE INTO bot_settings (setting_name, setting_value) VALUES (?, ?)",
+                          (setting_name, setting_value))
+        self.conn.commit()
+
+    def initialize_default_settings(self):
+        """Инициализирует дефолтные настройки при загрузке существующей базы."""
+        cursor = self.conn.cursor()
         default_settings = {
             "CHECK_INTERVAL": "60",
             "LOG_TRANSACTIONS": "1",
