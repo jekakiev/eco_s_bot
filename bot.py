@@ -45,7 +45,7 @@ async def get_last_transaction_command(message: types.Message):
         wallet_name = wallet['name'] if wallet else last_transaction['wallet_address']
         tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}  # Маппинг по contract_address, нижний регистр
         thread_id = DEFAULT_THREAD_ID  # Дефолтный тред
-        contract_address = last_transaction.get('token_name', '').lower()  # Используем token_name как временное решение, приводим к нижнему регистру
+        contract_address = last_transaction.get('token_out_address', '').lower()  # Используем token_out_address из транзакции
 
         # Убеждаемся, что contract_address начинается с "0x", если это необходимо
         if contract_address and not contract_address.startswith("0x"):
@@ -123,7 +123,7 @@ async def check_token_transactions():
                 for tx in tx_list:
                     tx_hash = tx.get("tx_hash", "")
                     token_out = tx.get("token_out", "Неизвестно")
-                    contract_address = tx.get("token_out_address", "").lower()  # Приводим к нижнему регистру
+                    contract_address = tx.get("token_out_address", "").lower()  # Используем token_out_address, приводим к нижнему регистру
 
                     # Убеждаемся, что contract_address начинается с "0x", если это необходимо
                     if contract_address and not contract_address.startswith("0x"):
@@ -179,7 +179,7 @@ async def check_token_transactions():
                     wallet_name = wallet['name'] if wallet else last_transaction['wallet_address']
                     tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}  # Маппинг по contract_address, нижний регистр
                     thread_id = DEFAULT_THREAD_ID  # Дефолтный тред
-                    contract_address = last_transaction.get('token_name', '').lower()  # Временное решение, приводим к нижнему регистру
+                    contract_address = last_transaction.get('token_out_address', '').lower()  # Используем token_out_address из транзакции
 
                     # Убеждаемся, что contract_address начинается с "0x", если это необходимо
                     if contract_address and not contract_address.startswith("0x"):
