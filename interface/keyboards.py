@@ -23,12 +23,12 @@ def get_back_button():
 def get_wallets_list():
     wallets = db.get_all_wallets()
     if not wallets:
-        return "📭 У вас пока нет кошельков."
-
-    text = "Список кошельков:\n"
-    for wallet in wallets:
-        short_address = wallet['address'][-4:]
-        text += f"{wallet['name']} ({short_address}) - /Edit_{short_address}\n"
+        text = "📭 У вас пока нет кошельков."
+    else:
+        text = "Список кошельков:\n"
+        for wallet in wallets:
+            short_address = wallet['address'][-4:]
+            text += f"{wallet['name']} ({short_address}) - /Edit_{short_address}\n"
 
     builder = InlineKeyboardBuilder()
     builder.button(text="➕ Добавить кошелек", callback_data="add_wallet")
@@ -66,18 +66,19 @@ def get_tokens_keyboard(selected_tokens, is_edit=False):
 # === СПИСОК ОТСЛЕЖИВАЕМЫХ ТОКЕНОВ ===
 def get_tracked_tokens_list():
     tokens = db.get_all_tracked_tokens()
+    builder = InlineKeyboardBuilder()
+    builder.button(text="➕ Добавить токен", callback_data="add_token")
+    builder.button(text="⬅️ Назад", callback_data="home")
+    builder.adjust(1)
+
     if not tokens:
-        return "📉 Пока мы не отслеживаем ни одного токена."
+        text = "📉 Пока мы не отслеживаем ни одного токена."
+        return text, builder.as_markup()
 
     text = "Сейчас мы отслеживаем такие S токены:\n"
     for token in tokens:
         short_address = token['contract_address'][-4:]
         text += f"{token['token_name']} (тред {token['thread_id']}) - /edit_{short_address}\n"
-
-    builder = InlineKeyboardBuilder()
-    builder.button(text="➕ Добавить токен", callback_data="add_token")
-    builder.button(text="⬅️ Назад", callback_data="home")
-    builder.adjust(1)
     return text, builder.as_markup()
 
 # === МЕНЮ УПРАВЛЕНИЯ ТОКЕНОМ ===
