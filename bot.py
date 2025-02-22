@@ -43,16 +43,21 @@ async def get_last_transaction_command(message: types.Message):
         logger.debug(f"Данные последней транзакции по запросу: {last_transaction}")
         wallet = db.get_wallet_by_address(last_transaction['wallet_address'])
         wallet_name = wallet['name'] if wallet else last_transaction['wallet_address']
-        tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}  # Приводим к нижнему регистру
+        tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}  # Маппинг по contract_address, нижний регистр
         thread_id = DEFAULT_THREAD_ID  # Дефолтный тред
-        contract_address = last_transaction.get('token_name', '').lower()  # Используем token_name как временное решение
-        logger.debug(f"Проверка токена для транзакции: token_name={last_transaction['token_name']}, contract_address={contract_address}, tracked_tokens={tracked_tokens}")
+        contract_address = last_transaction.get('token_name', '').lower()  # Используем token_name как временное решение, приводим к нижнему регистру
+
+        # Убеждаемся, что contract_address начинается с "0x", если это необходимо
+        if contract_address and not contract_address.startswith("0x"):
+            contract_address = "0x" + contract_address
+
+        logger.debug(f"Проверка токена для транзакции: contract_address={contract_address}, tracked_tokens={tracked_tokens}")
 
         if contract_address in tracked_tokens:
             thread_id = tracked_tokens[contract_address]["thread_id"]
-            logger.debug(f"Найден токен в tracked_tokens, thread_id={thread_id}")
+            logger.debug(f"Найден токен по contract_address в tracked_tokens, thread_id={thread_id}")
         else:
-            logger.warning(f"Токен {contract_address} не найден в tracked_tokens, используется дефолтный тред {thread_id}")
+            logger.warning(f"Contract_address {contract_address} не найден в tracked_tokens, используется дефолтный тред {thread_id}")
 
         text, parse_mode = format_swap_message(
             tx_hash=last_transaction['tx_hash'],
@@ -91,7 +96,7 @@ async def check_token_transactions():
         start_time = time.time()
         try:
             watched_wallets = db.get_all_wallets()
-            tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}  # Приводим к нижнему регистру
+            tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}  # Маппинг по contract_address, нижний регистр
             default_thread_id = DEFAULT_THREAD_ID  # Базовый тред, если токен не отслеживается
 
             # Логируем начало проверки, если LOG_TRANSACTIONS включён
@@ -120,6 +125,10 @@ async def check_token_transactions():
                     token_out = tx.get("token_out", "Неизвестно")
                     contract_address = tx.get("token_out_address", "").lower()  # Приводим к нижнему регистру
 
+                    # Убеждаемся, что contract_address начинается с "0x", если это необходимо
+                    if contract_address and not contract_address.startswith("0x"):
+                        contract_address = "0x" + contract_address
+
                     if not db.is_transaction_exist(tx_hash):
                         db.add_transaction(tx_hash, wallet_address, token_out, tx.get("usd_value", "0"))
                         new_transactions_count += 1
@@ -130,9 +139,9 @@ async def check_token_transactions():
 
                         if contract_address in tracked_tokens:
                             thread_id = tracked_tokens[contract_address]["thread_id"]
-                            logger.debug(f"Найден токен в tracked_tokens, thread_id={thread_id}")
+                            logger.debug(f"Найден токен по contract_address в tracked_tokens, thread_id={thread_id}")
                         else:
-                            logger.warning(f"Токен {contract_address} не найден в tracked_tokens, используется дефолтный тред {thread_id}")
+                            logger.warning(f"Contract_address {contract_address} не найден в tracked_tokens, используется дефолтный тред {thread_id}")
 
                         text, parse_mode = format_swap_message(
                             tx_hash=tx_hash,
@@ -168,16 +177,21 @@ async def check_token_transactions():
                 if last_transaction:
                     wallet = db.get_wallet_by_address(last_transaction['wallet_address'])
                     wallet_name = wallet['name'] if wallet else last_transaction['wallet_address']
-                    tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}  # Приводим к нижнему регистру
+                    tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}  # Маппинг по contract_address, нижний регистр
                     thread_id = DEFAULT_THREAD_ID  # Дефолтный тред
-                    contract_address = last_transaction.get('token_name', '').lower()  # Используем token_name как временное решение
+                    contract_address = last_transaction.get('token_name', '').lower()  # Временное решение, приводим к нижнему регистру
+
+                    # Убеждаемся, что contract_address начинается с "0x", если это необходимо
+                    if contract_address and not contract_address.startswith("0x"):
+                        contract_address = "0x" + contract_address
+
                     logger.debug(f"Проверка токена для последней транзакции: token_name={last_transaction['token_name']}, contract_address={contract_address}, tracked_tokens={tracked_tokens}")
 
                     if contract_address in tracked_tokens:
                         thread_id = tracked_tokens[contract_address]["thread_id"]
-                        logger.debug(f"Найден токен в tracked_tokens для последней транзакции, thread_id={thread_id}")
+                        logger.debug(f"Найден токен по contract_address в tracked_tokens для последней транзакции, thread_id={thread_id}")
                     else:
-                        logger.warning(f"Токен {contract_address} не найден в tracked_tokens для последней транзакции, используется дефолтный тред {thread_id}")
+                        logger.warning(f"Contract_address {contract_address} не найден в tracked_tokens для последней транзакции, используется дефолтный тред {thread_id}")
 
                     text, parse_mode = format_swap_message(
                         tx_hash=last_transaction['tx_hash'],
