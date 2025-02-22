@@ -12,3 +12,6 @@ class TokenStates(StatesGroup):
     waiting_for_thread_confirmation = State()
     waiting_for_thread_id = State()
     waiting_for_edit_thread_id = State()
+
+class SettingStates(StatesGroup):
+    waiting_for_setting_value = State()

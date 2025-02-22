@@ -3,9 +3,10 @@ from aiogram.fsm.context import FSMContext
 from .keyboards import (
     get_main_menu, get_back_button, get_tokens_keyboard, get_wallet_control_keyboard,
     get_wallets_list, get_tracked_tokens_list, get_token_control_keyboard,
-    get_token_name_confirmation_keyboard, get_thread_confirmation_keyboard, get_commands_list
+    get_token_name_confirmation_keyboard, get_thread_confirmation_keyboard, get_commands_list,
+    get_settings_list, get_setting_edit_keyboard
 )
-from .states import WalletStates, TokenStates
+from .states import WalletStates, TokenStates, SettingStates
 from database import Database
 from logger_config import logger
 import requests
@@ -232,6 +233,48 @@ async def delete_token(callback: types.CallbackQuery):
 async def show_commands(callback: types.CallbackQuery):
     text, reply_markup = get_commands_list()
     await callback.message.answer(text, parse_mode="Markdown", reply_markup=reply_markup)
+
+# === ПОКАЗАТЬ НАСТРОЙКИ ===
+async def show_settings(callback: types.CallbackQuery):
+    text, reply_markup = get_settings_list()
+    await callback.message.answer(text, disable_web_page_preview=True, reply_markup=reply_markup)
+
+# === РЕДАКТИРОВАНИЕ НАСТРОЙКИ ===
+async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
+    setting_name = callback.data.split("_")[2]
+    current_value = db.get_setting(setting_name)
+    descriptions = {
+        "CHECK_INTERVAL": "Интервал проверки транзакций в секундах (мин. 5)",
+        "LOG_TRANSACTIONS": "Логирование всех транзакций (0 - выкл, 1 - вкл)",
+        "LOG_SUCCESSFUL_TRANSACTIONS": "Логирование успешных транзакций (0 - выкл, 1 - вкл)"
+    }
+    text = f"⚙️ Настройка: {setting_name}\nТекущее значение: {current_value}\nОписание: {descriptions[setting_name]}"
+    await state.update_data(setting_name=setting_name)
+    await state.set_state(SettingStates.waiting_for_setting_value)
+    await callback.message.edit_text(f"{text}\n\nВведите новое значение:", reply_markup=get_back_button())
+
+async def process_setting_value(message: types.Message, state: FSMContext):
+    try:
+        new_value = message.text
+        data = await state.get_data()
+        setting_name = data["setting_name"]
+        
+        # Валидация
+        if setting_name == "CHECK_INTERVAL":
+            new_value = int(new_value)
+            if new_value < 5:
+                raise ValueError("Интервал должен быть не менее 5 секунд")
+        elif setting_name in ["LOG_TRANSACTIONS", "LOG_SUCCESSFUL_TRANSACTIONS"]:
+            new_value = int(new_value)
+            if new_value not in [0, 1]:
+                raise ValueError("Значение должно быть 0 или 1")
+
+        db.update_setting(setting_name, str(new_value))
+        text, reply_markup = get_settings_list()
+        await state.clear()
+        await message.answer(f"✅ Настройка {setting_name} обновлена на: {new_value}\n_________\n{text}", reply_markup=reply_markup)
+    except ValueError as e:
+        await message.answer(f"❌ Ошибка: {str(e)}. Попробуйте ещё раз:", reply_markup=get_back_button())
 
 # === ГЛАВНОЕ МЕНЮ ===
 async def go_home(callback: types.CallbackQuery, state: FSMContext):

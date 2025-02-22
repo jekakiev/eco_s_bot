@@ -18,6 +18,7 @@ class Database:
         conn = self._get_connection()
         cursor = conn.cursor()
         self.create_tables(cursor, conn)
+        self.initialize_settings(cursor, conn)
         cursor.close()
         conn.close()
 
@@ -48,6 +49,23 @@ class Database:
                 thread_id BIGINT NOT NULL
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS bot_settings (
+                setting_name VARCHAR(255) PRIMARY KEY,
+                setting_value VARCHAR(255) NOT NULL
+            )
+        """)
+        conn.commit()
+
+    def initialize_settings(self, cursor, conn):
+        # Инициализация настроек с значениями по умолчанию, если их нет
+        defaults = [
+            ("CHECK_INTERVAL", "10"),
+            ("LOG_TRANSACTIONS", "0"),
+            ("LOG_SUCCESSFUL_TRANSACTIONS", "0")
+        ]
+        for name, value in defaults:
+            cursor.execute("INSERT IGNORE INTO bot_settings (setting_name, setting_value) VALUES (%s, %s)", (name, value))
         conn.commit()
 
     # ====== ФУНКЦІЇ ДЛЯ ГАМАНЦІВ ======
@@ -209,6 +227,34 @@ class Database:
         cursor.execute("SELECT id, token_name, contract_address, thread_id FROM tracked_tokens WHERE contract_address = %s", (contract_address,))
         row = cursor.fetchone()
         result = {"id": row[0], "token_name": row[1], "contract_address": row[2], "thread_id": row[3]} if row else None
+        cursor.close()
+        conn.close()
+        return result
+
+    # ====== ФУНКЦІЇ ДЛЯ НАСТРОЕК БОТА ======
+    def get_setting(self, setting_name):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT setting_value FROM bot_settings WHERE setting_name = %s", (setting_name,))
+        row = cursor.fetchone()
+        result = row[0] if row else None
+        cursor.close()
+        conn.close()
+        return result
+
+    def update_setting(self, setting_name, setting_value):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE bot_settings SET setting_value = %s WHERE setting_name = %s", (setting_value, setting_name))
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+    def get_all_settings(self):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT setting_name, setting_value FROM bot_settings")
+        result = {row[0]: row[1] for row in cursor.fetchall()}
         cursor.close()
         conn.close()
         return result

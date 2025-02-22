@@ -5,10 +5,11 @@ from .callbacks import (
     process_new_wallet_name, edit_tokens_start, show_tokens, add_token_start,
     process_contract_address, confirm_token_name, reject_token_name, thread_exists,
     thread_not_exists, process_thread_id, edit_token_start, edit_token_thread,
-    process_edit_thread_id, delete_token, show_commands, go_home
+    process_edit_thread_id, delete_token, show_commands, show_settings, edit_setting_start,
+    process_setting_value, go_home
 )
 from aiogram.filters import Command
-from .states import WalletStates, TokenStates
+from .states import WalletStates, TokenStates, SettingStates
 from database import Database
 from logger_config import logger
 
@@ -39,21 +40,25 @@ def register_handlers(dp: Dispatcher):
     dp.message.register(process_edit_thread_id, TokenStates.waiting_for_edit_thread_id)
     dp.callback_query.register(delete_token, F.data.startswith("delete_token_"))
     dp.callback_query.register(show_commands, F.data == "show_commands")
+    dp.callback_query.register(show_settings, F.data == "show_settings")
+    dp.callback_query.register(edit_setting_start, F.data.startswith("edit_setting_"))
+    dp.message.register(process_setting_value, SettingStates.waiting_for_setting_value)
     dp.callback_query.register(go_home, F.data == "home")
     
-    # Регистрация команд для кошельков
     wallet_commands = [f"Edit_{wallet['address'][-4:]}" for wallet in db.get_all_wallets()]
     if wallet_commands:
         dp.message.register(edit_wallet_command, Command(commands=wallet_commands))
     else:
         logger.warning("Нет кошельков для регистрации команд /Edit_XXXX")
     
-    # Регистрация команд для токенов
     token_commands = [f"edit_{token['contract_address'][-4:]}" for token in db.get_all_tracked_tokens()]
     if token_commands:
         dp.message.register(edit_token_command, Command(commands=token_commands))
     else:
         logger.warning("Нет токенов для регистрации команд /edit_XXXX")
+
+    setting_commands = [f"edit_{setting}" for setting in ["CHECK_INTERVAL", "LOG_TRANSACTIONS", "LOG_SUCCESSFUL_TRANSACTIONS"]]
+    dp.message.register(edit_setting_command, Command(commands=setting_commands))
 
 async def edit_wallet_command(message: types.Message):
     logger.info(f"Получена команда: {message.text}")
@@ -83,6 +88,26 @@ async def edit_token_command(message: types.Message):
         from .keyboards import get_token_control_keyboard
         text = f"Токен: {token['token_name']}\nАдрес: {token['contract_address']}\nТекущий тред: {token['thread_id']}"
         await message.answer(text, reply_markup=get_token_control_keyboard(token['id']))
+    except Exception as e:
+        logger.error(f"Ошибка обработки команды /edit: {str(e)}")
+        await message.answer("❌ Ошибка при обработке команды.")
+
+async def edit_setting_command(message: types.Message):
+    logger.info(f"Получена команда: {message.text}")
+    try:
+        setting_name = message.text.split("_")[1]
+        current_value = db.get_setting(setting_name)
+        descriptions = {
+            "CHECK_INTERVAL": "Интервал проверки транзакций в секундах (мин. 5)",
+            "LOG_TRANSACTIONS": "Логирование всех транзакций (0 - выкл, 1 - вкл)",
+            "LOG_SUCCESSFUL_TRANSACTIONS": "Логирование успешных транзакций (0 - выкл, 1 - вкл)"
+        }
+        if setting_name not in descriptions:
+            await message.answer("❌ Настройка не найдена.")
+            return
+        text = f"⚙️ Настройка: {setting_name}\nТекущее значение: {current_value}\nОписание: {descriptions[setting_name]}"
+        from .keyboards import get_setting_edit_keyboard
+        await message.answer(text, reply_markup=get_setting_edit_keyboard(setting_name))
     except Exception as e:
         logger.error(f"Ошибка обработки команды /edit: {str(e)}")
         await message.answer("❌ Ошибка при обработке команды.")

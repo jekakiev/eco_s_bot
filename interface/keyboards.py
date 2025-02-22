@@ -1,6 +1,5 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from database import Database
-from threads_config import TOKEN_CONFIG
 
 db = Database()
 
@@ -9,6 +8,7 @@ def get_main_menu():
     builder = InlineKeyboardBuilder()
     builder.button(text="📜 Список кошельков", callback_data="show_wallets")
     builder.button(text="🪙 Отслеживаемые S токены", callback_data="show_tokens")
+    builder.button(text="⚙️ Настройки", callback_data="show_settings")
     builder.button(text="ℹ️ Команды", callback_data="show_commands")
     builder.adjust(1)
     return builder.as_markup()
@@ -119,3 +119,24 @@ def get_commands_list():
     builder.button(text="⬅️ Назад", callback_data="home")
     builder.adjust(1)
     return text, builder.as_markup()
+
+# === СПИСОК НАСТРОЕК ===
+def get_settings_list():
+    settings = db.get_all_settings()
+    text = "⚙️ Настройки бота:\n"
+    text += f"Интервал проверки: {settings['CHECK_INTERVAL']} сек - /edit_CHECK_INTERVAL\n"
+    text += f"Логи транзакций: {'Вкл' if int(settings['LOG_TRANSACTIONS']) else 'Выкл'} - /edit_LOG_TRANSACTIONS\n"
+    text += f"Логи успешных транзакций: {'Вкл' if int(settings['LOG_SUCCESSFUL_TRANSACTIONS']) else 'Выкл'} - /edit_LOG_SUCCESSFUL_TRANSACTIONS\n"
+    
+    builder = InlineKeyboardBuilder()
+    builder.button(text="⬅️ Назад", callback_data="home")
+    builder.adjust(1)
+    return text, builder.as_markup()
+
+# === МЕНЮ РЕДАКТИРОВАНИЯ НАСТРОЙКИ ===
+def get_setting_edit_keyboard(setting_name):
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✏️ Изменить", callback_data=f"edit_setting_{setting_name}")
+    builder.button(text="⬅️ Назад", callback_data="show_settings")
+    builder.adjust(2)
+    return builder.as_markup()

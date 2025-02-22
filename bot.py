@@ -5,12 +5,18 @@ from interface import register_handlers, get_main_menu
 from arbiscan import get_token_transactions
 from message_formatter import format_swap_message
 from database import Database
-from settings import BOT_TOKEN, CHECK_INTERVAL, CHAT_ID, LOG_TRANSACTIONS, LOG_SUCCESSFUL_TRANSACTIONS
+from settings import BOT_TOKEN, CHAT_ID
 from logger_config import logger
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 db = Database()
+
+# Загружаем настройки из базы
+settings = db.get_all_settings()
+CHECK_INTERVAL = int(settings["CHECK_INTERVAL"])
+LOG_TRANSACTIONS = int(settings["LOG_TRANSACTIONS"])
+LOG_SUCCESSFUL_TRANSACTIONS = int(settings["LOG_SUCCESSFUL_TRANSACTIONS"])
 
 logger.info("Статус логов при запуске бота:")
 logger.info(f"- Логи транзакций: {'Включены' if LOG_TRANSACTIONS else 'Выключены'}")
