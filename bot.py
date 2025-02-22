@@ -47,6 +47,16 @@ async def get_last_transaction_command(message: types.Message):
         thread_id = DEFAULT_THREAD_ID  # Дефолтный тред
         contract_address = last_transaction.get('token_out_address', '').lower()  # Используем token_out_address из транзакции
 
+        # Если contract_address пустой, попробуем найти по token_name (на случай, если адрес отсутствует)
+        if not contract_address:
+            token_name = last_transaction.get('token_name', '').upper()
+            tracked_by_name = {t["token_name"].upper(): t["contract_address"].lower() for t in db.get_all_tracked_tokens()}
+            if token_name in tracked_by_name:
+                contract_address = tracked_by_name[token_name]
+                logger.debug(f"Contract_address не найден, использован token_name={token_name} для получения contract_address={contract_address}")
+            else:
+                logger.error(f"Не удалось определить contract_address для token_name={token_name}")
+
         # Убеждаемся, что contract_address начинается с "0x", если это необходимо
         if contract_address and not contract_address.startswith("0x"):
             contract_address = "0x" + contract_address
@@ -125,6 +135,16 @@ async def check_token_transactions():
                     token_out = tx.get("token_out", "Неизвестно")
                     contract_address = tx.get("token_out_address", "").lower()  # Используем token_out_address, приводим к нижнему регистру
 
+                    # Если contract_address пустой, попробуем найти по token_name (на случай, если адрес отсутствует)
+                    if not contract_address:
+                        token_name = tx.get("token_out", "Неизвестно").upper()
+                        tracked_by_name = {t["token_name"].upper(): t["contract_address"].lower() for t in db.get_all_tracked_tokens()}
+                        if token_name in tracked_by_name:
+                            contract_address = tracked_by_name[token_name]
+                            logger.debug(f"Contract_address не найден, использован token_name={token_name} для получения contract_address={contract_address}")
+                        else:
+                            logger.error(f"Не удалось определить contract_address для token_name={token_name}")
+
                     # Убеждаемся, что contract_address начинается с "0x", если это необходимо
                     if contract_address and not contract_address.startswith("0x"):
                         contract_address = "0x" + contract_address
@@ -180,6 +200,16 @@ async def check_token_transactions():
                     tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}  # Маппинг по contract_address, нижний регистр
                     thread_id = DEFAULT_THREAD_ID  # Дефолтный тред
                     contract_address = last_transaction.get('token_out_address', '').lower()  # Используем token_out_address из транзакции
+
+                    # Если contract_address пустой, попробуем найти по token_name (на случай, если адрес отсутствует)
+                    if not contract_address:
+                        token_name = last_transaction.get('token_name', 'Неизвестно').upper()
+                        tracked_by_name = {t["token_name"].upper(): t["contract_address"].lower() for t in db.get_all_tracked_tokens()}
+                        if token_name in tracked_by_name:
+                            contract_address = tracked_by_name[token_name]
+                            logger.debug(f"Contract_address не найден, использован token_name={token_name} для получения contract_address={contract_address}")
+                        else:
+                            logger.error(f"Не удалось определить contract_address для token_name={token_name}")
 
                     # Убеждаемся, что contract_address начинается с "0x", если это необходимо
                     if contract_address and not contract_address.startswith("0x"):
