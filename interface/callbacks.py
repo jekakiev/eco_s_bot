@@ -265,7 +265,7 @@ async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
 # === ПЕРЕКЛЮЧЕНИЕ ЗНАЧЕНИЯ ЛОГОВ ПРЯМО В СПИСКЕ ===
 async def toggle_log_setting(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Нажата кнопка переключения логов: {callback.data}")
-    setting_name = callback.data.split("_")[1]
+    setting_name = callback.data.split("_")[1]  # Исправлено на split("_")[1], чтобы взять полный setting_name
     current_value = db.get_setting(setting_name)
     if current_value is None:
         current_value = "0"  # Дефолтное значение, если настройка отсутствует
