@@ -1,5 +1,4 @@
 import requests
-import time
 from settings import ARBISCAN_API_KEY
 import logging
 
@@ -7,8 +6,8 @@ logger = logging.getLogger('main_logger')
 
 def get_token_transactions(wallet_addresses):
     """
-    Получает последние 10 транзакций для списка кошельков, разбивая запросы на части по 10 адресов
-    с учётом лимита Arbiscan (5 запросов/сек).
+    Получает последние 10 транзакций для списка кошельков, разбивая запросы на части по 5 адресов
+    без дополнительных задержек, но с учётом лимита Arbiscan (5 запросов/сек).
     """
     if not wallet_addresses or not isinstance(wallet_addresses, (list, str)):
         return {}
@@ -17,8 +16,8 @@ def get_token_transactions(wallet_addresses):
     if isinstance(wallet_addresses, str):
         wallet_addresses = [wallet_addresses]
 
-    # Ограничиваем количество адресов в одном запросе (например, 10 — безопасный лимит для tokentx)
-    max_addresses_per_request = 10
+    # Ограничиваем количество адресов в одном запросе (5 — безопасный лимит для tokentx)
+    max_addresses_per_request = 5
     all_transactions = {}
 
     for i in range(0, len(wallet_addresses), max_addresses_per_request):
@@ -39,16 +38,16 @@ def get_token_transactions(wallet_addresses):
         }
 
         try:
-            # Задержка, чтобы не превышать лимит 5 запросов/сек
-            time.sleep(0.2)  # ~5 запросов в секунду (0.2 сек между запросами)
-            
             response = requests.get("https://api.arbiscan.io/api", params=params, timeout=10)
             response.raise_for_status()
             data = response.json()
 
             if data.get("status") != "1":
-                logger.error(f"Arbiscan вернул ошибку: {data.get('message', 'Неизвестная ошибка')}")
+                logger.error(f"Arbiscan вернул ошибку: {data.get('message', 'Неизвестная ошибка')} для адресов {chunk_addresses}")
                 continue  # Пропускаем этот чанк, если ошибка
+
+            # Логируем полный ответ Arbiscan для анализа
+            logger.debug(f"Полный ответ Arbiscan для адресов {chunk_addresses}: {data}")
 
             # Парсим транзакции, группируя их по кошелькам
             for tx in data.get("result", []):
@@ -57,23 +56,23 @@ def get_token_transactions(wallet_addresses):
                     all_transactions[wallet_address] = []
                 all_transactions[wallet_address].append({
                     "tx_hash": tx.get("hash"),
-                    "token_in": tx.get("tokenSymbol", "Unknown"),
+                    "token_in": tx.get("tokenSymbol", "Unknown"),  # Может быть неверное поле, проверим в логе
                     "token_in_address": tx.get("contractAddress", ""),
-                    "amount_in": tx.get("value", "0"),
-                    "token_out": tx.get("tokenSymbol", "Unknown"),
+                    "amount_in": tx.get("value", "0"),  # Может быть в wei, нужно конвертировать
+                    "token_out": tx.get("tokenSymbol", "Unknown"),  # Может быть неверное поле, проверим в логе
                     "token_out_address": tx.get("contractAddress", ""),
-                    "amount_out": tx.get("value", "0"),
-                    "usd_value": tx.get("valueUSD", "0")  # Предполагаем, что есть поле USD, если нет — уточним
+                    "amount_out": tx.get("value", "0"),  # Может быть в wei, нужно конвертировать
+                    "usd_value": tx.get("valueUSD", "0")  # Может быть отсутствует, проверим в логе
                 })
 
-            logger.info(f"Успешно получены транзакции для {len(chunk_addresses)} адресов")
+            logger.info(f"Успешно получены транзакции для {len(chunk_addresses)} адресов: {chunk_addresses}")
 
         except requests.RequestException as e:
-            logger.error(f"Ошибка при запросе к Arbiscan: {str(e)}")
+            logger.error(f"Ошибка при запросе к Arbiscan для адресов {chunk_addresses}: {str(e)}")
             continue
 
         except Exception as e:
-            logger.error(f"Произошла ошибка обработки ответа Arbiscan: {str(e)}")
+            logger.error(f"Произошла ошибка обработки ответа Arbiscan для адресов {chunk_addresses}: {str(e)}")
             continue
 
     return all_transactions
