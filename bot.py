@@ -7,16 +7,17 @@ from message_formatter import format_swap_message
 from database import Database
 from settings import BOT_TOKEN, CHAT_ID
 from logger_config import logger
+import time
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 db = Database()
 
-# Загружаем настройки из базы
+# Загружаем настройки из базы с дефолтными значениями
 settings = db.get_all_settings()
-CHECK_INTERVAL = int(settings["CHECK_INTERVAL"])
-LOG_TRANSACTIONS = int(settings["LOG_TRANSACTIONS"])
-LOG_SUCCESSFUL_TRANSACTIONS = int(settings["LOG_SUCCESSFUL_TRANSACTIONS"])
+CHECK_INTERVAL = int(settings.get("CHECK_INTERVAL", "10"))
+LOG_TRANSACTIONS = int(settings.get("LOG_TRANSACTIONS", "0"))
+LOG_SUCCESSFUL_TRANSACTIONS = int(settings.get("LOG_SUCCESSFUL_TRANSACTIONS", "0"))
 
 logger.info("Статус логов при запуске бота:")
 logger.info(f"- Логи транзакций: {'Включены' if LOG_TRANSACTIONS else 'Выключены'}")
@@ -35,6 +36,7 @@ async def get_thread_id_command(message: types.Message):
 
 async def check_token_transactions():
     while True:
+        start_time = time.time()
         try:
             watched_wallets = db.get_all_wallets()
             tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}
@@ -81,6 +83,7 @@ async def check_token_transactions():
                         parse_mode=parse_mode,
                         disable_web_page_preview=True
                     )
+            logger.info(f"Проверка транзакций заняла {time.time() - start_time} сек")
         except Exception as e:
             logger.error(f"Произошла ошибка: {str(e)}")
 

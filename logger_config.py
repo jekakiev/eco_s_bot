@@ -3,8 +3,8 @@ from database import Database
 
 db = Database()
 settings = db.get_all_settings()
-LOG_TRANSACTIONS = int(settings["LOG_TRANSACTIONS"])
-LOG_SUCCESSFUL_TRANSACTIONS = int(settings["LOG_SUCCESSFUL_TRANSACTIONS"])
+LOG_TRANSACTIONS = int(settings.get("LOG_TRANSACTIONS", "0"))
+LOG_SUCCESSFUL_TRANSACTIONS = int(settings.get("LOG_SUCCESSFUL_TRANSACTIONS", "0"))
 
 # Настройка логгера
 logger = logging.getLogger('main_logger')

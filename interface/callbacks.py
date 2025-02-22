@@ -259,7 +259,7 @@ async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
         db.update_setting(setting_name, current_value)  # Сохраняем дефолтное значение в базу
 
     if setting_name == "CHECK_INTERVAL":
-        text = f"⚙️ Интервал проверки\nТекущее значение: {current_value} секунд\nВведите интервал обновления в секундах (мин. 5):"
+        text = f"⚙️ Интервал проверки\nТекущее значение: {current_value} секунд\nВведите интервал обновления в секундах (мин. 1):"
         await state.set_state(SettingStates.waiting_for_setting_value)
         await callback.message.edit_text(text, reply_markup=get_interval_edit_keyboard())
     await state.update_data(setting_name=setting_name)
@@ -293,8 +293,8 @@ async def process_setting_value(message: types.Message, state: FSMContext):
         
         if setting_name == "CHECK_INTERVAL":
             new_value = int(new_value)
-            if new_value < 5:
-                raise ValueError("Интервал должен быть не менее 5 секунд")
+            if new_value < 1:
+                raise ValueError("Интервал должен быть не менее 1 секунды")
         
         db.update_setting(setting_name, str(new_value))
         text, reply_markup = get_settings_list()
