@@ -26,6 +26,11 @@ logger.info(f"- Логи успешных транзакций: {'Включен
 # Логируем текущие значения из базы для отладки
 logger.debug(f"Загруженные настройки из базы: CHECK_INTERVAL={CHECK_INTERVAL}, LOG_TRANSACTIONS={LOG_TRANSACTIONS}, LOG_SUCCESSFUL_TRANSACTIONS={LOG_SUCCESSFUL_TRANSACTIONS}")
 
+# Логируем данные последней транзакции при запуске
+last_transaction = db.get_last_transaction()
+if last_transaction:
+    logger.debug(f"Данные последней транзакции из базы: {last_transaction}")
+
 register_handlers(dp)
 
 @dp.message(Command("start"))
@@ -33,6 +38,25 @@ async def start_command(message: types.Message):
     await message.answer("✅ Бот запущен и мониторит транзакции!", reply_markup=get_main_menu())
     if LOG_SUCCESSFUL_TRANSACTIONS:
         logger.info("Команда /start была обработана успешно (тестовое сообщение для успешных логов)")
+
+@dp.message(Command("get_last_transaction"))
+async def get_last_transaction_command(message: types.Message):
+    last_transaction = db.get_last_transaction()
+    if last_transaction:
+        logger.debug(f"Данные последней транзакции по запросу: {last_transaction}")
+        await message.answer(
+            f"Последняя транзакция:\n"
+            f"Hash: {last_transaction['tx_hash']}\n"
+            f"Кошелёк: {last_transaction['wallet_address']}\n"
+            f"Токен: {last_transaction['token_name']}\n"
+            f"USD: {last_transaction['usd_value']}\n"
+            f"Время: {last_transaction['timestamp']}",
+            disable_web_page_preview=True
+        )
+    else:
+        await message.answer("Нет записей о транзакциях.", disable_web_page_preview=True)
+    if LOG_SUCCESSFUL_TRANSACTIONS:
+        logger.info(f"Команда /get_last_transaction была обработана успешно для чата {message.chat.id} (тестовое сообщение для успешных логов)")
 
 @dp.message(Command("get_thread_id"))
 async def get_thread_id_command(message: types.Message):
