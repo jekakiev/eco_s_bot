@@ -257,7 +257,7 @@ async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
         db.update_setting(setting_name, current_value)  # Сохраняем дефолтное значение в базу
 
     if setting_name == "CHECK_INTERVAL":
-        text = f"⚙️ Интервал проверки\nТекущее значение: {current_value} секунд\nВведите новое значение (мин. 5):"
+        text = f"⚙️ Интервал проверки\nТекущее значение: {current_value} секунд\nВведите интервал обновления в секундах (мин. 5):"
         await state.set_state(SettingStates.waiting_for_setting_value)
         await callback.message.edit_text(text, reply_markup=get_interval_edit_keyboard())
     else:  # LOG_TRANSACTIONS или LOG_SUCCESSFUL_TRANSACTIONS
