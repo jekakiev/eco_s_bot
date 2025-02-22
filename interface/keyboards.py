@@ -24,7 +24,7 @@ def get_wallets_list():
     if not wallets:
         return "📭 У вас пока нет кошельков."
 
-    text = "Список кошельков:\n\n"
+    text = "Список кошельков:\n"
     for wallet in wallets:
         short_address = wallet['address'][-4:]
         text += f"🔹 {wallet['name']} ({short_address}) — /Edit_{short_address}\n"
