@@ -22,9 +22,9 @@ async def show_wallets(callback: types.CallbackQuery):
         logger.info(f"Текст для отправки (строка): {text}")  # Логируем текст как строку
         logger.info(f"Chat ID: {callback.message.chat.id}, Message ID: {callback.message.message_id}")  # Логируем данные сообщения
 
-        # Отправляем новое сообщение вместо редактирования
-        await callback.message.answer(text, parse_mode=None, disable_web_page_preview=True, reply_markup=reply_markup)
-        logger.info("Новое сообщение успешно отправлено")
+        # Отправляем новое сообщение напрямую в чат
+        message = await callback.message.answer(text, parse_mode=None, disable_web_page_preview=True, reply_markup=reply_markup)
+        logger.info(f"Новое сообщение успешно отправлено. Message ID: {message.message_id}")
 
     except Exception as e:
         logger.error(f"Ошибка при отправке списка кошельков: {str(e)}")
