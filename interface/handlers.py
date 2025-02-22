@@ -11,7 +11,6 @@ from aiogram.filters import Command
 from .states import WalletStates, TokenStates
 from database import Database
 from logger_config import logger
-from interface import get_token_control_keyboard
 
 db = Database()
 
@@ -53,6 +52,7 @@ async def edit_wallet_command(message: types.Message):
         if not wallet:
             await message.answer("❌ Кошелек не найден.")
             return
+        from .keyboards import get_wallet_control_keyboard  # Импорт внутри функции
         text = f"Имя кошелька: {wallet['name']}\nАдрес кошелька: {wallet['address']}"
         await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet['id']))
     except Exception as e:
@@ -68,6 +68,7 @@ async def edit_token_command(message: types.Message):
         if not token:
             await message.answer("❌ Токен не найден.")
             return
+        from .keyboards import get_token_control_keyboard  # Импорт внутри функции
         text = f"Токен: {token['token_name']}\nАдрес: {token['contract_address']}\nТекущий тред: {token['thread_id']}"
         await message.answer(text, reply_markup=get_token_control_keyboard(token['id']))
     except Exception as e:
