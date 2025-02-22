@@ -245,6 +245,17 @@ async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Нажата кнопка настройки: {callback.data}")
     setting_name = callback.data.split("_")[2]
     current_value = db.get_setting(setting_name)
+    if current_value is None:
+        # Fallback если настройка не найдена
+        default_values = {
+            "CHECK_INTERVAL": "10",
+            "LOG_TRANSACTIONS": "0",
+            "LOG_SUCCESSFUL_TRANSACTIONS": "0"
+        }
+        current_value = default_values.get(setting_name, "0")
+        logger.warning(f"Настройка {setting_name} не найдена в базе, использую значение по умолчанию: {current_value}")
+        db.update_setting(setting_name, current_value)  # Сохраняем дефолтное значение в базу
+
     if setting_name == "CHECK_INTERVAL":
         text = f"⚙️ Интервал проверки\nТекущее значение: {current_value} секунд\nВведите новое значение (мин. 5):"
         await state.set_state(SettingStates.waiting_for_setting_value)
