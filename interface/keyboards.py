@@ -7,8 +7,9 @@ db = Database()
 # === ГЛАВНОЕ МЕНЮ ===
 def get_main_menu():
     builder = InlineKeyboardBuilder()
-    builder.button(text="📜 Показать гаманцы", callback_data="show_wallets")
-    builder.button(text="➕ Добавить гаманец", callback_data="add_wallet")
+    builder.button(text="📜 Список кошельков", callback_data="show_wallets")
+    builder.button(text="➕ Добавить кошелек", callback_data="add_wallet")
+    builder.adjust(2)  # Располагаем кнопки в два ряда
     return builder.as_markup()
 
 # === КНОПКА НАЗАД ===
@@ -17,13 +18,13 @@ def get_back_button():
     builder.button(text="⬅️ В главное меню", callback_data="home")
     return builder.as_markup()
 
-# === СПИСОК ГАМАНЦЕВ ===
+# === СПИСОК КОШЕЛЬКОВ ===
 def get_wallets_list():
     wallets = db.get_all_wallets()
     if not wallets:
-        return "📭 У вас пока нет гаманцев."
+        return "📭 У вас пока нет кошельков."
 
-    text = "📜 *Ваши гаманцы:*\n\n"
+    text = "📜 *Ваши кошельки:*\n\n"
     for wallet in wallets:
         short_address = wallet['address'][-4:]
         text += f"🔹 {wallet['name']} ({short_address}) — /Edit_{short_address}\n"
@@ -34,7 +35,7 @@ def get_wallets_list():
 
     return text, builder.as_markup()
 
-# === МЕНЮ УПРАВЛЕНИЯ ГАМАНЦЕМ ===
+# === МЕНЮ УПРАВЛЕНИЯ КОШЕЛЬКОМ ===
 def get_wallet_control_keyboard(wallet_id):
     builder = InlineKeyboardBuilder()
     builder.button(text="🗑 Удалить", callback_data=f"delete_wallet_{wallet_id}")

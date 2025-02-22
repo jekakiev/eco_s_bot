@@ -27,7 +27,7 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(go_home, F.data == "home")
     dp.message.register(edit_wallet_command, Command("Edit"))  # Регистрация команды Edit
 
-# Обработчик команды для редактирования гаманцев
+# Обработчик команды для редактирования кошельков
 async def edit_wallet_command(message: types.Message):
     logger.info(f"Получена команда: {message.text}")
     try:
@@ -41,20 +41,20 @@ async def edit_wallet_command(message: types.Message):
         short_address = message.text.split("_")[1]
         logger.info(f"Получен короткий адрес: {short_address}")
 
-        # Получение всех гаманцев из базы данных
+        # Получение всех кошельков из базы данных
         wallets = db.get_all_wallets()
-        logger.info(f"Гаманцы: {wallets}")
+        logger.info(f"Кошельки: {wallets}")
 
-        # Поиск гаманца по короткому адресу
+        # Поиск кошелька по короткому адресу
         wallet = next((wallet for wallet in wallets if wallet["address"].endswith(short_address)), None)
         if not wallet:
-            logger.warning(f"Гаманец с адресом, заканчивающимся на {short_address}, не найден.")
-            await message.answer("❌ Гаманец не найден.")
+            logger.warning(f"Кошелек с адресом, заканчивающимся на {short_address}, не найден.")
+            await message.answer("❌ Кошелек не найден.")
             return
 
-        # Отправка информации о гаманце и клавиатуры для управления
-        logger.info(f"Найден гаманец: {wallet['name']} с адресом {wallet['address']}")
-        text = f"Имя гаманца: {wallet['name']}\nАдрес гаманца: {wallet['address']}"
+        # Отправка информации о кошельке и клавиатуры для управления
+        logger.info(f"Найден кошелек: {wallet['name']} с адресом {wallet['address']}")
+        text = f"Имя кошелька: {wallet['name']}\nАдрес кошелька: {wallet['address']}"
         await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet['id']))
         logger.info("Отправлено меню редактирования")
     except Exception as e:
