@@ -1,243 +1,343 @@
-import sqlite3
+import mysql.connector
 import os
+from dotenv import load_dotenv
 import logging
 
 logger = logging.getLogger('main_logger')
 
-class Database:
-    def __init__(self):
-        if not os.path.exists("database.db"):
-            self.conn = sqlite3.connect("database.db")
-            self.create_tables()
-        else:
-            self.conn = sqlite3.connect("database.db")
+load_dotenv()
 
-    def create_tables(self):
-        cursor = self.conn.cursor()
+class Database:
+    def _get_connection(self):
+        return mysql.connector.connect(
+            host=os.getenv("MYSQL_HOST"),
+            user=os.getenv("MYSQL_USER"),
+            password=os.getenv("MYSQL_PASSWORD"),
+            database=os.getenv("MYSQL_DATABASE"),
+            port=int(os.getenv("MYSQL_PORT", 3306))
+        )
+
+    def __init__(self):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        self.create_tables(cursor, conn)
+        self.ensure_settings_exist(cursor, conn)  # Убедимся, что настройки существуют, но не перезаписываем существующие
+        cursor.close()
+        conn.close()
+
+    def create_tables(self, cursor, conn):
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS wallets (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                address TEXT UNIQUE NOT NULL,
-                name TEXT NOT NULL,
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                address VARCHAR(255) UNIQUE NOT NULL,
+                name VARCHAR(255) DEFAULT 'Невідомий',
                 tokens TEXT
             )
         """)
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS tracked_tokens (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                token_name TEXT NOT NULL,
-                contract_address TEXT UNIQUE NOT NULL,
-                thread_id INTEGER NOT NULL
+            CREATE TABLE IF NOT EXISTS transactions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                tx_hash VARCHAR(255) UNIQUE NOT NULL,
+                wallet_address VARCHAR(255) NOT NULL,
+                token_name VARCHAR(255),
+                usd_value VARCHAR(255),
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS transactions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                tx_hash TEXT UNIQUE NOT NULL,
-                wallet_address TEXT NOT NULL,
-                token_name TEXT NOT NULL,
-                usd_value TEXT NOT NULL,
-                timestamp TEXT DEFAULT CURRENT_TIMESTAMP
+            CREATE TABLE IF NOT EXISTS tracked_tokens (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                token_name VARCHAR(255) NOT NULL,
+                contract_address VARCHAR(255) UNIQUE NOT NULL,
+                thread_id BIGINT NOT NULL
             )
         """)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS bot_settings (
-                setting_name TEXT PRIMARY KEY,
-                setting_value TEXT NOT NULL
+                setting_name VARCHAR(255) PRIMARY KEY,
+                setting_value VARCHAR(255) NOT NULL
             )
         """)
-        # Добавляем дефолтные настройки только если их нет
-        default_settings = {
-            "CHECK_INTERVAL": "60",
-            "LOG_TRANSACTIONS": "0",  # Установим дефолт 0, как в твоей базе
-            "LOG_SUCCESSFUL_TRANSACTIONS": "0",  # Установим дефолт 0, как в твоей базе
-            "SEND_LAST_TRANSACTION": "0"
-        }
-        for setting_name, setting_value in default_settings.items():
-            cursor.execute("INSERT OR IGNORE INTO bot_settings (setting_name, setting_value) VALUES (?, ?)",
-                          (setting_name, setting_value))
-        self.conn.commit()
-        logger.info("Таблицы и дефолтные настройки созданы или проверены.")
+        conn.commit()
+        logger.info("Таблицы созданы или проверены.")
 
-    def add_wallet(self, address, name, tokens):
-        cursor = self.conn.cursor()
+    def ensure_settings_exist(self, cursor, conn):
+        # Проверяем наличие настроек и добавляем только отсутствующие
+        defaults = [
+            ("CHECK_INTERVAL", "10"),
+            ("LOG_TRANSACTIONS", "0"),
+            ("LOG_SUCCESSFUL_TRANSACTIONS", "0"),
+            ("SEND_LAST_TRANSACTION", "0")  # Добавляем новую настройку
+        ]
+        cursor.execute("SELECT setting_name FROM bot_settings")
+        existing_settings = {row[0] for row in cursor.fetchall()}
+        for name, value in defaults:
+            if name not in existing_settings:
+                cursor.execute("INSERT INTO bot_settings (setting_name, setting_value) VALUES (%s, %s)", (name, value))
+        conn.commit()
+        logger.info("Проверены и инициализированы настройки.")
+
+    # ====== ФУНКЦІЇ ДЛЯ ГАМАНЦІВ ======
+    def add_wallet(self, address, name="Невідомий", tokens=""):
+        conn = self._get_connection()
+        cursor = conn.cursor()
         try:
-            cursor.execute("INSERT OR REPLACE INTO wallets (address, name, tokens) VALUES (?, ?, ?)", (address, name, tokens))
-            self.conn.commit()
+            cursor.execute("INSERT IGNORE INTO wallets (address, name, tokens) VALUES (%s, %s, %s)", (address, name, tokens))
+            conn.commit()
             logger.info(f"Кошелек добавлен/обновлен: {address}, {name}, {tokens}")
-        except sqlite3.Error as e:
+        except mysql.connector.Error as e:
             logger.error(f"Ошибка при добавлении кошелька: {str(e)}")
-            self.conn.rollback()
-
-    def get_all_wallets(self):
-        cursor = self.conn.cursor()
-        try:
-            cursor.execute("SELECT id, address, name, tokens FROM wallets")
-            wallets = cursor.fetchall()
-            logger.debug(f"Получены кошельки из базы: {wallets}")
-            return wallets
-        except sqlite3.Error as e:
-            logger.error(f"Ошибка при получении кошельков: {str(e)}")
-            return []
-
-    def get_wallet_by_id(self, wallet_id):
-        cursor = self.conn.cursor()
-        try:
-            cursor.execute("SELECT id, address, name, tokens FROM wallets WHERE id = ?", (wallet_id,))
-            wallet = cursor.fetchone()
-            logger.debug(f"Получен кошелек по ID {wallet_id}: {wallet}")
-            return wallet
-        except sqlite3.Error as e:
-            logger.error(f"Ошибка при получении кошелька по ID {wallet_id}: {str(e)}")
-            return None
-
-    def get_wallet_by_address(self, address):
-        cursor = self.conn.cursor()
-        try:
-            cursor.execute("SELECT id, address, name, tokens FROM wallets WHERE address = ?", (address,))
-            wallet = cursor.fetchone()
-            logger.debug(f"Получен кошелек по адресу {address}: {wallet}")
-            return wallet
-        except sqlite3.Error as e:
-            logger.error(f"Ошибка при получении кошелька по адресу {address}: {str(e)}")
-            return None
+            conn.rollback()
+        finally:
+            cursor.close()
+            conn.close()
 
     def remove_wallet(self, wallet_id):
-        cursor = self.conn.cursor()
+        conn = self._get_connection()
+        cursor = conn.cursor()
         try:
-            cursor.execute("DELETE FROM wallets WHERE id = ?", (wallet_id,))
-            self.conn.commit()
+            cursor.execute("DELETE FROM wallets WHERE id = %s", (wallet_id,))
+            conn.commit()
             logger.info(f"Кошелек с ID {wallet_id} удалён.")
-        except sqlite3.Error as e:
+        except mysql.connector.Error as e:
             logger.error(f"Ошибка при удалении кошелька с ID {wallet_id}: {str(e)}")
-            self.conn.rollback()
+            conn.rollback()
+        finally:
+            cursor.close()
+            conn.close()
 
     def update_wallet_name(self, wallet_id, new_name):
-        cursor = self.conn.cursor()
+        conn = self._get_connection()
+        cursor = conn.cursor()
         try:
-            cursor.execute("UPDATE wallets SET name = ? WHERE id = ?", (new_name, wallet_id))
-            self.conn.commit()
+            cursor.execute("UPDATE wallets SET name = %s WHERE id = %s", (new_name, wallet_id))
+            conn.commit()
             logger.info(f"Имя кошелька с ID {wallet_id} обновлено на: {new_name}")
-        except sqlite3.Error as e:
+        except mysql.connector.Error as e:
             logger.error(f"Ошибка при обновлении имени кошелька с ID {wallet_id}: {str(e)}")
-            self.conn.rollback()
+            conn.rollback()
+        finally:
+            cursor.close()
+            conn.close()
 
     def update_wallet_tokens(self, wallet_id, tokens):
-        cursor = self.conn.cursor()
+        conn = self._get_connection()
+        cursor = conn.cursor()
         try:
-            cursor.execute("UPDATE wallets SET tokens = ? WHERE id = ?", (tokens, wallet_id))
-            self.conn.commit()
+            cursor.execute("UPDATE wallets SET tokens = %s WHERE id = %s", (tokens, wallet_id))
+            conn.commit()
             logger.info(f"Токены кошелька с ID {wallet_id} обновлены на: {tokens}")
-        except sqlite3.Error as e:
+        except mysql.connector.Error as e:
             logger.error(f"Ошибка при обновлении токенов кошелька с ID {wallet_id}: {str(e)}")
-            self.conn.rollback()
+            conn.rollback()
+        finally:
+            cursor.close()
+            conn.close()
 
-    def add_tracked_token(self, token_name, contract_address, thread_id):
-        cursor = self.conn.cursor()
+    def get_all_wallets(self):
+        conn = self._get_connection()
+        cursor = conn.cursor()
         try:
-            cursor.execute("INSERT OR REPLACE INTO tracked_tokens (token_name, contract_address, thread_id) VALUES (?, ?, ?)",
-                          (token_name, contract_address, thread_id))
-            self.conn.commit()
-            logger.info(f"Токен добавлен/обновлён: {token_name}, {contract_address}, {thread_id}")
-        except sqlite3.Error as e:
-            logger.error(f"Ошибка при добавлении токена: {str(e)}")
-            self.conn.rollback()
-
-    def get_all_tracked_tokens(self):
-        cursor = self.conn.cursor()
-        try:
-            cursor.execute("SELECT id, token_name, contract_address, thread_id FROM tracked_tokens")
-            tokens = cursor.fetchall()
-            logger.debug(f"Получены токены из базы: {tokens}")
-            return tokens
-        except sqlite3.Error as e:
-            logger.error(f"Ошибка при получении токенов: {str(e)}")
+            cursor.execute("SELECT id, address, name, tokens FROM wallets")
+            result = [{"id": row[0], "address": row[1], "name": row[2], "tokens": row[3]} for row in cursor.fetchall()]
+            logger.debug(f"Получены кошельки из базы: {result}")
+            return result
+        except mysql.connector.Error as e:
+            logger.error(f"Ошибка при получении кошельков: {str(e)}")
             return []
+        finally:
+            cursor.close()
+            conn.close()
 
-    def get_tracked_token_by_id(self, token_id):
-        cursor = self.conn.cursor()
+    def get_wallet_by_id(self, wallet_id):
+        conn = self._get_connection()
+        cursor = conn.cursor()
         try:
-            cursor.execute("SELECT id, token_name, contract_address, thread_id FROM tracked_tokens WHERE id = ?", (token_id,))
-            token = cursor.fetchone()
-            logger.debug(f"Получен токен по ID {token_id}: {token}")
-            return token
-        except sqlite3.Error as e:
-            logger.error(f"Ошибка при получении токена по ID {token_id}: {str(e)}")
+            cursor.execute("SELECT id, address, name, tokens FROM wallets WHERE id = %s", (wallet_id,))
+            row = cursor.fetchone()
+            result = {"id": row[0], "address": row[1], "name": row[2], "tokens": row[3]} if row else None
+            logger.debug(f"Получен кошелек по ID {wallet_id}: {result}")
+            return result
+        except mysql.connector.Error as e:
+            logger.error(f"Ошибка при получении кошелька по ID {wallet_id}: {str(e)}")
             return None
+        finally:
+            cursor.close()
+            conn.close()
 
-    def remove_tracked_token(self, token_id):
-        cursor = self.conn.cursor()
+    def get_wallet_by_address(self, address):
+        conn = self._get_connection()
+        cursor = conn.cursor()
         try:
-            cursor.execute("DELETE FROM tracked_tokens WHERE id = ?", (token_id,))
-            self.conn.commit()
-            logger.info(f"Токен с ID {token_id} удалён.")
-        except sqlite3.Error as e:
-            logger.error(f"Ошибка при удалении токена с ID {token_id}: {str(e)}")
-            self.conn.rollback()
+            cursor.execute("SELECT id, address, name, tokens FROM wallets WHERE address = %s", (address,))
+            row = cursor.fetchone()
+            result = {"id": row[0], "address": row[1], "name": row[2], "tokens": row[3]} if row else None
+            logger.debug(f"Получен кошелек по адресу {address}: {result}")
+            return result
+        except mysql.connector.Error as e:
+            logger.error(f"Ошибка при получении кошелька по адресу {address}: {str(e)}")
+            return None
+        finally:
+            cursor.close()
+            conn.close()
 
+    # ====== ФУНКЦІЇ ДЛЯ ТРАНЗАКЦІЙ ======
     def add_transaction(self, tx_hash, wallet_address, token_name, usd_value):
-        cursor = self.conn.cursor()
+        conn = self._get_connection()
+        cursor = conn.cursor()
         try:
-            cursor.execute("INSERT OR REPLACE INTO transactions (tx_hash, wallet_address, token_name, usd_value) VALUES (?, ?, ?, ?)",
+            cursor.execute("INSERT IGNORE INTO transactions (tx_hash, wallet_address, token_name, usd_value) VALUES (%s, %s, %s, %s)",
                           (tx_hash, wallet_address, token_name, usd_value))
-            self.conn.commit()
+            conn.commit()
             logger.info(f"Транзакция добавлена/обновлена: {tx_hash}, {wallet_address}, {token_name}, {usd_value}")
-        except sqlite3.Error as e:
+        except mysql.connector.Error as e:
             logger.error(f"Ошибка при добавлении транзакции: {str(e)}")
-            self.conn.rollback()
+            conn.rollback()
+        finally:
+            cursor.close()
+            conn.close()
 
     def is_transaction_exist(self, tx_hash):
-        cursor = self.conn.cursor()
+        conn = self._get_connection()
+        cursor = conn.cursor()
         try:
-            cursor.execute("SELECT COUNT(*) FROM transactions WHERE tx_hash = ?", (tx_hash,))
-            return cursor.fetchone()[0] > 0
-        except sqlite3.Error as e:
+            cursor.execute("SELECT 1 FROM transactions WHERE tx_hash = %s", (tx_hash,))
+            result = cursor.fetchone() is not None
+            logger.debug(f"Проверка существования транзакции {tx_hash}: {result}")
+            return result
+        except mysql.connector.Error as e:
             logger.error(f"Ошибка при проверке существования транзакции {tx_hash}: {str(e)}")
             return False
+        finally:
+            cursor.close()
+            conn.close()
 
     def get_last_transaction(self):
-        cursor = self.conn.cursor()
+        conn = self._get_connection()
+        cursor = conn.cursor()
         try:
             cursor.execute("SELECT tx_hash, wallet_address, token_name, usd_value, timestamp FROM transactions ORDER BY timestamp DESC LIMIT 1")
-            transaction = cursor.fetchone()
-            logger.debug(f"Получена последняя транзакция: {transaction}")
-            return transaction
-        except sqlite3.Error as e:
+            row = cursor.fetchone()
+            result = {
+                "tx_hash": row[0],
+                "wallet_address": row[1],
+                "token_name": row[2],
+                "usd_value": row[3],
+                "timestamp": row[4]
+            } if row else None
+            logger.debug(f"Получена последняя транзакция: {result}")
+            return result
+        except mysql.connector.Error as e:
             logger.error(f"Ошибка при получении последней транзакции: {str(e)}")
             return None
+        finally:
+            cursor.close()
+            conn.close()
 
-    def get_all_settings(self):
-        cursor = self.conn.cursor()
+    def get_wallet_transactions(self, wallet_address, limit=10):
+        conn = self._get_connection()
+        cursor = conn.cursor()
         try:
-            cursor.execute("SELECT setting_name, setting_value FROM bot_settings")
-            settings = {row[0]: row[1] for row in cursor.fetchall()}
-            logger.debug(f"Получены настройки из базы: {settings}")
-            return settings
-        except sqlite3.Error as e:
-            logger.error(f"Ошибка при получении настроек: {str(e)}")
-            return {}
+            cursor.execute("SELECT tx_hash, token_name, usd_value, timestamp FROM transactions WHERE wallet_address = %s ORDER BY timestamp DESC LIMIT %s", (wallet_address, limit))
+            rows = cursor.fetchall()
+            result = [{"tx_hash": row[0], "token_name": row[1], "usd_value": row[2], "timestamp": row[3]} for row in rows]
+            logger.debug(f"Получены транзакции для кошелька {wallet_address}: {result}")
+            return result
+        except mysql.connector.Error as e:
+            logger.error(f"Ошибка при получении транзакций для кошелька {wallet_address}: {str(e)}")
+            return []
+        finally:
+            cursor.close()
+            conn.close()
 
-    def get_setting(self, setting_name):
-        cursor = self.conn.cursor()
+    # ====== ФУНКЦІЇ ДЛЯ ОТСЛЕЖИВАЕМЫХ ТОКЕНОВ ======
+    def add_tracked_token(self, token_name, contract_address, thread_id):
+        conn = self._get_connection()
+        cursor = conn.cursor()
         try:
-            cursor.execute("SELECT setting_value FROM bot_settings WHERE setting_name = ?", (setting_name,))
-            result = cursor.fetchone()
-            logger.debug(f"Получено значение настройки {setting_name}: {result[0] if result else None}")
-            return result[0] if result else None
-        except sqlite3.Error as e:
-            logger.error(f"Ошибка при получении настройки {setting_name}: {str(e)}")
+            cursor.execute("INSERT IGNORE INTO tracked_tokens (token_name, contract_address, thread_id) VALUES (%s, %s, %s)",
+                          (token_name, contract_address, thread_id))
+            conn.commit()
+            logger.info(f"Токен добавлен/обновлён: {token_name}, {contract_address}, {thread_id}")
+        except mysql.connector.Error as e:
+            logger.error(f"Ошибка при добавлении токена: {str(e)}")
+            conn.rollback()
+        finally:
+            cursor.close()
+            conn.close()
+
+    def update_tracked_token(self, token_id, token_name, thread_id):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("UPDATE tracked_tokens SET token_name = %s, thread_id = %s WHERE id = %s",
+                          (token_name, thread_id, token_id))
+            conn.commit()
+            logger.info(f"Токен с ID {token_id} обновлён: {token_name}, {thread_id}")
+        except mysql.connector.Error as e:
+            logger.error(f"Ошибка при обновлении токена с ID {token_id}: {str(e)}")
+            conn.rollback()
+        finally:
+            cursor.close()
+            conn.close()
+
+    def remove_tracked_token(self, token_id):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("DELETE FROM tracked_tokens WHERE id = %s", (token_id,))
+            conn.commit()
+            logger.info(f"Токен с ID {token_id} удалён.")
+        except mysql.connector.Error as e:
+            logger.error(f"Ошибка при удалении токена с ID {token_id}: {str(e)}")
+            conn.rollback()
+        finally:
+            cursor.close()
+            conn.close()
+
+    def get_all_tracked_tokens(self):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT id, token_name, contract_address, thread_id FROM tracked_tokens")
+            result = [{"id": row[0], "token_name": row[1], "contract_address": row[2], "thread_id": row[3]} for row in cursor.fetchall()]
+            logger.debug(f"Получены токены из базы: {result}")
+            return result
+        except mysql.connector.Error as e:
+            logger.error(f"Ошибка при получении токенов: {str(e)}")
+            return []
+        finally:
+            cursor.close()
+            conn.close()
+
+    def get_tracked_token_by_id(self, token_id):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("SELECT id, token_name, contract_address, thread_id FROM tracked_tokens WHERE id = %s", (token_id,))
+            row = cursor.fetchone()
+            result = {"id": row[0], "token_name": row[1], "contract_address": row[2], "thread_id": row[3]} if row else None
+            logger.debug(f"Получен токен по ID {token_id}: {result}")
+            return result
+        except mysql.connector.Error as e:
+            logger.error(f"Ошибка при получении токена по ID {token_id}: {str(e)}")
             return None
+        finally:
+            cursor.close()
+            conn.close()
 
-    def update_setting(self, setting_name, setting_value):
-        cursor = self.conn.cursor()
+    def get_tracked_token_by_address(self, contract_address):
+        conn = self._get_connection()
+        cursor = conn.cursor()
         try:
-            cursor.execute("INSERT OR REPLACE INTO bot_settings (setting_name, setting_value) VALUES (?, ?)",
-                          (setting_name, setting_value))
-            self.conn.commit()
-            logger.info(f"Настройка {setting_name} обновлена на: {setting_value}")
-        except sqlite3.Error as e:
-            logger.error(f"Ошибка при обновлении настройки {setting_name}: {str(e)}")
-            self.conn.rollback()
-
-    def close(self):
-        self.conn.close()
+            cursor.execute("SELECT id, token_name, contract_address, thread_id FROM tracked_tokens WHERE contract_address = %s", (contract_address,))
+            row = cursor.fetchone()
+            result = {"id": row[0], "token_name": row[1], "contract_address": row[2], "thread_id": row[3]} if row else None
+            logger.debug(f"Получен токен по адресу {contract_address}: {result}")
+            return result
+        except mysql.connector.Error as e:
+            logger.error(f"Ошибка при получении токена по адресу {contract_address}: {str(e)}")
+            return None
+        finally:
+            cursor.close()
+            conn.close()
