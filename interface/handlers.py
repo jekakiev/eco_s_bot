@@ -6,7 +6,7 @@ from .callbacks import (
     process_contract_address, confirm_token_name, reject_token_name, thread_exists,
     thread_not_exists, process_thread_id, edit_token_start, edit_token_thread,
     process_edit_thread_id, delete_token, show_commands, show_settings, edit_setting_start,
-    process_setting_value, set_log_value, go_home
+    process_setting_value, toggle_log_setting, go_home
 )
 from aiogram.filters import Command
 from .states import WalletStates, TokenStates, SettingStates
@@ -42,7 +42,7 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(show_commands, F.data == "show_commands")
     dp.callback_query.register(show_settings, F.data == "show_settings")
     dp.callback_query.register(edit_setting_start, F.data.startswith("edit_setting_"))
-    dp.callback_query.register(set_log_value, F.data.startswith("set_"))
+    dp.callback_query.register(toggle_log_setting, F.data.startswith("toggle_"))
     dp.message.register(process_setting_value, SettingStates.waiting_for_setting_value)
     dp.callback_query.register(go_home, F.data == "home")
     

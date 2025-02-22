@@ -132,8 +132,8 @@ def get_settings_list():
     builder = InlineKeyboardBuilder()
     builder.button(text=f"Интервал ({settings['CHECK_INTERVAL']} сек)", callback_data="edit_setting_CHECK_INTERVAL")
     builder.button(text="Настройка логов", callback_data="noop", disabled=True)
-    builder.button(text=f"Транзакции ({'Вкл' if int(settings['LOG_TRANSACTIONS']) else 'Выкл'})", callback_data="edit_setting_LOG_TRANSACTIONS")
-    builder.button(text=f"Успешные ({'Вкл' if int(settings['LOG_SUCCESSFUL_TRANSACTIONS']) else 'Выкл'})", callback_data="edit_setting_LOG_SUCCESSFUL_TRANSACTIONS")
+    builder.button(text=f"Транзакции ({'Вкл' if int(settings['LOG_TRANSACTIONS']) else 'Выкл'})", callback_data="toggle_LOG_TRANSACTIONS")
+    builder.button(text=f"Успешные ({'Вкл' if int(settings['LOG_SUCCESSFUL_TRANSACTIONS']) else 'Выкл'})", callback_data="toggle_LOG_SUCCESSFUL_TRANSACTIONS")
     builder.button(text="⬅️ Назад", callback_data="home")
     builder.adjust(1, 1, 2, 1)
     return text, builder.as_markup()
@@ -146,12 +146,4 @@ def get_interval_edit_keyboard():
     builder.adjust(2)
     return builder.as_markup()
 
-# === РЕДАКТИРОВАНИЕ НАСТРОЙКИ ЛОГОВ ===
-def get_log_edit_keyboard(setting_name):
-    builder = InlineKeyboardBuilder()
-    builder.button(text="✅ Вкл", callback_data=f"set_{setting_name}_1")
-    builder.button(text="❌ Выкл", callback_data=f"set_{setting_name}_0")
-    builder.button(text="⬅️ Назад", callback_data="show_settings")
-    builder.button(text="🏠 В главное меню", callback_data="home")
-    builder.adjust(2)
-    return builder.as_markup()
+# === РЕДАКТИРОВАНИЕ НАСТРОЙКИ ЛОГОВ (не нужно, так как теперь переключение прямо в списке)

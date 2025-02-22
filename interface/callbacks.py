@@ -4,7 +4,7 @@ from .keyboards import (
     get_main_menu, get_back_button, get_tokens_keyboard, get_wallet_control_keyboard,
     get_wallets_list, get_tracked_tokens_list, get_token_control_keyboard,
     get_token_name_confirmation_keyboard, get_thread_confirmation_keyboard, get_commands_list,
-    get_settings_list, get_interval_edit_keyboard, get_log_edit_keyboard
+    get_settings_list, get_interval_edit_keyboard
 )
 from .states import WalletStates, TokenStates, SettingStates
 from database import Database
@@ -260,11 +260,19 @@ async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
         text = f"⚙️ Интервал проверки\nТекущее значение: {current_value} секунд\nВведите интервал обновления в секундах (мин. 5):"
         await state.set_state(SettingStates.waiting_for_setting_value)
         await callback.message.edit_text(text, reply_markup=get_interval_edit_keyboard())
-    else:  # LOG_TRANSACTIONS или LOG_SUCCESSFUL_TRANSACTIONS
-        text = f"⚙️ {setting_name.replace('_', ' ').title()}\nТекущее значение: {'Вкл' if int(current_value) else 'Выкл'}"
-        await callback.message.edit_text(text, reply_markup=get_log_edit_keyboard(setting_name))
     await state.update_data(setting_name=setting_name)
 
+# === ПЕРЕКЛЮЧЕНИЕ ЗНАЧЕНИЯ ЛОГОВ ПРЯМО В СПИСКЕ ===
+async def toggle_log_setting(callback: types.CallbackQuery, state: FSMContext):
+    logger.info(f"Нажата кнопка переключения логов: {callback.data}")
+    setting_name = callback.data.split("_")[1]
+    current_value = db.get_setting(setting_name)
+    new_value = "1" if int(current_value) == 0 else "0"
+    db.update_setting(setting_name, new_value)
+    text, reply_markup = get_settings_list()
+    await callback.message.edit_text(f"✅ Настройка {setting_name} обновлена на: {'Вкл' if new_value == '1' else 'Выкл'}\n_________\n{text}", reply_markup=reply_markup)
+
+# === ОБРАБОТКА ЗНАЧЕНИЯ НАСТРОЙКИ ===
 async def process_setting_value(message: types.Message, state: FSMContext):
     logger.info(f"Введено значение настройки: {message.text}")
     try:
@@ -283,16 +291,6 @@ async def process_setting_value(message: types.Message, state: FSMContext):
         await message.answer(f"✅ Настройка {setting_name} обновлена на: {new_value}\n_________\n{text}", reply_markup=reply_markup)
     except ValueError as e:
         await message.answer(f"❌ Ошибка: {str(e)}. Попробуйте ещё раз:", reply_markup=get_interval_edit_keyboard())
-
-# === УСТАНОВКА ЗНАЧЕНИЯ ЛОГОВ ===
-async def set_log_value(callback: types.CallbackQuery, state: FSMContext):
-    logger.info(f"Нажата кнопка вкл/выкл логов: {callback.data}")
-    parts = callback.data.split("_")
-    setting_name = parts[1]
-    value = parts[2]
-    db.update_setting(setting_name, value)
-    text, reply_markup = get_settings_list()
-    await callback.message.edit_text(f"✅ Настройка {setting_name} обновлена на: {'Вкл' if value == '1' else 'Выкл'}\n_________\n{text}", reply_markup=reply_markup)
 
 # === ГЛАВНОЕ МЕНЮ ===
 async def go_home(callback: types.CallbackQuery, state: FSMContext):
