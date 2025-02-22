@@ -142,7 +142,7 @@ async def process_contract_address(message: types.Message, state: FSMContext):
     }
     response = requests.get("https://api.arbiscan.io/api", params=params)
     if response.status_code == 200 and response.json().get("status") == "1":
-        token_info = response.json()["result"][0]  # Берем первую транзакцию
+        token_info = response.json()["result"][0]
         token_name = token_info.get("tokenName", "Неизвестно")
         await state.update_data(contract_address=contract_address, token_name=token_name)
         await state.set_state(TokenStates.waiting_for_name_confirmation)
@@ -164,7 +164,11 @@ async def reject_token_name(callback: types.CallbackQuery, state: FSMContext):
 # === ПОДТВЕРЖДЕНИЕ СУЩЕСТВОВАНИЯ ТРЕДА ===
 async def thread_exists(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state(TokenStates.waiting_for_thread_id)
-    await callback.message.edit_text("📌 Введите ID треда для сигналов:", reply_markup=get_back_button())
+    await callback.message.edit_text(
+        "📌 Введите ID треда для сигналов:\n💡 Чтобы узнать ID ветки, отправьте команду `/get_thread_id` прямо в нужный тред.",
+        parse_mode="Markdown",
+        reply_markup=get_back_button()
+    )
 
 async def thread_not_exists(callback: types.CallbackQuery, state: FSMContext):
     text, reply_markup = get_tracked_tokens_list()
@@ -194,7 +198,11 @@ async def edit_token_thread(callback: types.CallbackQuery, state: FSMContext):
     token_id = callback.data.split("_")[2]
     await state.update_data(token_id=token_id)
     await state.set_state(TokenStates.waiting_for_edit_thread_id)
-    await callback.message.edit_text("📌 Введите новый ID треда:", reply_markup=get_back_button())
+    await callback.message.edit_text(
+        "📌 Введите новый ID треда:\n💡 Чтобы узнать ID ветки, отправьте команду `/get_thread_id` прямо в нужный тред.",
+        parse_mode="Markdown",
+        reply_markup=get_back_button()
+    )
 
 async def process_edit_thread_id(message: types.Message, state: FSMContext):
     try:
