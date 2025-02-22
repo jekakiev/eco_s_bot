@@ -25,9 +25,11 @@ async def show_wallets(callback: types.CallbackQuery):
         # Отправляем новое сообщение напрямую в чат
         message = await callback.message.answer(text, parse_mode=None, disable_web_page_preview=True, reply_markup=reply_markup)
         logger.info(f"Новое сообщение успешно отправлено. Message ID: {message.message_id}")
-        # Ждём подтверждения от Telegram, что сообщение отправлено
-        await message.wait()
-        logger.info(f"Сообщение подтверждено Telegram. Статус: {message.is_sent}")
+        # Проверяем, что сообщение отправлено (is_sent доступен в некоторых версиях aiogram)
+        if hasattr(message, 'is_sent') and message.is_sent:
+            logger.info(f"Сообщение подтверждено Telegram как отправленное")
+        else:
+            logger.warning("Статус отправки сообщения не подтверждён Telegram")
 
     except Exception as e:
         logger.error(f"Ошибка при отправке списка кошельков: {str(e)}")
