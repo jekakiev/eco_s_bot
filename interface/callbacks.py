@@ -18,8 +18,9 @@ async def show_wallets(callback: types.CallbackQuery):
             reply_markup = get_back_button()
         else:
             text, reply_markup = get_wallets_list()
-        logger.info(f"Текст для отправки: {text}")
-        await callback.message.edit_text(text, parse_mode="Markdown", disable_web_page_preview=True, reply_markup=reply_markup)
+        logger.info(f"Текст для отправки (сырой): {text.encode('utf-8')}")  # Логируем текст в байтах, чтобы увидеть скрытые символы
+        logger.info(f"Текст для отправки (строка): {text}")  # Логируем текст как строку
+        await callback.message.edit_text(text, parse_mode=None, disable_web_page_preview=True, reply_markup=reply_markup)
         logger.info("Сообщение успешно отправлено")
     except Exception as e:
         logger.error(f"Ошибка при отправке списка кошельков: {str(e)}")
