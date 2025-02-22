@@ -8,7 +8,7 @@ LOG_SUCCESSFUL_TRANSACTIONS = int(settings.get("LOG_SUCCESSFUL_TRANSACTIONS", "0
 
 # Настройка логгера
 logger = logging.getLogger('main_logger')
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)  # Установим уровень DEBUG для всех логов
 
 # Формат логирования
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
