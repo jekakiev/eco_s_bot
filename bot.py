@@ -5,7 +5,7 @@ from interface import register_handlers, get_main_menu
 from arbiscan import get_token_transactions
 from message_formatter import format_swap_message
 from database import Database
-from settings import BOT_TOKEN, CHAT_ID
+from settings import BOT_TOKEN, CHAT_ID, DEFAULT_THREAD_ID
 from logger_config import logger, update_log_settings
 import time
 
@@ -43,10 +43,16 @@ async def get_last_transaction_command(message: types.Message):
         logger.debug(f"Данные последней транзакции по запросу: {last_transaction}")
         wallet = db.get_wallet_by_address(last_transaction['wallet_address'])
         wallet_name = wallet['name'] if wallet else last_transaction['wallet_address']
-        tracked_tokens = {t["contract_address"]: t for t in db.get_all_tracked_tokens()}
-        thread_id = 60  # Дефолтный тред
-        if last_transaction['token_name'] in tracked_tokens:
-            thread_id = tracked_tokens[last_transaction['token_name']]["thread_id"]
+        tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}  # Приводим к нижнему регистру
+        thread_id = DEFAULT_THREAD_ID  # Дефолтный тред
+        contract_address = last_transaction.get('token_name', '').lower()  # Используем token_name как временное решение, если contract_address отсутствует
+        logger.debug(f"Проверка токена для транзакции: token_name={last_transaction['token_name']}, contract_address={contract_address}, tracked_tokens={tracked_tokens}")
+
+        if contract_address in tracked_tokens:
+            thread_id = tracked_tokens[contract_address]["thread_id"]
+            logger.debug(f"Найден токен в tracked_tokens, thread_id={thread_id}")
+        else:
+            logger.warning(f"Токен {contract_address} не найден в tracked_tokens, используется дефолтный тред {thread_id}")
 
         text, parse_mode = format_swap_message(
             tx_hash=last_transaction['tx_hash'],
@@ -85,8 +91,8 @@ async def check_token_transactions():
         start_time = time.time()
         try:
             watched_wallets = db.get_all_wallets()
-            tracked_tokens = {t["contract_address"]: t for t in db.get_all_tracked_tokens()}
-            default_thread_id = 60  # Базовый тред, если токен не отслеживается
+            tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}  # Приводим к нижнему регистру
+            default_thread_id = DEFAULT_THREAD_ID  # Базовый тред, если токен не отслеживается
 
             # Логируем начало проверки, если LOG_TRANSACTIONS включён
             if LOG_TRANSACTIONS:
@@ -112,7 +118,7 @@ async def check_token_transactions():
                 for tx in tx_list:
                     tx_hash = tx.get("tx_hash", "")
                     token_out = tx.get("token_out", "Неизвестно")
-                    contract_address = tx.get("token_out_address", "")
+                    contract_address = tx.get("token_out_address", "").lower()  # Приводим к нижнему регистру
 
                     if not db.is_transaction_exist(tx_hash):
                         db.add_transaction(tx_hash, wallet_address, token_out, tx.get("usd_value", "0"))
@@ -120,8 +126,13 @@ async def check_token_transactions():
 
                         # Определяем тред для отправки сообщения
                         thread_id = default_thread_id
+                        logger.debug(f"Проверка токена для транзакции: token_out={token_out}, contract_address={contract_address}, tracked_tokens={tracked_tokens}")
+
                         if contract_address in tracked_tokens:
                             thread_id = tracked_tokens[contract_address]["thread_id"]
+                            logger.debug(f"Найден токен в tracked_tokens, thread_id={thread_id}")
+                        else:
+                            logger.warning(f"Токен {contract_address} не найден в tracked_tokens, используется дефолтный тред {thread_id}")
 
                         text, parse_mode = format_swap_message(
                             tx_hash=tx_hash,
@@ -157,10 +168,16 @@ async def check_token_transactions():
                 if last_transaction:
                     wallet = db.get_wallet_by_address(last_transaction['wallet_address'])
                     wallet_name = wallet['name'] if wallet else last_transaction['wallet_address']
-                    tracked_tokens = {t["contract_address"]: t for t in db.get_all_tracked_tokens()}
-                    thread_id = 60  # Дефолтный тред
-                    if last_transaction['token_name'] in tracked_tokens:
-                        thread_id = tracked_tokens[last_transaction['token_name']]["thread_id"]
+                    tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}  # Приводим к нижнему регистру
+                    thread_id = DEFAULT_THREAD_ID  # Дефолтный тред
+                    contract_address = last_transaction.get('token_name', '').lower()  # Используем token_name как временное решение
+                    logger.debug(f"Проверка токена для последней транзакции: token_name={last_transaction['token_name']}, contract_address={contract_address}, tracked_tokens={tracked_tokens}")
+
+                    if contract_address in tracked_tokens:
+                        thread_id = tracked_tokens[contract_address]["thread_id"]
+                        logger.debug(f"Найден токен в tracked_tokens для последней транзакции, thread_id={thread_id}")
+                    else:
+                        logger.warning(f"Токен {contract_address} не найден в tracked_tokens для последней транзакции, используется дефолтный тред {thread_id}")
 
                     text, parse_mode = format_swap_message(
                         tx_hash=last_transaction['tx_hash'],
@@ -189,6 +206,8 @@ async def check_token_transactions():
                                 logger.info(f"Отправлена последняя транзакция в тред с ID {thread_id}")
                         except Exception as e:
                             logger.error(f"Ошибка при отправке последней транзакции: {str(e)}")
+                    else:
+                        logger.error(f"Ошибка форматирования последней транзакции: {text}")
                 else:
                     logger.debug("Нет последней транзакции для отправки")
 
