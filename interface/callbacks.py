@@ -37,8 +37,8 @@ async def process_wallet_address(message: types.Message, state: FSMContext):
 async def process_wallet_name(message: types.Message, state: FSMContext):
     await state.update_data(wallet_name=message.text)
     await state.set_state(WalletStates.waiting_for_tokens)
-    await state.update_data(selected_tokens=[])  # Очищаем выбранные токены
-    await message.answer("🪙 Выберите монеты для отслеживания:", reply_markup=get_tokens_keyboard([]))
+    await state.update_data(selected_tokens=[])
+    await message.answer("🪙 Выберите монеты для отслеживания:", reply_markup=get_tokens_keyboard([], is_edit=False))
 
 # === ВЫБОР ТОКЕНОВ ===
 async def toggle_token(callback: types.CallbackQuery, state: FSMContext):
@@ -52,9 +52,10 @@ async def toggle_token(callback: types.CallbackQuery, state: FSMContext):
         selected_tokens.append(token)
 
     await state.update_data(selected_tokens=selected_tokens)
-    await callback.message.edit_reply_markup(reply_markup=get_tokens_keyboard(selected_tokens))
+    is_edit = "wallet_id" in data  # Определяем, редактирование это или добавление
+    await callback.message.edit_reply_markup(reply_markup=get_tokens_keyboard(selected_tokens, is_edit=is_edit))
 
-# === ПОДТВЕРЖДЕНИЕ ВЫБОРА ТОКЕНОВ ===
+# === ПОДТВЕРЖДЕНИЕ ВЫБОРА ТОКЕНОВ ПРИ ДОБАВЛЕНИИ ===
 async def confirm_tokens(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     wallet_address = data.get("wallet_address")
@@ -68,6 +69,20 @@ async def confirm_tokens(callback: types.CallbackQuery, state: FSMContext):
     db.add_wallet(wallet_address, wallet_name, ",".join(selected_tokens))
     await state.clear()
     await callback.message.edit_text("✅ Кошелек добавлен!", reply_markup=get_main_menu())
+
+# === СОХРАНЕНИЕ ТОКЕНОВ ПРИ РЕДАКТИРОВАНИИ ===
+async def save_tokens(callback: types.CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    wallet_id = data.get("wallet_id")
+    selected_tokens = data.get("selected_tokens", [])
+
+    if not selected_tokens:
+        await callback.answer("⚠️ Вы не выбрали ни одной монеты!", show_alert=True)
+        return
+
+    db.update_wallet_tokens(wallet_id, ",".join(selected_tokens))
+    await state.clear()
+    await callback.message.edit_text("✅ Токены обновлены!", reply_markup=get_main_menu())
 
 # === УДАЛЕНИЕ КОШЕЛЬКА ===
 async def delete_wallet(callback: types.CallbackQuery):
@@ -96,7 +111,7 @@ async def edit_tokens_start(callback: types.CallbackQuery, state: FSMContext):
     wallet = db.get_wallet_by_id(wallet_id)
     current_tokens = wallet["tokens"].split(",") if wallet["tokens"] else []
     await state.update_data(wallet_id=wallet_id, selected_tokens=current_tokens)
-    await callback.message.edit_text("🪙 Выберите монеты для отслеживания:", reply_markup=get_tokens_keyboard(current_tokens))
+    await callback.message.edit_text("🪙 Выберите монеты для отслеживания:", reply_markup=get_tokens_keyboard(current_tokens, is_edit=True))
 
 # === ГЛАВНОЕ МЕНЮ ===
 async def go_home(callback: types.CallbackQuery, state: FSMContext):
