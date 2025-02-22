@@ -1,9 +1,14 @@
 import logging
-from settings import LOG_TRANSACTIONS, LOG_SUCCESSFUL_TRANSACTIONS
+from database import Database
+
+db = Database()
+settings = db.get_all_settings()
+LOG_TRANSACTIONS = int(settings["LOG_TRANSACTIONS"])
+LOG_SUCCESSFUL_TRANSACTIONS = int(settings["LOG_SUCCESSFUL_TRANSACTIONS"])
 
 # Настройка логгера
 logger = logging.getLogger('main_logger')
-logger.setLevel(logging.INFO)  # Установите уровень логирования в INFO
+logger.setLevel(logging.INFO)
 
 # Формат логирования
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
@@ -38,7 +43,3 @@ class SuccessfulTransactionsFilter(logging.Filter):
 # Добавление фильтров к логгеру
 logger.addFilter(TransactionsFilter())
 logger.addFilter(SuccessfulTransactionsFilter())
-
-# Проверка значений переменных
-logger.info(f"LOG_TRANSACTIONS: {LOG_TRANSACTIONS}")
-logger.info(f"LOG_SUCCESSFUL_TRANSACTIONS: {LOG_SUCCESSFUL_TRANSACTIONS}")
