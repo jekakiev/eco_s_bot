@@ -26,6 +26,7 @@ logger.addHandler(file_handler)
 # Фильтр для отключения логов о транзакциях
 class TransactionsFilter(logging.Filter):
     def filter(self, record):
+        global LOG_TRANSACTIONS
         if not LOG_TRANSACTIONS and "get_token_transactions вернула не словарь" in record.getMessage():
             return False
         return True
@@ -33,6 +34,7 @@ class TransactionsFilter(logging.Filter):
 # Фильтр для отключения логов успешных транзакций
 class SuccessfulTransactionsFilter(logging.Filter):
     def filter(self, record):
+        global LOG_TRANSACTIONS, LOG_SUCCESSFUL_TRANSACTIONS
         if not LOG_SUCCESSFUL_TRANSACTIONS and any(keyword in record.getMessage() for keyword in [
             "Отримано", "Получено", "Начинаем проверку новых транзакций", "Найдено соответствие", 
             "Сообщение отправлено", "уникальных транзакций для"
@@ -40,6 +42,19 @@ class SuccessfulTransactionsFilter(logging.Filter):
             return False
         return True
 
-# Добавление фильтров к логгеру
+# Функция для обновления значений логов и фильтров
+def update_log_settings():
+    global LOG_TRANSACTIONS, LOG_SUCCESSFUL_TRANSACTIONS
+    settings = db.get_all_settings()
+    LOG_TRANSACTIONS = int(settings.get("LOG_TRANSACTIONS", "0"))
+    LOG_SUCCESSFUL_TRANSACTIONS = int(settings.get("LOG_SUCCESSFUL_TRANSACTIONS", "0"))
+    logger.info("Обновлены настройки логов:")
+    logger.info(f"- Логи транзакций: {'Включены' if LOG_TRANSACTIONS else 'Выключены'}")
+    logger.info(f"- Логи успешных транзакций: {'Включены' if LOG_SUCCESSFUL_TRANSACTIONS else 'Выключены'}")
+
+# Инициализация фильтров
 logger.addFilter(TransactionsFilter())
 logger.addFilter(SuccessfulTransactionsFilter())
+
+# Вызываем обновление настроек при запуске
+update_log_settings()

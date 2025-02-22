@@ -8,7 +8,7 @@ from .keyboards import (
 )
 from .states import WalletStates, TokenStates, SettingStates
 from database import Database
-from logger_config import logger
+from logger_config import logger, update_log_settings
 import requests
 import time
 from settings import ARBISCAN_API_KEY
@@ -277,6 +277,9 @@ async def toggle_log_setting(callback: types.CallbackQuery, state: FSMContext):
     
     new_value = "1" if int(current_value) == 0 else "0"
     db.update_setting(setting_name, new_value)
+    
+    # Обновляем фильтры логов после изменения настроек
+    update_log_settings()
     
     # Обновляем сообщение с актуальными значениями в дужках
     text, reply_markup = get_settings_list()
