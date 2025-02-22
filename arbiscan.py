@@ -24,7 +24,7 @@ def get_token_transactions(wallet_addresses):
         chunk_addresses = wallet_addresses[i:i + max_addresses_per_request]
         addresses = ",".join(chunk_addresses)
         
-        # Параметры запроса
+        # Параметры запросa для tokentx
         params = {
             "module": "account",
             "action": "tokentx",
@@ -49,21 +49,56 @@ def get_token_transactions(wallet_addresses):
             # Логируем полный ответ Arbiscan для анализа
             logger.debug(f"Полный ответ Arbiscan для адресов {chunk_addresses}: {data}")
 
-            # Парсим транзакции, группируя их по кошелькам
+            # Группируем транзакции по hash, чтобы обработать свопы/переводы
+            tx_by_hash = {}
             for tx in data.get("result", []):
-                wallet_address = tx.get("to", tx.get("from", "Unknown")).lower()  # Адрес отправителя или получателя
-                if wallet_address not in all_transactions:
-                    all_transactions[wallet_address] = []
-                all_transactions[wallet_address].append({
-                    "tx_hash": tx.get("hash"),
-                    "token_in": tx.get("tokenSymbol", "Unknown"),  # Проверяем поле
-                    "token_in_address": tx.get("contractAddress", ""),
-                    "amount_in": tx.get("value", "0"),  # В wei, нужно конвертировать
-                    "token_out": tx.get("tokenSymbol", "Unknown"),  # Проверяем поле
-                    "token_out_address": tx.get("contractAddress", ""),
-                    "amount_out": tx.get("value", "0"),  # В wei, нужно конвертировать
-                    "usd_value": tx.get("valueUSD", "0")  # Может отсутствовать, проверяем в логе
-                })
+                tx_hash = tx.get("hash")
+                if tx_hash not in tx_by_hash:
+                    tx_by_hash[tx_hash] = []
+                tx_by_hash[tx_hash].append(tx)
+
+            # Парсим транзакции, группируя их по кошелькам
+            for wallet_address in chunk_addresses:
+                wallet_address_lower = wallet_address.lower()
+                for tx_list in tx_by_hash.values():
+                    token_in = "Неизвестно"
+                    token_out = "Неизвестно"
+                    amount_in = "0"
+                    amount_out = "0"
+                    token_in_address = ""
+                    token_out_address = ""
+                    usd_value = "Неизвестно"  # Пока оставим, добавим API курсов позже
+
+                    for tx in tx_list:
+                        # Получаем децималы токена для конвертации из wei
+                        decimals = int(tx.get("tokenDecimal", "18"))  # По умолчанию 18, как для ERC-20
+                        value = int(tx.get("value", "0"))  # Убедимся, что value — целое число
+                        readable_value = value / (10 ** decimals) if decimals > 0 else value
+
+                        if tx["to"].lower() == wallet_address_lower:
+                            # Входящая транзакция
+                            token_in = tx.get("tokenSymbol", "Неизвестно")
+                            token_in_address = tx.get("contractAddress", "")
+                            amount_in = str(readable_value)
+                        elif tx["from"].lower() == wallet_address_lower:
+                            # Исходящая транзакция
+                            token_out = tx.get("tokenSymbol", "Неизвестно")
+                            token_out_address = tx.get("contractAddress", "")
+                            amount_out = str(readable_value)
+
+                    if token_in != "Неизвестно" or token_out != "Неизвестно":
+                        if wallet_address_lower not in all_transactions:
+                            all_transactions[wallet_address_lower] = []
+                        all_transactions[wallet_address_lower].append({
+                            "tx_hash": tx_list[0].get("hash"),
+                            "token_in": token_in,
+                            "token_in_address": token_in_address,
+                            "amount_in": amount_in,
+                            "token_out": token_out,
+                            "token_out_address": token_out_address,
+                            "amount_out": amount_out,
+                            "usd_value": usd_value
+                        })
 
             logger.info(f"Успешно получены транзакции для {len(chunk_addresses)} адресов: {chunk_addresses}")
 
