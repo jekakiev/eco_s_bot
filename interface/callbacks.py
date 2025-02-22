@@ -244,7 +244,8 @@ async def show_settings(callback: types.CallbackQuery):
 # === РЕДАКТИРОВАНИЕ НАСТРОЙКИ ===
 async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Нажата кнопка настройки: {callback.data}")
-    setting_name = callback.data.split("_")[2]
+    # Исправлен парсинг, чтобы брать полный setting_name
+    setting_name = callback.data.replace("edit_setting_", "")  # Убираем "edit_setting_" и оставляем имя настройки
     current_value = db.get_setting(setting_name)
     if current_value is None:
         # Fallback если настройка не найдена
