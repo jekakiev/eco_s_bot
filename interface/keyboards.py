@@ -125,15 +125,15 @@ def get_settings_list():
     settings = db.get_all_settings()
     text = (
         "⚙️ Настройки бота:\n"
-        "Интервал проверки - Интервал проверки транзакций в секундах (мин. 5)\n"
+        "Интервал проверки - Интервал проверки транзакций в секундах (мин. 1)\n"
         "Логи транзакций - Логирование всех транзакций\n"
         "Логи успешных транзакций - Логирование успешных транзакций\n"
     )
     builder = InlineKeyboardBuilder()
     builder.button(text=f"Интервал ({settings['CHECK_INTERVAL']} сек)", callback_data="edit_setting_CHECK_INTERVAL")
     builder.button(text="Настройка логов", callback_data="noop", disabled=True)
-    builder.button(text=f"Транзакции ({'Вкл' if int(settings['LOG_TRANSACTIONS']) else 'Выкл'})", callback_data="toggle_LOG_TRANSACTIONS")
-    builder.button(text=f"Успешные ({'Вкл' if int(settings['LOG_SUCCESSFUL_TRANSACTIONS']) else 'Выкл'})", callback_data="toggle_LOG_SUCCESSFUL_TRANSACTIONS")
+    builder.button(text=f"Транзакции ({'Вкл' if int(settings.get('LOG_TRANSACTIONS', '0')) == 1 else 'Выкл'})", callback_data="toggle_LOG_TRANSACTIONS")
+    builder.button(text=f"Успешные ({'Вкл' if int(settings.get('LOG_SUCCESSFUL_TRANSACTIONS', '0')) == 1 else 'Выкл'})", callback_data="toggle_LOG_SUCCESSFUL_TRANSACTIONS")
     builder.button(text="⬅️ Назад", callback_data="home")
     builder.adjust(1, 1, 2, 1)
     return text, builder.as_markup()
