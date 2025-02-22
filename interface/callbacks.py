@@ -22,14 +22,15 @@ async def show_wallets(callback: types.CallbackQuery):
         logger.info(f"Текст для отправки (строка): {text}")  # Логируем текст как строку
         logger.info(f"Chat ID: {callback.message.chat.id}, Message ID: {callback.message.message_id}")  # Логируем данные сообщения
 
-        # Отправляем новое сообщение напрямую в чат
-        message = await callback.message.answer(text, parse_mode=None, disable_web_page_preview=True, reply_markup=reply_markup)
+        # Отправляем новое сообщение напрямую в чат с тестовым префиксом
+        test_text = f"ТЕСТ: {text}"
+        message = await callback.message.answer(test_text, parse_mode=None, disable_web_page_preview=True, reply_markup=reply_markup)
         logger.info(f"Новое сообщение успешно отправлено. Message ID: {message.message_id}")
-        # Проверяем, что сообщение отправлено (is_sent доступен в некоторых версиях aiogram)
         if hasattr(message, 'is_sent') and message.is_sent:
             logger.info(f"Сообщение подтверждено Telegram как отправленное")
         else:
             logger.warning("Статус отправки сообщения не подтверждён Telegram")
+        logger.info(f"Текст отправленного сообщения: {test_text}")
 
     except Exception as e:
         logger.error(f"Ошибка при отправке списка кошельков: {str(e)}")
