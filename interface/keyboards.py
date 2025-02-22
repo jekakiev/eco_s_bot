@@ -9,7 +9,7 @@ def get_main_menu():
     builder = InlineKeyboardBuilder()
     builder.button(text="📜 Список кошельков", callback_data="show_wallets")
     builder.button(text="➕ Добавить кошелек", callback_data="add_wallet")
-    builder.adjust(2)
+    builder.adjust(1)  # Одна кнопка в строке
     return builder.as_markup()
 
 # === КНОПКА НАЗАД ===
@@ -30,8 +30,9 @@ def get_wallets_list():
         text += f"{wallet['name']} ({short_address}) - /Edit_{short_address}\n"
 
     builder = InlineKeyboardBuilder()
+    builder.button(text="➕ Добавить кошелек", callback_data="add_wallet")
     builder.button(text="⬅️ Назад", callback_data="home")
-    builder.adjust(1)
+    builder.adjust(1)  # Одна кнопка в строке
     return text, builder.as_markup()
 
 # === МЕНЮ УПРАВЛЕНИЯ КОШЕЛЬКОМ ===
@@ -54,7 +55,6 @@ def get_tokens_keyboard(selected_tokens, is_edit=False):
 
     builder.adjust(2)
 
-    # Меняем текст и иконку в зависимости от контекста
     action_text = "💾 Сохранить" if is_edit else "💾 Добавить"
     action_callback = "save_tokens" if is_edit else "confirm_tokens"
     builder.button(text=action_text, callback_data=action_callback)
