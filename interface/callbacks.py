@@ -90,16 +90,6 @@ async def process_new_wallet_name(message: types.Message, state: FSMContext):
     await state.clear()
     await message.answer(f"✅ Имя кошелька обновлено на: {new_name}", reply_markup=get_main_menu())
 
-# === РЕДАКТИРОВАНИЕ КОШЕЛЬКА ===
-async def edit_wallet(callback: types.CallbackQuery):
-    wallet_id = callback.data.split("_")[1]  # Изменено на [1], так как callback_data теперь "EDITw_{id}"
-    wallet = db.get_wallet_by_id(wallet_id)
-    if not wallet:
-        await callback.answer("❌ Кошелек не найден", show_alert=True)
-        return
-    text = f"Имя кошелька: {wallet['name']}\nАдрес кошелька: {wallet['address']}"
-    await callback.message.edit_text(text, reply_markup=get_wallet_control_keyboard(wallet_id))
-
 # === ГЛАВНОЕ МЕНЮ ===
 async def go_home(callback: types.CallbackQuery, state: FSMContext):
     await state.clear()
