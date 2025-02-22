@@ -131,15 +131,25 @@ async def add_token_start(callback: types.CallbackQuery, state: FSMContext):
 # === ВВОД АДРЕСА ТОКЕНА ===
 async def process_contract_address(message: types.Message, state: FSMContext):
     contract_address = message.text.lower()
-    response = requests.get(f"https://api.arbiscan.io/api?module=token&action=tokeninfo&contractaddress={contract_address}&apikey={ARBISCAN_API_KEY}")
+    params = {
+        "module": "account",
+        "action": "tokentx",
+        "contractaddress": contract_address,
+        "startblock": 0,
+        "endblock": 99999999,
+        "sort": "desc",
+        "apikey": ARBISCAN_API_KEY
+    }
+    response = requests.get("https://api.arbiscan.io/api", params=params)
     if response.status_code == 200 and response.json().get("status") == "1":
-        token_info = response.json()["result"][0]
+        token_info = response.json()["result"][0]  # Берем первую транзакцию
         token_name = token_info.get("tokenName", "Неизвестно")
         await state.update_data(contract_address=contract_address, token_name=token_name)
         await state.set_state(TokenStates.waiting_for_name_confirmation)
         await message.answer(f"🪙 Название токена: *{token_name}*. Всё верно?", parse_mode="Markdown", reply_markup=get_token_name_confirmation_keyboard())
     else:
-        await message.answer("❌ Не удалось проверить токен. Попробуйте ещё раз.", reply_markup=get_back_button())
+        logger.error(f"Ошибка проверки токена {contract_address}: {response.status_code}, {response.text}")
+        await message.answer("❌ Не удалось проверить токен. Проверьте адрес и попробуйте ещё раз.", reply_markup=get_back_button())
 
 # === ПОДТВЕРЖДЕНИЕ НАЗВАНИЯ ТОКЕНА ===
 async def confirm_token_name(callback: types.CallbackQuery, state: FSMContext):
