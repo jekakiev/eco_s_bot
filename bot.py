@@ -13,7 +13,7 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 db = Database()
 
-# Загружаем настройки из базы с дефолтными значениями
+# Загружаем настройки из базы с дефолтными значениями, только если их нет
 settings = db.get_all_settings()
 CHECK_INTERVAL = int(settings.get("CHECK_INTERVAL", "10"))
 LOG_TRANSACTIONS = int(settings.get("LOG_TRANSACTIONS", "0"))
@@ -22,6 +22,9 @@ LOG_SUCCESSFUL_TRANSACTIONS = int(settings.get("LOG_SUCCESSFUL_TRANSACTIONS", "0
 logger.info("Статус логов при запуске бота:")
 logger.info(f"- Логи транзакций: {'Включены' if LOG_TRANSACTIONS else 'Выключены'}")
 logger.info(f"- Логи успешных транзакций: {'Включены' if LOG_SUCCESSFUL_TRANSACTIONS else 'Выключены'}")
+
+# Логируем текущие значения из базы для отладки
+logger.debug(f"Загруженные настройки из базы: CHECK_INTERVAL={CHECK_INTERVAL}, LOG_TRANSACTIONS={LOG_TRANSACTIONS}, LOG_SUCCESSFUL_TRANSACTIONS={LOG_SUCCESSFUL_TRANSACTIONS}")
 
 register_handlers(dp)
 
@@ -48,6 +51,8 @@ async def check_token_transactions():
                 transactions = get_token_transactions(wallet_address)
 
                 if not isinstance(transactions, dict) or not transactions:
+                    if LOG_TRANSACTIONS:
+                        logger.info(f"get_token_transactions вернула не словарь для кошелька {wallet_address}")
                     continue
 
                 for tx_hash, tx_list in transactions.items():
@@ -76,6 +81,10 @@ async def check_token_transactions():
                         token_out_url=f"https://arbiscan.io/token/{latest_tx.get('token_out_address', '')}",
                         usd_value=latest_tx.get("usd_value", "Неизвестно")
                     )
+                    if LOG_SUCCESSFUL_TRANSACTIONS:
+                        logger.info(f"Начинаем проверку новых транзакций для кошелька {wallet_address}")
+                        logger.info(f"Найдено соответствие для токена {token_out} в транзакции {tx_hash}")
+                        logger.info(f"Сообщение отправлено в тред {thread_id}")
                     await bot.send_message(
                         chat_id=CHAT_ID,
                         message_thread_id=thread_id,

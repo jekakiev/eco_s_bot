@@ -18,7 +18,7 @@ class Database:
         conn = self._get_connection()
         cursor = conn.cursor()
         self.create_tables(cursor, conn)
-        self.initialize_settings(cursor, conn)
+        self.ensure_settings_exist(cursor, conn)  # Убедимся, что настройки существуют, но не перезаписываем существующие
         cursor.close()
         conn.close()
 
@@ -57,16 +57,18 @@ class Database:
         """)
         conn.commit()
 
-    def initialize_settings(self, cursor, conn):
-        # Инициализация настроек с значениями по умолчанию, проверка существования
+    def ensure_settings_exist(self, cursor, conn):
+        # Проверяем наличие настроек и добавляем только отсутствующие
         defaults = [
             ("CHECK_INTERVAL", "10"),
             ("LOG_TRANSACTIONS", "0"),
             ("LOG_SUCCESSFUL_TRANSACTIONS", "0")
         ]
+        cursor.execute("SELECT setting_name FROM bot_settings")
+        existing_settings = {row[0] for row in cursor.fetchall()}
         for name, value in defaults:
-            cursor.execute("INSERT INTO bot_settings (setting_name, setting_value) VALUES (%s, %s) "
-                          "ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)", (name, value))
+            if name not in existing_settings:
+                cursor.execute("INSERT INTO bot_settings (setting_name, setting_value) VALUES (%s, %s)", (name, value))
         conn.commit()
 
     # ====== ФУНКЦІЇ ДЛЯ ГАМАНЦІВ ======
