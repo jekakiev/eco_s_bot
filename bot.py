@@ -13,12 +13,12 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 db = Database()
 
-# Загружаем настройки из базы с дефолтными значениями, только если их нет
+# Загружаем настройки из базы
 settings = db.get_all_settings()
-CHECK_INTERVAL = int(settings.get("CHECK_INTERVAL", "60"))  # Установим дефолт 60, как в базе
-LOG_TRANSACTIONS = int(settings.get("LOG_TRANSACTIONS", "1"))  # Установим дефолт 1, как в базе
-LOG_SUCCESSFUL_TRANSACTIONS = int(settings.get("LOG_SUCCESSFUL_TRANSACTIONS", "1"))  # Установим дефолт 1, как в базе
-SEND_LAST_TRANSACTION = int(settings.get("SEND_LAST_TRANSACTION", "0"))  # Новая настройка с дефолтом 0
+CHECK_INTERVAL = int(settings.get("CHECK_INTERVAL", "10"))
+LOG_TRANSACTIONS = int(settings.get("LOG_TRANSACTIONS", "0"))
+LOG_SUCCESSFUL_TRANSACTIONS = int(settings.get("LOG_SUCCESSFUL_TRANSACTIONS", "0"))
+SEND_LAST_TRANSACTION = int(settings.get("SEND_LAST_TRANSACTION", "0"))
 
 logger.info("Статус логов и настроек при запуске бота:")
 logger.info(f"- Логи транзакций: {'Включены' if LOG_TRANSACTIONS else 'Выключены'}")
@@ -43,10 +43,10 @@ async def get_last_transaction_command(message: types.Message):
         logger.debug(f"Данные последней транзакции по запросу: {last_transaction}")
         wallet = db.get_wallet_by_address(last_transaction['wallet_address'])
         wallet_name = wallet['name'] if wallet else last_transaction['wallet_address']
-        tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}
+        tracked_tokens = {t["contract_address"]: t for t in db.get_all_tracked_tokens()}
         thread_id = 60  # Дефолтный тред
-        if last_transaction['token_name'].lower() in tracked_tokens:
-            thread_id = tracked_tokens[last_transaction['token_name'].lower()]["thread_id"]
+        if last_transaction['token_name'] in tracked_tokens:
+            thread_id = tracked_tokens[last_transaction['token_name']]["thread_id"]
 
         text, parse_mode = format_swap_message(
             tx_hash=last_transaction['tx_hash'],
@@ -85,7 +85,7 @@ async def check_token_transactions():
         start_time = time.time()
         try:
             watched_wallets = db.get_all_wallets()
-            tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}
+            tracked_tokens = {t["contract_address"]: t for t in db.get_all_tracked_tokens()}
             default_thread_id = 60  # Базовый тред, если токен не отслеживается
 
             # Логируем начало проверки, если LOG_TRANSACTIONS включён
@@ -104,7 +104,7 @@ async def check_token_transactions():
 
             new_transactions_count = 0
             for wallet_address, tx_list in all_transactions.items():
-                wallet = next((w for w in watched_wallets if w["address"].lower() == wallet_address.lower()), None)
+                wallet = next((w for w in watched_wallets if w["address"] == wallet_address), None)
                 if not wallet:
                     continue
 
@@ -112,7 +112,7 @@ async def check_token_transactions():
                 for tx in tx_list:
                     tx_hash = tx.get("tx_hash", "")
                     token_out = tx.get("token_out", "Неизвестно")
-                    contract_address = tx.get("token_out_address", "").lower()
+                    contract_address = tx.get("token_out_address", "")
 
                     if not db.is_transaction_exist(tx_hash):
                         db.add_transaction(tx_hash, wallet_address, token_out, tx.get("usd_value", "0"))
@@ -157,10 +157,10 @@ async def check_token_transactions():
                 if last_transaction:
                     wallet = db.get_wallet_by_address(last_transaction['wallet_address'])
                     wallet_name = wallet['name'] if wallet else last_transaction['wallet_address']
-                    tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}
+                    tracked_tokens = {t["contract_address"]: t for t in db.get_all_tracked_tokens()}
                     thread_id = 60  # Дефолтный тред
-                    if last_transaction['token_name'].lower() in tracked_tokens:
-                        thread_id = tracked_tokens[last_transaction['token_name'].lower()]["thread_id"]
+                    if last_transaction['token_name'] in tracked_tokens:
+                        thread_id = tracked_tokens[last_transaction['token_name']]["thread_id"]
 
                     text, parse_mode = format_swap_message(
                         tx_hash=last_transaction['tx_hash'],
@@ -176,15 +176,21 @@ async def check_token_transactions():
                     )
 
                     if not text.startswith("Ошибка"):
-                        if LOG_SUCCESSFUL_TRANSACTIONS:
-                            logger.info(f"Отправлена последняя транзакция в тред с ID {thread_id}")
-                        await bot.send_message(
-                            chat_id=CHAT_ID,
-                            message_thread_id=thread_id,
-                            text=text,
-                            parse_mode=parse_mode,
-                            disable_web_page_preview=True
-                        )
+                        logger.debug(f"Попытка отправки последней транзакции в тред {thread_id}: {text}")
+                        try:
+                            await bot.send_message(
+                                chat_id=CHAT_ID,
+                                message_thread_id=thread_id,
+                                text=text,
+                                parse_mode=parse_mode,
+                                disable_web_page_preview=True
+                            )
+                            if LOG_SUCCESSFUL_TRANSACTIONS:
+                                logger.info(f"Отправлена последняя транзакция в тред с ID {thread_id}")
+                        except Exception as e:
+                            logger.error(f"Ошибка при отправке последней транзакции: {str(e)}")
+                else:
+                    logger.debug("Нет последней транзакции для отправки")
 
             # Логируем время обработки и количество проверенных кошельков, если LOG_TRANSACTIONS включён
             if LOG_TRANSACTIONS:
