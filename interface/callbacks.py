@@ -18,10 +18,20 @@ async def show_wallets(callback: types.CallbackQuery):
             reply_markup = get_back_button()
         else:
             text, reply_markup = get_wallets_list()
-        logger.info(f"Текст для отправки (сырой): {text.encode('utf-8')}")  # Логируем текст в байтах, чтобы увидеть скрытые символы
+        logger.info(f"Текст для отправки (сырой): {text.encode('utf-8')}")  # Логируем текст в байтах
         logger.info(f"Текст для отправки (строка): {text}")  # Логируем текст как строку
-        await callback.message.edit_text(text, parse_mode=None, disable_web_page_preview=True, reply_markup=reply_markup)
-        logger.info("Сообщение успешно отправлено")
+        logger.info(f"Chat ID: {callback.message.chat.id}, Message ID: {callback.message.message_id}")  # Логируем данные сообщения
+
+        try:
+            # Пытаемся отредактировать сообщение
+            await callback.message.edit_text(text, parse_mode=None, disable_web_page_preview=True, reply_markup=reply_markup)
+            logger.info("Сообщение успешно отредактировано")
+        except Exception as edit_error:
+            logger.error(f"Ошибка при редактировании сообщения: {str(edit_error)}")
+            # Если редактирование не удалось, отправляем новое сообщение
+            await callback.message.answer(text, parse_mode=None, disable_web_page_preview=True, reply_markup=reply_markup)
+            logger.info("Отправлено новое сообщение вместо редактирования")
+
     except Exception as e:
         logger.error(f"Ошибка при отправке списка кошельков: {str(e)}")
         await callback.message.answer("❌ Произошла ошибка при показе кошельков. Проверьте логи.", reply_markup=get_back_button())
