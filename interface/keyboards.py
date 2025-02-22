@@ -123,20 +123,35 @@ def get_commands_list():
 # === СПИСОК НАСТРОЕК ===
 def get_settings_list():
     settings = db.get_all_settings()
-    text = "⚙️ Настройки бота:\n"
-    text += f"Интервал проверки: {settings['CHECK_INTERVAL']} сек - /edit_CHECK_INTERVAL\n"
-    text += f"Логи транзакций: {'Вкл' if int(settings['LOG_TRANSACTIONS']) else 'Выкл'} - /edit_LOG_TRANSACTIONS\n"
-    text += f"Логи успешных транзакций: {'Вкл' if int(settings['LOG_SUCCESSFUL_TRANSACTIONS']) else 'Выкл'} - /edit_LOG_SUCCESSFUL_TRANSACTIONS\n"
-    
+    text = (
+        "⚙️ Настройки бота:\n"
+        "Интервал проверки - Интервал проверки транзакций в секундах (мин. 5)\n"
+        "Логи транзакций - Логирование всех транзакций\n"
+        "Логи успешных транзакций - Логирование успешных транзакций\n"
+    )
     builder = InlineKeyboardBuilder()
+    builder.button(text=f"Интервал ({settings['CHECK_INTERVAL']} сек)", callback_data="edit_setting_CHECK_INTERVAL")
+    builder.button(text="Настройка логов", callback_data="noop", disabled=True)  # Неактивная кнопка
+    builder.button(text=f"Транзакции ({'Вкл' if int(settings['LOG_TRANSACTIONS']) else 'Выкл'})", callback_data="edit_setting_LOG_TRANSACTIONS")
+    builder.button(text=f"Успешные ({'Вкл' if int(settings['LOG_SUCCESSFUL_TRANSACTIONS']) else 'Выкл'})", callback_data="edit_setting_LOG_SUCCESSFUL_TRANSACTIONS")
     builder.button(text="⬅️ Назад", callback_data="home")
-    builder.adjust(1)
+    builder.adjust(1, 1, 2, 1)  # 1 кнопка, 1 кнопка, 2 кнопки, 1 кнопка
     return text, builder.as_markup()
 
-# === МЕНЮ РЕДАКТИРОВАНИЯ НАСТРОЙКИ ===
-def get_setting_edit_keyboard(setting_name):
+# === РЕДАКТИРОВАНИЕ НАСТРОЙКИ CHECK_INTERVAL ===
+def get_interval_edit_keyboard():
     builder = InlineKeyboardBuilder()
-    builder.button(text="✏️ Изменить", callback_data=f"edit_setting_{setting_name}")
     builder.button(text="⬅️ Назад", callback_data="show_settings")
+    builder.button(text="🏠 В главное меню", callback_data="home")
+    builder.adjust(2)
+    return builder.as_markup()
+
+# === РЕДАКТИРОВАНИЕ НАСТРОЙКИ ЛОГОВ ===
+def get_log_edit_keyboard(setting_name):
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ Вкл", callback_data=f"set_{setting_name}_1")
+    builder.button(text="❌ Выкл", callback_data=f"set_{setting_name}_0")
+    builder.button(text="⬅️ Назад", callback_data="show_settings")
+    builder.button(text="🏠 В главное меню", callback_data="home")
     builder.adjust(2)
     return builder.as_markup()
