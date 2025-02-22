@@ -55,8 +55,8 @@ async def check_token_transactions():
 
             # Получаем транзакции для всех кошельков одним запросом
             wallet_addresses = [wallet["address"] for wallet in watched_wallets]
-            # Ограничиваем количество адресов, чтобы не превышать лимит Arbiscan (например, 20 адресов)
-            max_addresses_per_request = 20
+            # Ограничиваем количество адресов, чтобы не превышать лимит Arbiscan (5 адресов)
+            max_addresses_per_request = 5
             all_transactions = {}
             for i in range(0, len(wallet_addresses), max_addresses_per_request):
                 chunk_addresses = wallet_addresses[i:i + max_addresses_per_request]
@@ -96,6 +96,10 @@ async def check_token_transactions():
                             token_out_url=f"https://arbiscan.io/token/{tx.get('token_out_address', '')}",
                             usd_value=tx.get("usd_value", "Неизвестно")
                         )
+
+                        if text.startswith("Ошибка"):
+                            logger.error(f"Ошибка форматирования сообщения для транзакции {tx_hash}: {text}")
+                            continue
 
                         if LOG_SUCCESSFUL_TRANSACTIONS:
                             logger.info(f"Кошелёк '{wallet_name}' обнаружено {new_transactions_count} новых транзакций, сообщение отправлено в тред с ID {thread_id}")

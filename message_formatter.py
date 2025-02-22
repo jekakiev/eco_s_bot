@@ -1,33 +1,16 @@
-# message_formatter.py
-
-def format_swap_message(tx_hash, sender, sender_url, amount_in, token_in, token_in_url, 
-                        amount_out, token_out, token_out_url, usd_value):
+def format_swap_message(tx_hash, sender, sender_url, amount_in, token_in, token_in_url, amount_out, token_out, token_out_url, usd_value):
     """
-    Форматує повідомлення про свап токенів.
-    
-    Аргументи:
-        tx_hash (str): Хеш транзакції.
-        sender (str): Адреса відправника.
-        sender_url (str): URL профілю відправника.
-        amount_in (float): Кількість вхідного токена.
-        token_in (str): Назва вхідного токена.
-        token_in_url (str): URL токена, який обмінюється.
-        amount_out (float): Кількість вихідного токена.
-        token_out (str): Назва вихідного токена.
-        token_out_url (str): URL токена, який отримано.
-        usd_value (str | float): Приблизна вартість свапу у доларах.
-
-    Повертає:
-        tuple: (відформатоване повідомлення, "Markdown")
+    Форматирует сообщение о своп-транзакции для отправки в Telegram.
     """
-
-    message = (
-        f"🧾 *Нова транзакція!*\n"
-        f"👤 [{sender}]({sender_url}) здійснив свап:\n\n"
-        f"💱 *{amount_in:.4f}* [{token_in}]({token_in_url})\n"
-        f"🔄 *на* {amount_out:.4f} [{token_out}]({token_out_url})\n\n"
-        f"💰 *Приблизна вартість:* ~${usd_value}\n"
-        f"🔗 [Деталі транзакції](https://arbiscan.io/tx/{tx_hash})"
-    )
-
-    return message, "Markdown"  # Формат для Telegram API
+    try:
+        message = (
+            f"🔔 Новая транзакция!\n\n"
+            f"📤 Отправитель: [{sender}]({sender_url})\n"
+            f"📥 Токен IN: [{token_in}]({token_in_url}) — {amount_in}\n"
+            f"📤 Токен OUT: [{token_out}]({token_out_url}) — {amount_out}\n"
+            f"💰 USD: {usd_value}\n"
+            f"🔗 [Посмотреть транзакцию](https://arbiscan.io/tx/{tx_hash})"
+        )
+        return message, "Markdown"
+    except Exception as e:
+        return f"Ошибка форматирования сообщения: {str(e)}", None
