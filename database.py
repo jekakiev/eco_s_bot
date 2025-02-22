@@ -27,7 +27,7 @@ class Database:
             CREATE TABLE IF NOT EXISTS wallets (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 address VARCHAR(255) UNIQUE NOT NULL,
-                name VARCHAR(255) DEFAULT 'Невідомий',
+                name VARCHAR(255) DEFAULT 'Невідомый',
                 tokens TEXT
             )
         """)
@@ -58,14 +58,15 @@ class Database:
         conn.commit()
 
     def initialize_settings(self, cursor, conn):
-        # Инициализация настроек с значениями по умолчанию, если их нет
+        # Инициализация настроек с значениями по умолчанию, проверка существования
         defaults = [
             ("CHECK_INTERVAL", "10"),
             ("LOG_TRANSACTIONS", "0"),
             ("LOG_SUCCESSFUL_TRANSACTIONS", "0")
         ]
         for name, value in defaults:
-            cursor.execute("INSERT INTO bot_settings (setting_name, setting_value) VALUES (%s, %s) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)", (name, value))
+            cursor.execute("INSERT INTO bot_settings (setting_name, setting_value) VALUES (%s, %s) "
+                          "ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)", (name, value))
         conn.commit()
 
     # ====== ФУНКЦІЇ ДЛЯ ГАМАНЦІВ ======
@@ -245,7 +246,8 @@ class Database:
     def update_setting(self, setting_name, setting_value):
         conn = self._get_connection()
         cursor = conn.cursor()
-        cursor.execute("UPDATE bot_settings SET setting_value = %s WHERE setting_name = %s", (setting_value, setting_name))
+        cursor.execute("INSERT INTO bot_settings (setting_name, setting_value) VALUES (%s, %s) "
+                       "ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)", (setting_name, setting_value))
         conn.commit()
         cursor.close()
         conn.close()

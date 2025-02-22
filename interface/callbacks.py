@@ -10,6 +10,7 @@ from .states import WalletStates, TokenStates, SettingStates
 from database import Database
 from logger_config import logger
 import requests
+import time
 from settings import ARBISCAN_API_KEY
 
 db = Database()
@@ -265,7 +266,7 @@ async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
 # === ПЕРЕКЛЮЧЕНИЕ ЗНАЧЕНИЯ ЛОГОВ ПРЯМО В СПИСКЕ ===
 async def toggle_log_setting(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Нажата кнопка переключения логов: {callback.data}")
-    setting_name = callback.data.split("_")[1]  # Исправлено на split("_")[1], чтобы взять полный setting_name
+    setting_name = callback.data.split("_")[1]  # Убедились, что парсим корректно
     current_value = db.get_setting(setting_name)
     if current_value is None:
         current_value = "0"  # Дефолтное значение, если настройка отсутствует
@@ -274,8 +275,11 @@ async def toggle_log_setting(callback: types.CallbackQuery, state: FSMContext):
     
     new_value = "1" if int(current_value) == 0 else "0"
     db.update_setting(setting_name, new_value)
+    
+    # Обновляем сообщение с уникальным суффиксом, чтобы избежать ошибки Telegram
     text, reply_markup = get_settings_list()
-    await callback.message.edit_text(f"✅ Настройка {setting_name} обновлена на: {'Вкл' if new_value == '1' else 'Выкл'}\n_________\n{text}", reply_markup=reply_markup)
+    unique_suffix = f" (ID: {int(time.time())})"
+    await callback.message.edit_text(f"✅ Настройка {setting_name} обновлена на: {'Вкл' if new_value == '1' else 'Выкл'}{unique_suffix}\n_________\n{text}", reply_markup=reply_markup)
 
 # === ОБРАБОТКА ЗНАЧЕНИЯ НАСТРОЙКИ ===
 async def process_setting_value(message: types.Message, state: FSMContext):
