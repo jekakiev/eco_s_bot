@@ -14,6 +14,11 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 db = Database()
 
+# Логирование состояния логов при запуске
+logger.info("Статус логов при запуске бота:")
+logger.info(f"- Логи транзакций: {'Включены' if LOG_TRANSACTIONS else 'Выключены'} (LOG_TRANSACTIONS = {LOG_TRANSACTIONS})")
+logger.info(f"- Логи успешных транзакций: {'Включены' if LOG_SUCCESSFUL_TRANSACTIONS else 'Выключены'} (LOG_SUCCESSFUL_TRANSACTIONS = {LOG_SUCCESSFUL_TRANSACTIONS})")
+
 # Регистрация хендлеров
 register_handlers(dp)
 
