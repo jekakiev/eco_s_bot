@@ -11,7 +11,6 @@ class Database:
             self.create_tables()
         else:
             self.conn = sqlite3.connect("database.db")
-            self.ensure_default_settings()  # Убедимся, что все настройки есть
 
     def create_tables(self):
         cursor = self.conn.cursor()
@@ -60,21 +59,6 @@ class Database:
         self.conn.commit()
         logger.info("Таблицы и дефолтные настройки созданы или проверены.")
 
-    def ensure_default_settings(self):
-        """Убедитесь, что все дефолтные настройки присутствуют в существующей базе."""
-        cursor = self.conn.cursor()
-        default_settings = {
-            "CHECK_INTERVAL": "60",
-            "LOG_TRANSACTIONS": "1",
-            "LOG_SUCCESSFUL_TRANSACTIONS": "1",
-            "SEND_LAST_TRANSACTION": "0"
-        }
-        for setting_name, setting_value in default_settings.items():
-            cursor.execute("INSERT OR IGNORE INTO bot_settings (setting_name, setting_value) VALUES (?, ?)",
-                          (setting_name, setting_value))
-        self.conn.commit()
-        logger.info("Проверины и инициализированы дефолтные настройки в существующей базе.")
-
     def add_wallet(self, address, name, tokens):
         cursor = self.conn.cursor()
         try:
@@ -88,13 +72,10 @@ class Database:
     def get_all_wallets(self):
         cursor = self.conn.cursor()
         try:
-            cursor.execute("SELECT id, address, name, tokens FROM wallets WHERE address IS NOT NULL AND address != '' AND name IS NOT NULL AND name != ''")
+            cursor.execute("SELECT id, address, name, tokens FROM wallets")
             wallets = cursor.fetchall()
-            logger.debug(f"Получены кошельки из базы (сырые данные): {wallets}")
-            # Фильтруем пустые или некорректные записи
-            valid_wallets = [w for w in wallets if w[1] and w[2]]  # Убедимся, что address и name не пустые
-            logger.debug(f"Получены кошельки из базы (валидированные): {valid_wallets}")
-            return valid_wallets
+            logger.debug(f"Получены кошельки из базы: {wallets}")
+            return wallets
         except sqlite3.Error as e:
             logger.error(f"Ошибка при получении кошельков: {str(e)}")
             return []
@@ -102,7 +83,7 @@ class Database:
     def get_wallet_by_id(self, wallet_id):
         cursor = self.conn.cursor()
         try:
-            cursor.execute("SELECT id, address, name, tokens FROM wallets WHERE id = ? AND address IS NOT NULL AND address != '' AND name IS NOT NULL AND name != ''", (wallet_id,))
+            cursor.execute("SELECT id, address, name, tokens FROM wallets WHERE id = ?", (wallet_id,))
             wallet = cursor.fetchone()
             logger.debug(f"Получен кошелек по ID {wallet_id}: {wallet}")
             return wallet
@@ -113,7 +94,7 @@ class Database:
     def get_wallet_by_address(self, address):
         cursor = self.conn.cursor()
         try:
-            cursor.execute("SELECT id, address, name, tokens FROM wallets WHERE address = ? AND address IS NOT NULL AND address != '' AND name IS NOT NULL AND name != ''", (address,))
+            cursor.execute("SELECT id, address, name, tokens FROM wallets WHERE address = ?", (address,))
             wallet = cursor.fetchone()
             logger.debug(f"Получен кошелек по адресу {address}: {wallet}")
             return wallet
@@ -165,13 +146,10 @@ class Database:
     def get_all_tracked_tokens(self):
         cursor = self.conn.cursor()
         try:
-            cursor.execute("SELECT id, token_name, contract_address, thread_id FROM tracked_tokens WHERE contract_address IS NOT NULL AND contract_address != '' AND token_name IS NOT NULL AND token_name != ''")
+            cursor.execute("SELECT id, token_name, contract_address, thread_id FROM tracked_tokens")
             tokens = cursor.fetchall()
-            logger.debug(f"Получены токены из базы (сырые данные): {tokens}")
-            # Фильтруем пустые или некорректные записи
-            valid_tokens = [t for t in tokens if t[2] and t[1]]  # Убедимся, что contract_address и token_name не пустые
-            logger.debug(f"Получены токены из базы (валидированные): {valid_tokens}")
-            return valid_tokens
+            logger.debug(f"Получены токены из базы: {tokens}")
+            return tokens
         except sqlite3.Error as e:
             logger.error(f"Ошибка при получении токенов: {str(e)}")
             return []
@@ -179,7 +157,7 @@ class Database:
     def get_tracked_token_by_id(self, token_id):
         cursor = self.conn.cursor()
         try:
-            cursor.execute("SELECT id, token_name, contract_address, thread_id FROM tracked_tokens WHERE id = ? AND contract_address IS NOT NULL AND contract_address != '' AND token_name IS NOT NULL AND token_name != ''", (token_id,))
+            cursor.execute("SELECT id, token_name, contract_address, thread_id FROM tracked_tokens WHERE id = ?", (token_id,))
             token = cursor.fetchone()
             logger.debug(f"Получен токен по ID {token_id}: {token}")
             return token
