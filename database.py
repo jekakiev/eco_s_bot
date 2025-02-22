@@ -1,5 +1,8 @@
 import sqlite3
 import os
+import logging
+
+logger = logging.getLogger('main_logger')
 
 class Database:
     def __init__(self):
@@ -8,7 +11,7 @@ class Database:
             self.create_tables()
         else:
             self.conn = sqlite3.connect("database.db")
-            self.initialize_default_settings()  # Добавляем настройки при загрузке существующей базы
+            self.ensure_default_settings()  # Убедимся, что все настройки есть
 
     def create_tables(self):
         cursor = self.conn.cursor()
@@ -56,8 +59,8 @@ class Database:
                           (setting_name, setting_value))
         self.conn.commit()
 
-    def initialize_default_settings(self):
-        """Инициализирует дефолтные настройки при загрузке существующей базы."""
+    def ensure_default_settings(self):
+        """Убедитесь, что все дефолтные настройки присутствуют в существующей базе."""
         cursor = self.conn.cursor()
         default_settings = {
             "CHECK_INTERVAL": "60",
@@ -78,7 +81,9 @@ class Database:
     def get_all_wallets(self):
         cursor = self.conn.cursor()
         cursor.execute("SELECT id, address, name, tokens FROM wallets")
-        return cursor.fetchall()
+        wallets = cursor.fetchall()
+        logger.debug(f"Получены кошельки из базы: {wallets}")  # Добавляем логирование для отладки
+        return wallets
 
     def get_wallet_by_id(self, wallet_id):
         cursor = self.conn.cursor()
@@ -114,7 +119,9 @@ class Database:
     def get_all_tracked_tokens(self):
         cursor = self.conn.cursor()
         cursor.execute("SELECT id, token_name, contract_address, thread_id FROM tracked_tokens")
-        return cursor.fetchall()
+        tokens = cursor.fetchall()
+        logger.debug(f"Получены токены из базы: {tokens}")  # Добавляем логирование для отладки
+        return tokens
 
     def get_tracked_token_by_id(self, token_id):
         cursor = self.conn.cursor()
