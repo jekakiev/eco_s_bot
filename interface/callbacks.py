@@ -266,7 +266,8 @@ async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
 # === ПЕРЕКЛЮЧЕНИЕ ЗНАЧЕНИЯ ЛОГОВ ПРЯМО В СПИСКЕ ===
 async def toggle_log_setting(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Нажата кнопка переключения логов: {callback.data}")
-    setting_name = callback.data.split("_")[1]  # Убедились, что парсим корректно
+    # Исправлен парсинг, чтобы брать полный setting_name
+    setting_name = callback.data.replace("toggle_", "")  # Убираем "toggle_" и оставляем имя настройки
     current_value = db.get_setting(setting_name)
     if current_value is None:
         current_value = "0"  # Дефолтное значение, если настройка отсутствует
@@ -276,7 +277,7 @@ async def toggle_log_setting(callback: types.CallbackQuery, state: FSMContext):
     new_value = "1" if int(current_value) == 0 else "0"
     db.update_setting(setting_name, new_value)
     
-    # Обновляем сообщение с уникальным суффиксом, чтобы избежать ошибки Telegram
+    # Обновляем сообщение с актуальными значениями в дужках
     text, reply_markup = get_settings_list()
     unique_suffix = f" (ID: {int(time.time())})"
     await callback.message.edit_text(f"✅ Настройка {setting_name} обновлена на: {'Вкл' if new_value == '1' else 'Выкл'}{unique_suffix}\n_________\n{text}", reply_markup=reply_markup)
