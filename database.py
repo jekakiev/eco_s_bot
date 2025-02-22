@@ -46,11 +46,11 @@ class Database:
                 setting_value TEXT NOT NULL
             )
         """)
-        # Добавляем дефолтные настройки
+        # Добавляем дефолтные настройки только если их нет
         default_settings = {
             "CHECK_INTERVAL": "60",
-            "LOG_TRANSACTIONS": "1",
-            "LOG_SUCCESSFUL_TRANSACTIONS": "1",
+            "LOG_TRANSACTIONS": "0",  # Установим дефолт 0, как в твоей базе
+            "LOG_SUCCESSFUL_TRANSACTIONS": "0",  # Установим дефолт 0, как в твоей базе
             "SEND_LAST_TRANSACTION": "0"
         }
         for setting_name, setting_value in default_settings.items():
