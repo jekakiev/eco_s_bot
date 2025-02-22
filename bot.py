@@ -7,6 +7,7 @@ from message_formatter import format_swap_message
 from database import Database
 from settings import BOT_TOKEN, CHECK_INTERVAL, CHAT_ID, LOG_TRANSACTIONS, LOG_SUCCESSFUL_TRANSACTIONS
 from logger_config import logger
+from threads_config import DEFAULT_THREAD_ID, TOKEN_CONFIG  # Добавляем импорт
 
 # Инициализация бота, диспетчера и базы данных
 bot = Bot(token=BOT_TOKEN)
