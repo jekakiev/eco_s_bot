@@ -13,23 +13,20 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 db = Database()
 
-# Загружаем настройки из базы с дефолтными значениями, только если их нет
+# Загружаем настройки из базы с дефолтными значениями
 settings = db.get_all_settings()
 CHECK_INTERVAL = int(settings.get("CHECK_INTERVAL", "10"))
 LOG_TRANSACTIONS = int(settings.get("LOG_TRANSACTIONS", "0"))
 LOG_SUCCESSFUL_TRANSACTIONS = int(settings.get("LOG_SUCCESSFUL_TRANSACTIONS", "0"))
+SEND_LAST_TRANSACTION = int(settings.get("SEND_LAST_TRANSACTION", "0"))  # Новая настройка
 
-logger.info("Статус логов при запуске бота:")
+logger.info("Статус логов и настроек при запуске бота:")
 logger.info(f"- Логи транзакций: {'Включены' if LOG_TRANSACTIONS else 'Выключены'}")
 logger.info(f"- Логи успешных транзакций: {'Включены' if LOG_SUCCESSFUL_TRANSACTIONS else 'Выключены'}")
+logger.info(f"- Отправка последней транзакции: {'Включена' if SEND_LAST_TRANSACTION else 'Выключена'}")
 
 # Логируем текущие значения из базы для отладки
-logger.debug(f"Загруженные настройки из базы: CHECK_INTERVAL={CHECK_INTERVAL}, LOG_TRANSACTIONS={LOG_TRANSACTIONS}, LOG_SUCCESSFUL_TRANSACTIONS={LOG_SUCCESSFUL_TRANSACTIONS}")
-
-# Логируем данные последней транзакции при запуске
-last_transaction = db.get_last_transaction()
-if last_transaction:
-    logger.debug(f"Данные последней транзакции из базы: {last_transaction}")
+logger.debug(f"Загруженные настройки из базы: CHECK_INTERVAL={CHECK_INTERVAL}, LOG_TRANSACTIONS={LOG_TRANSACTIONS}, LOG_SUCCESSFUL_TRANSACTIONS={LOG_SUCCESSFUL_TRANSACTIONS}, SEND_LAST_TRANSACTION={SEND_LAST_TRANSACTION}")
 
 register_handlers(dp)
 
@@ -44,13 +41,31 @@ async def get_last_transaction_command(message: types.Message):
     last_transaction = db.get_last_transaction()
     if last_transaction:
         logger.debug(f"Данные последней транзакции по запросу: {last_transaction}")
-        await message.answer(
-            f"Последняя транзакция:\n"
-            f"Hash: {last_transaction['tx_hash']}\n"
-            f"Кошелёк: {last_transaction['wallet_address']}\n"
-            f"Токен: {last_transaction['token_name']}\n"
-            f"USD: {last_transaction['usd_value']}\n"
-            f"Время: {last_transaction['timestamp']}",
+        wallet = db.get_wallet_by_address(last_transaction['wallet_address'])
+        wallet_name = wallet['name'] if wallet else last_transaction['wallet_address']
+        tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}
+        thread_id = 60  # Дефолтный тред
+        if last_transaction['token_name'].lower() in tracked_tokens:
+            thread_id = tracked_tokens[last_transaction['token_name'].lower()]["thread_id"]
+
+        text, parse_mode = format_swap_message(
+            tx_hash=last_transaction['tx_hash'],
+            sender=wallet_name,
+            sender_url=f"https://arbiscan.io/address/{last_transaction['wallet_address']}",
+            amount_in="Неизвестно",  # Пока оставим, так как точные суммы нужно уточнить
+            token_in=last_transaction['token_name'],
+            token_in_url=f"https://arbiscan.io/token/{last_transaction['token_name']}",  # Уточнить контракт
+            amount_out="Неизвестно",
+            token_out=last_transaction['token_name'],
+            token_out_url=f"https://arbiscan.io/token/{last_transaction['token_name']}",  # Уточнить контракт
+            usd_value=last_transaction['usd_value']
+        )
+
+        await bot.send_message(
+            chat_id=CHAT_ID,
+            message_thread_id=thread_id,
+            text=text,
+            parse_mode=parse_mode,
             disable_web_page_preview=True
         )
     else:
@@ -136,6 +151,41 @@ async def check_token_transactions():
                             disable_web_page_preview=True
                         )
 
+            # Отправка последней транзакции в тред, если настройка включена
+            if SEND_LAST_TRANSACTION:
+                last_transaction = db.get_last_transaction()
+                if last_transaction:
+                    wallet = db.get_wallet_by_address(last_transaction['wallet_address'])
+                    wallet_name = wallet['name'] if wallet else last_transaction['wallet_address']
+                    tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}
+                    thread_id = 60  # Дефолтный тред
+                    if last_transaction['token_name'].lower() in tracked_tokens:
+                        thread_id = tracked_tokens[last_transaction['token_name'].lower()]["thread_id"]
+
+                    text, parse_mode = format_swap_message(
+                        tx_hash=last_transaction['tx_hash'],
+                        sender=wallet_name,
+                        sender_url=f"https://arbiscan.io/address/{last_transaction['wallet_address']}",
+                        amount_in="Неизвестно",  # Пока оставим, так как точные суммы нужно уточнить
+                        token_in=last_transaction['token_name'],
+                        token_in_url=f"https://arbiscan.io/token/{last_transaction['token_name']}",  # Уточнить контракт
+                        amount_out="Неизвестно",
+                        token_out=last_transaction['token_name'],
+                        token_out_url=f"https://arbiscan.io/token/{last_transaction['token_name']}",  # Уточнить контракт
+                        usd_value=last_transaction['usd_value']
+                    )
+
+                    if not text.startswith("Ошибка"):
+                        if LOG_SUCCESSFUL_TRANSACTIONS:
+                            logger.info(f"Отправлена последняя транзакция в тред с ID {thread_id}")
+                        await bot.send_message(
+                            chat_id=CHAT_ID,
+                            message_thread_id=thread_id,
+                            text=text,
+                            parse_mode=parse_mode,
+                            disable_web_page_preview=True
+                        )
+
             # Логируем время обработки и количество проверенных кошельков, если LOG_TRANSACTIONS включён
             if LOG_TRANSACTIONS:
                 logger.info(f"Проверка транзакций завершена. Время обработки: {time.time() - start_time:.2f} сек. Количество проверенных кошельков: {len(watched_wallets)}")
@@ -143,9 +193,12 @@ async def check_token_transactions():
         except Exception as e:
             logger.error(f"Произошла ошибка: {str(e)}")
 
-        await asyncio.sleep(CHECK_INTERVAL)
+        await asyncio.sleep(CHECK_INTERVAL)  # Установим 60 секунд позже через настройки
 
 async def main():
+    # Устанавливаем CHECK_INTERVAL на 60 секунд для тестирования
+    db.update_setting("CHECK_INTERVAL", "60")
+    logger.info("Интервал проверки обновлён на 60 секунд для тестирования.")
     logger.info("🚀 Бот запущен и ждет новые транзакции!")
     asyncio.create_task(check_token_transactions())
     await dp.start_polling(bot)

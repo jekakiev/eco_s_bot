@@ -254,7 +254,8 @@ async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
         default_values = {
             "CHECK_INTERVAL": "10",
             "LOG_TRANSACTIONS": "0",
-            "LOG_SUCCESSFUL_TRANSACTIONS": "0"
+            "LOG_SUCCESSFUL_TRANSACTIONS": "0",
+            "SEND_LAST_TRANSACTION": "0"  # Новая настройка
         }
         current_value = default_values.get(setting_name, "0")
         logger.warning(f"Настройка {setting_name} не найдена в базе, использую значение по умолчанию: {current_value}")
@@ -266,9 +267,9 @@ async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.edit_text(text, reply_markup=get_interval_edit_keyboard())
     await state.update_data(setting_name=setting_name)
 
-# === ПЕРЕКЛЮЧЕНИЕ ЗНАЧЕНИЯ ЛОГОВ ПРЯМО В СПИСКЕ ===
-async def toggle_log_setting(callback: types.CallbackQuery, state: FSMContext):
-    logger.info(f"Нажата кнопка переключения логов: {callback.data}")
+# === ПЕРЕКЛЮЧЕНИЕ ЗНАЧЕНИЯ ЛОГОВ/НАСТРОЕК ПРЯМО В СПИСКЕ ===
+async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
+    logger.info(f"Нажата кнопка переключения настройки: {callback.data}")
     # Исправлен парсинг, чтобы брать полный setting_name
     setting_name = callback.data.replace("toggle_", "")  # Убираем "toggle_" и оставляем имя настройки
     current_value = db.get_setting(setting_name)

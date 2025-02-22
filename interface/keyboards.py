@@ -1,147 +1,137 @@
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from database import Database
 
 db = Database()
 
-# === ГЛАВНОЕ МЕНЮ ===
 def get_main_menu():
-    builder = InlineKeyboardBuilder()
-    builder.button(text="📜 Список кошельков", callback_data="show_wallets")
-    builder.button(text="🪙 Отслеживаемые S токены", callback_data="show_tokens")
-    builder.button(text="⚙️ Настройки", callback_data="show_settings")
-    builder.button(text="ℹ️ Команды", callback_data="show_commands")
-    builder.adjust(1)
-    return builder.as_markup()
+    keyboard = [
+        [InlineKeyboardButton(text="📋 Показать кошельки", callback_data="show_wallets")],
+        [InlineKeyboardButton(text="🪙 Показать токены", callback_data="show_tokens")],
+        [InlineKeyboardButton(text="➕ Добавить кошелек", callback_data="add_wallet")],
+        [InlineKeyboardButton(text="➕ Добавить токен", callback_data="add_token")],
+        [InlineKeyboardButton(text="⚙️ Настройки", callback_data="show_settings")],
+        [InlineKeyboardButton(text="ℹ️ Команды", callback_data="show_commands")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-# === КНОПКА НАЗАД ===
 def get_back_button():
-    builder = InlineKeyboardBuilder()
-    builder.button(text="⬅️ В главное меню", callback_data="home")
-    return builder.as_markup()
+    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]])
 
-# === СПИСОК КОШЕЛЬКОВ ===
+def get_tokens_keyboard(selected_tokens, is_edit=False):
+    tokens = [
+        "HITCOIN",
+        "S",
+        "ROSTIKSON 2.0",
+        "GRIMASS"
+    ]
+    keyboard = []
+    for token in tokens:
+        callback_data = f"toggle_token_{token}"
+        text = f"✅ {token}" if token in selected_tokens else f"❌ {token}"
+        keyboard.append([InlineKeyboardButton(text=text, callback_data=callback_data)])
+    if is_edit:
+        keyboard.append([InlineKeyboardButton(text="💾 Сохранить", callback_data="save_tokens")])
+    else:
+        keyboard.append([InlineKeyboardButton(text="✅ Подтвердить", callback_data="confirm_tokens")])
+    keyboard.append([InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")])
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_wallet_control_keyboard(wallet_id):
+    keyboard = [
+        [InlineKeyboardButton(text="✏️ Переименовать", callback_data=f"rename_wallet_{wallet_id}")],
+        [InlineKeyboardButton(text="🪙 Изменить токены", callback_data=f"edit_tokens_{wallet_id}")],
+        [InlineKeyboardButton(text="🗑 Удалить", callback_data=f"delete_wallet_{wallet_id}")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
 def get_wallets_list():
     wallets = db.get_all_wallets()
     if not wallets:
-        text = "📭 У вас пока нет кошельков."
-    else:
-        text = "Список кошельков:\n"
-        for wallet in wallets:
-            short_address = wallet['address'][-4:]
-            text += f"{wallet['name']} ({short_address}) - /Edit_{short_address}\n"
+        return "📜 Нет добавленных кошельков.", get_main_menu()
+    text = "📜 Список кошельков:\n\n"
+    for wallet in wallets:
+        text += f"💰 {wallet['name']} — {wallet['address'][-4:]}\n"
+    keyboard = [
+        [InlineKeyboardButton(text="➕ Добавить кошелек", callback_data="add_wallet")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]
+    ]
+    return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-    builder = InlineKeyboardBuilder()
-    builder.button(text="➕ Добавить кошелек", callback_data="add_wallet")
-    builder.button(text="⬅️ Назад", callback_data="home")
-    builder.adjust(1)
-    return text, builder.as_markup()
-
-# === МЕНЮ УПРАВЛЕНИЯ КОШЕЛЬКОМ ===
-def get_wallet_control_keyboard(wallet_id):
-    builder = InlineKeyboardBuilder()
-    builder.button(text="🗑 Удалить", callback_data=f"delete_wallet_{wallet_id}")
-    builder.button(text="🔄 Изменить монеты", callback_data=f"edit_tokens_{wallet_id}")
-    builder.button(text="✏️ Переименовать", callback_data=f"rename_wallet_{wallet_id}")
-    builder.button(text="⬅️ В главное меню", callback_data="home")
-    builder.adjust(2)
-    return builder.as_markup()
-
-# === ВЫБОР ТОКЕНОВ ДЛЯ КОШЕЛЬКА ===
-def get_tokens_keyboard(selected_tokens, is_edit=False):
-    builder = InlineKeyboardBuilder()
-
-    for token in db.get_all_tracked_tokens():
-        token_name = token['token_name']
-        is_selected = "✅ " if token_name in selected_tokens else ""
-        builder.button(text=f"{is_selected}{token_name}", callback_data=f"toggle_token_{token_name}")
-
-    builder.adjust(2)
-    action_text = "💾 Сохранить" if is_edit else "💾 Добавить"
-    action_callback = "save_tokens" if is_edit else "confirm_tokens"
-    builder.button(text=action_text, callback_data=action_callback)
-    builder.button(text="⬅️ В главное меню", callback_data="home")
-    builder.adjust(2)
-    return builder.as_markup()
-
-# === СПИСОК ОТСЛЕЖИВАЕМЫХ ТОКЕНОВ ===
 def get_tracked_tokens_list():
     tokens = db.get_all_tracked_tokens()
-    builder = InlineKeyboardBuilder()
-    builder.button(text="➕ Добавить токен", callback_data="add_token")
-    builder.button(text="⬅️ Назад", callback_data="home")
-    builder.adjust(1)
-
     if not tokens:
-        text = "📉 Пока мы не отслеживаем ни одного токена."
-        return text, builder.as_markup()
-
-    text = "Сейчас мы отслеживаем такие S токены:\n"
+        return "🪙 Нет отслеживаемых токенов.", get_main_menu()
+    text = "🪙 Список отслеживаемых токенов:\n\n"
     for token in tokens:
-        short_address = token['contract_address'][-4:]
-        text += f"{token['token_name']} (тред {token['thread_id']}) - /edit_{short_address}\n"
-    return text, builder.as_markup()
+        text += f"💎 {token['token_name']} — {token['contract_address'][-4:]} (Тред: {token['thread_id']})\n"
+    keyboard = [
+        [InlineKeyboardButton(text="➕ Добавить токен", callback_data="add_token")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]
+    ]
+    return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-# === МЕНЮ УПРАВЛЕНИЯ ТОКЕНОМ ===
 def get_token_control_keyboard(token_id):
-    builder = InlineKeyboardBuilder()
-    builder.button(text="✏️ Изменить тред/ID", callback_data=f"edit_token_{token_id}")
-    builder.button(text="🗑 Удалить", callback_data=f"delete_token_{token_id}")
-    builder.button(text="⬅️ Назад", callback_data="show_tokens")
-    builder.adjust(2)
-    return builder.as_markup()
+    keyboard = [
+        [InlineKeyboardButton(text="🧵 Изменить тред", callback_data=f"edit_token_thread_{token_id}")],
+        [InlineKeyboardButton(text="🗑 Удалить", callback_data=f"delete_token_{token_id}")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-# === ПОДТВЕРЖДЕНИЕ НАЗВАНИЯ ТОКЕНА ===
 def get_token_name_confirmation_keyboard():
-    builder = InlineKeyboardBuilder()
-    builder.button(text="✅ Да", callback_data="confirm_token_name")
-    builder.button(text="❌ Нет", callback_data="reject_token_name")
-    builder.adjust(2)
-    return builder.as_markup()
+    keyboard = [
+        [InlineKeyboardButton(text="✅ Да", callback_data="confirm_token_name")],
+        [InlineKeyboardButton(text="❌ Нет", callback_data="reject_token_name")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-# === ПОДТВЕРЖДЕНИЕ СУЩЕСТВОВАНИЯ ТРЕДА ===
 def get_thread_confirmation_keyboard():
-    builder = InlineKeyboardBuilder()
-    builder.button(text="✅ Да", callback_data="thread_exists")
-    builder.button(text="❌ Нет", callback_data="thread_not_exists")
-    builder.adjust(2)
-    return builder.as_markup()
+    keyboard = [
+        [InlineKeyboardButton(text="✅ Да", callback_data="thread_exists")],
+        [InlineKeyboardButton(text="❌ Нет", callback_data="thread_not_exists")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-# === СПИСОК КОМАНД ===
 def get_commands_list():
     text = (
-        "📋 Доступные команды:\n"
-        "`/start` - Запустить бота и показать главное меню\n"
-        "`/get_thread_id` - Узнать ID текущего треда\n"
-        "`/Edit_XXXX` - Редактировать кошелек (XXXX - последние 4 символа адреса)\n"
-        "`/edit_XXXX` - Редактировать токен (XXXX - последние 4 символа контракта)"
+        "ℹ️ Список команд:\n\n"
+        "*/start* — Запустить бота\n"
+        "*/get_thread_id* — Узнать ID текущего треда\n"
+        "*/get_last_transaction* — Показать последнюю транзакцию\n"
+        "*/Edit_XXXX* — Редактировать кошелек (XXXX — последние 4 символа адреса)\n"
+        "*/edit_XXXX* — Редактировать токен (XXXX — последние 4 символа адреса контракта)"
     )
-    builder = InlineKeyboardBuilder()
-    builder.button(text="⬅️ Назад", callback_data="home")
-    builder.adjust(1)
-    return text, builder.as_markup()
+    keyboard = [[InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]]
+    return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-# === СПИСОК НАСТРОЕК ===
 def get_settings_list():
     settings = db.get_all_settings()
+    check_interval = settings.get("CHECK_INTERVAL", "10")
+    log_transactions = "✅" if settings.get("LOG_TRANSACTIONS", "0") == "1" else "❌"
+    log_successful = "✅" if settings.get("LOG_SUCCESSFUL_TRANSACTIONS", "0") == "1" else "❌"
+    send_last = "✅" if settings.get("SEND_LAST_TRANSACTION", "0") == "1" else "❌"
+    
     text = (
-        "⚙️ Настройки бота:\n"
-        "Интервал проверки - Интервал проверки транзакций в секундах (мин. 1)\n"
-        "Логи транзакций - Логирование всех транзакций\n"
-        "Логи успешных транзакций - Логирование успешных транзакций\n"
+        "⚙️ Настройки бота:\n\n"
+        f"⏱ Интервал проверки: {check_interval} сек (нажми, чтобы изменить)\n"
+        f"📝 Логи транзакций: {log_transactions} (нажми, чтобы переключить)\n"
+        f"✅ Логи успешных транзакций: {log_successful} (нажми, чтобы переключить)\n"
+        f"📨 Отправка последней транзакции: {send_last} (нажми, чтобы переключить)"
     )
-    builder = InlineKeyboardBuilder()
-    builder.button(text=f"Интервал ({settings['CHECK_INTERVAL']} сек)", callback_data="edit_setting_CHECK_INTERVAL")
-    builder.button(text="Настройка логов", callback_data="noop", disabled=True)
-    builder.button(text=f"Транзакции ({'Вкл' if int(settings.get('LOG_TRANSACTIONS', '0')) == 1 else 'Выкл'})", callback_data="toggle_LOG_TRANSACTIONS")
-    builder.button(text=f"Успешные ({'Вкл' if int(settings.get('LOG_SUCCESSFUL_TRANSACTIONS', '0')) == 1 else 'Выкл'})", callback_data="toggle_LOG_SUCCESSFUL_TRANSACTIONS")
-    builder.button(text="⬅️ Назад", callback_data="home")
-    builder.adjust(1, 1, 2, 1)
-    return text, builder.as_markup()
+    keyboard = [
+        [InlineKeyboardButton(text="⏱ Изменить интервал", callback_data="edit_setting_CHECK_INTERVAL")],
+        [InlineKeyboardButton(text="📝 Логи транзакций", callback_data="toggle_LOG_TRANSACTIONS")],
+        [InlineKeyboardButton(text="✅ Логи успешных", callback_data="toggle_LOG_SUCCESSFUL_TRANSACTIONS")],
+        [InlineKeyboardButton(text="📨 Последняя транзакция", callback_data="toggle_SEND_LAST_TRANSACTION")],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]
+    ]
+    return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-# === РЕДАКТИРОВАНИЕ НАСТРОЙКИ CHECK_INTERVAL ===
 def get_interval_edit_keyboard():
-    builder = InlineKeyboardBuilder()
-    builder.button(text="⬅️ Назад", callback_data="show_settings")
-    builder.button(text="🏠 В главное меню", callback_data="home")
-    builder.adjust(2)
-    return builder.as_markup()
+    keyboard = [
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
