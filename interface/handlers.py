@@ -40,8 +40,20 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(delete_token, F.data.startswith("delete_token_"))
     dp.callback_query.register(show_commands, F.data == "show_commands")
     dp.callback_query.register(go_home, F.data == "home")
-    dp.message.register(edit_wallet_command, Command(commands=[f"Edit_{wallet['address'][-4:]}" for wallet in db.get_all_wallets()]))
-    dp.message.register(edit_token_command, Command(commands=[f"edit_{token['contract_address'][-4:]}" for token in db.get_all_tracked_tokens()]))
+    
+    # Регистрация команд для кошельков
+    wallet_commands = [f"Edit_{wallet['address'][-4:]}" for wallet in db.get_all_wallets()]
+    if wallet_commands:
+        dp.message.register(edit_wallet_command, Command(commands=wallet_commands))
+    else:
+        logger.warning("Нет кошельков для регистрации команд /Edit_XXXX")
+    
+    # Регистрация команд для токенов
+    token_commands = [f"edit_{token['contract_address'][-4:]}" for token in db.get_all_tracked_tokens()]
+    if token_commands:
+        dp.message.register(edit_token_command, Command(commands=token_commands))
+    else:
+        logger.warning("Нет токенов для регистрации команд /edit_XXXX")
 
 async def edit_wallet_command(message: types.Message):
     logger.info(f"Получена команда: {message.text}")
@@ -52,7 +64,7 @@ async def edit_wallet_command(message: types.Message):
         if not wallet:
             await message.answer("❌ Кошелек не найден.")
             return
-        from .keyboards import get_wallet_control_keyboard  # Импорт внутри функции
+        from .keyboards import get_wallet_control_keyboard
         text = f"Имя кошелька: {wallet['name']}\nАдрес кошелька: {wallet['address']}"
         await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet['id']))
     except Exception as e:
@@ -68,7 +80,7 @@ async def edit_token_command(message: types.Message):
         if not token:
             await message.answer("❌ Токен не найден.")
             return
-        from .keyboards import get_token_control_keyboard  # Импорт внутри функции
+        from .keyboards import get_token_control_keyboard
         text = f"Токен: {token['token_name']}\nАдрес: {token['contract_address']}\nТекущий тред: {token['thread_id']}"
         await message.answer(text, reply_markup=get_token_control_keyboard(token['id']))
     except Exception as e:
