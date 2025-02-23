@@ -328,7 +328,7 @@ async def show_settings(callback: types.CallbackQuery):
     if int(db.get_setting("INTERFACE_INFO") or 0):
         logger.info("Кнопка 'Настройки' нажата")
     text, reply_markup = get_settings_list()
-    await callback.message.answer(text, disable_web_page_preview=True, reply_markup=reply_markup)
+    await callback.message.edit_text(text, disable_web_page_preview=True, reply_markup=reply_markup)  # Изменяем на edit_text для обновления
     await callback.answer()
 
 async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
@@ -372,11 +372,10 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
     
     new_value = "1" if int(current_value) == 0 else "0"
     db.update_setting(setting_name, new_value)
-    update_log_settings()
-    text, reply_markup = get_settings_list()  # Обновляем список настроек
-    unique_suffix = f" (ID: {int(time.time())})"
+    update_log_settings()  # Обновляем настройки логирования
+    text, reply_markup = get_settings_list()  # Получаем актуальный список настроек
     await callback.message.edit_text(
-        f"✅ Настройка {setting_name} обновлена на: {'Вкл' if new_value == '1' else 'Выкл'}{unique_suffix}\n_________\n{text}",
+        f"✅ Настройка {setting_name} обновлена на: {'Вкл' if new_value == '1' else 'Выкл'}\n_________\n{text}",
         reply_markup=reply_markup,
         disable_web_page_preview=True
     )
@@ -397,9 +396,9 @@ async def process_setting_value(message: types.Message, state: FSMContext):
                 raise ValueError("Интервал должен быть не менее 1 секунды")
         
         db.update_setting(setting_name, str(new_value))
-        text, reply_markup = get_settings_list()  # Обновляем список настроек
+        text, reply_markup = get_settings_list()  # Получаем актуальный список настроек
         await state.clear()
-        await message.answer(
+        await message.reply(  # Используем reply вместо answer для нового сообщения
             f"✅ Настройка {setting_name} обновлена на: {new_value}\n_________\n{text}",
             reply_markup=reply_markup,
             disable_web_page_preview=True
