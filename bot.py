@@ -13,31 +13,38 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 db = Database()
 
-# Загружаем настройки из базы
-settings = db.get_all_settings()
-CHECK_INTERVAL = int(settings.get("CHECK_INTERVAL", "10"))
-LOG_TRANSACTIONS = int(settings.get("LOG_TRANSACTIONS", "0"))
-LOG_SUCCESSFUL_TRANSACTIONS = int(settings.get("LOG_SUCCESSFUL_TRANSACTIONS", "0"))
-SEND_LAST_TRANSACTION = int(settings.get("SEND_LAST_TRANSACTION", "0"))
+# Функция для обновления настроек из базы
+def update_settings():
+    global CHECK_INTERVAL, LOG_TRANSACTIONS, LOG_SUCCESSFUL_TRANSACTIONS, SEND_LAST_TRANSACTION
+    settings = db.get_all_settings()
+    CHECK_INTERVAL = int(settings.get("CHECK_INTERVAL", "10"))
+    LOG_TRANSACTIONS = int(settings.get("LOG_TRANSACTIONS", "0"))
+    LOG_SUCCESSFUL_TRANSACTIONS = int(settings.get("LOG_SUCCESSFUL_TRANSACTIONS", "0"))
+    SEND_LAST_TRANSACTION = int(settings.get("SEND_LAST_TRANSACTION", "0"))
+    logger.debug(f"Обновленные настройки из базы: CHECK_INTERVAL={CHECK_INTERVAL}, LOG_TRANSACTIONS={LOG_TRANSACTIONS}, LOG_SUCCESSFUL_TRANSACTIONS={LOG_SUCCESSFUL_TRANSACTIONS}, SEND_LAST_TRANSACTION={SEND_LAST_TRANSACTION}")
+
+# Загружаем настройки из базы при запуске
+update_settings()
 
 logger.info("Статус логов и настроек при запуске бота:")
 logger.info(f"- Логи транзакций: {'Включены' if LOG_TRANSACTIONS else 'Выключены'}")
 logger.info(f"- Логи успешных транзакций: {'Включены' if LOG_SUCCESSFUL_TRANSACTIONS else 'Выключены'}")
 logger.info(f"- Отправка последней транзакции: {'Включена' if SEND_LAST_TRANSACTION else 'Выключена'}")
 
-# Логируем текущие значения из базы для отладки
-logger.debug(f"Загруженные настройки из базы: CHECK_INTERVAL={CHECK_INTERVAL}, LOG_TRANSACTIONS={LOG_TRANSACTIONS}, LOG_SUCCESSFUL_TRANSACTIONS={LOG_SUCCESSFUL_TRANSACTIONS}, SEND_LAST_TRANSACTION={SEND_LAST_TRANSACTION}")
-
 register_handlers(dp)
 
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
+    # Обновляем настройки перед обработкой команды
+    update_settings()
     await message.answer("✅ Бот запущен и мониторит транзакции!", reply_markup=get_main_menu())
     if LOG_SUCCESSFUL_TRANSACTIONS:
         logger.info("Команда /start была обработана успешно (тестовое сообщение для успешных логов)")
 
 @dp.message(Command("get_last_transaction"))
 async def get_last_transaction_command(message: types.Message):
+    # Обновляем настройки перед обработкой команды
+    update_settings()
     last_transaction = db.get_last_transaction()
     if last_transaction:
         logger.debug(f"Данные последней транзакции по запросу: {last_transaction}")
@@ -49,7 +56,7 @@ async def get_last_transaction_command(message: types.Message):
 
         # Если contract_address пустой, попробуем найти по token_name (на случай, если адрес отсутствует)
         if not contract_address:
-            token_name = last_transaction.get('token_name', '').upper()
+            token_name = last_transaction.get('token_name', 'Неизвестно').upper()
             tracked_by_name = {t["token_name"].upper(): t["contract_address"].lower() for t in db.get_all_tracked_tokens()}
             if token_name in tracked_by_name:
                 contract_address = tracked_by_name[token_name]
@@ -96,6 +103,8 @@ async def get_last_transaction_command(message: types.Message):
 
 @dp.message(Command("get_thread_id"))
 async def get_thread_id_command(message: types.Message):
+    # Обновляем настройки перед обработкой команды
+    update_settings()
     thread_id = message.message_thread_id if message.is_topic_message else "Нет треда (основной чат)"
     await message.answer(f"ID текущего треда: `{thread_id}`", parse_mode="Markdown")
     if LOG_SUCCESSFUL_TRANSACTIONS:
@@ -105,6 +114,9 @@ async def check_token_transactions():
     while True:
         start_time = time.time()
         try:
+            # Обновляем настройки перед каждой проверкой
+            update_settings()
+
             watched_wallets = db.get_all_wallets()
             tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}  # Маппинг по contract_address, нижний регистр
             default_thread_id = DEFAULT_THREAD_ID  # Базовый тред, если токен не отслеживается
@@ -193,6 +205,7 @@ async def check_token_transactions():
 
             # Отправка последней транзакции в тред, если настройка включена
             if SEND_LAST_TRANSACTION:
+                logger.debug(f"Проверка отправки последней транзакции: SEND_LAST_TRANSACTION={SEND_LAST_TRANSACTION}")
                 last_transaction = db.get_last_transaction()
                 if last_transaction:
                     wallet = db.get_wallet_by_address(last_transaction['wallet_address'])
@@ -237,19 +250,22 @@ async def check_token_transactions():
                     )
 
                     if not text.startswith("Ошибка"):
-                        logger.debug(f"Попытка отправки последней транзакции в тред {thread_id}: {text}")
-                        try:
-                            await bot.send_message(
-                                chat_id=CHAT_ID,
-                                message_thread_id=thread_id,
-                                text=text,
-                                parse_mode=parse_mode,
-                                disable_web_page_preview=True
-                            )
-                            if LOG_SUCCESSFUL_TRANSACTIONS:
-                                logger.info(f"Отправлена последняя транзакция в тред с ID {thread_id}")
-                        except Exception as e:
-                            logger.error(f"Ошибка при отправке последней транзакции: {str(e)}")
+                        logger.debug(f"Попытка отправки последней транзакции в тред {thread_id}: SEND_LAST_TRANSACTION={SEND_LAST_TRANSACTION}")
+                        if SEND_LAST_TRANSACTION:
+                            try:
+                                await bot.send_message(
+                                    chat_id=CHAT_ID,
+                                    message_thread_id=thread_id,
+                                    text=text,
+                                    parse_mode=parse_mode,
+                                    disable_web_page_preview=True
+                                )
+                                if LOG_SUCCESSFUL_TRANSACTIONS:
+                                    logger.info(f"Отправлена последняя транзакция в тред с ID {thread_id}")
+                            except Exception as e:
+                                logger.error(f"Ошибка при отправке последней транзакции: {str(e)}")
+                        else:
+                            logger.warning("Отправка последней транзакции отключена (SEND_LAST_TRANSACTION=0)")
                     else:
                         logger.error(f"Ошибка форматирования последней транзакции: {text}")
                 else:
