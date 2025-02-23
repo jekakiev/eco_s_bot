@@ -1,5 +1,5 @@
 import requests
-from settings import ARBISCAN_API_KEY, DEXSCREENER_API_KEY  # Добавляем DEXSCREENER_API_KEY
+from settings import ARBISCAN_API_KEY  # Убираем DEXSCREENER_API_KEY, чтобы избежать ошибки
 from logger_config import logger  # Добавляем импорт logger для отладки
 
 def get_token_info(contract_address):
@@ -27,9 +27,8 @@ def get_token_price(chain, contract_address):
         return "0"
     base_url = "https://api.dexscreener.com/latest/dex/prices/{}/{}".format(chain, contract_address)
     headers = {}
-    if DEXSCREENER_API_KEY:  # Если API-ключ указан, добавляем его в заголовки
-        headers = {"Authorization": f"Bearer {DEXSCREENER_API_KEY}"}
     try:
+        # Пробуем без API-ключа для бесплатного плана
         response = requests.get(base_url, headers=headers)
         response.raise_for_status()  # Проверяем, есть ли ошибка HTTP
         data = response.json()
