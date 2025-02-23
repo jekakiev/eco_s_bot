@@ -1,5 +1,6 @@
 import requests
 from settings import ARBISCAN_API_KEY
+from logger_config import logger  # Добавляем импорт logger для отладки
 
 def get_token_transactions(wallet_addresses):
     api_key = ARBISCAN_API_KEY
@@ -43,17 +44,40 @@ def get_token_transactions(wallet_addresses):
                 if contract_address and not contract_address.startswith("0x"):
                     contract_address = "0x" + contract_address
 
-                # Определяем токены и суммы на основе направления
+                # Логируем данные транзакции для отладки
+                logger.debug(f"Обработка транзакции {tx['hash']}: from={tx['from']}, to={tx['to']}, contractAddress={contract_address}, tokenSymbol={tx.get('tokenSymbol', 'Неизвестно')}")
+
+                # Проверяем все токены в транзакции, чтобы определить IN и OUT
                 if is_sender:
                     transaction["token_out"] = tx.get('tokenSymbol', 'Неизвестно')
                     transaction["token_out_address"] = contract_address
                     transaction["amount_out"] = tx.get('value', 'Неизвестно')
+                    logger.debug(f"Токен OUT определён: {transaction['token_out']} — {transaction['amount_out']}")
                 elif is_receiver:
                     transaction["token_in"] = tx.get('tokenSymbol', 'Неизвестно')
                     transaction["token_in_address"] = contract_address
                     transaction["amount_in"] = tx.get('value', 'Неизвестно')
+                    logger.debug(f"Токен IN определён: {transaction['token_in']} — {transaction['amount_in']}")
                 else:
                     logger.warning(f"Не удалось определить направление транзакции {tx['hash']} для адреса {address}")
+
+                # Если оба токена (IN и OUT) всё ещё "Неизвестно", пытаемся определить их, анализируя все записи в result
+                if transaction["token_in"] == "Неизвестно" or transaction["token_out"] == "Неизвестно":
+                    for other_tx in data['result']:
+                        other_contract = other_tx.get('contractAddress', '').lower()
+                        if not other_contract.startswith("0x"):
+                            other_contract = "0x" + other_contract
+                        if other_tx['hash'] == tx['hash'] and other_contract != contract_address:
+                            if other_tx['from'].lower() == address.lower():
+                                transaction["token_out"] = other_tx.get('tokenSymbol', 'Неизвестно')
+                                transaction["token_out_address"] = other_contract
+                                transaction["amount_out"] = other_tx.get('value', 'Неизвестно')
+                                logger.debug(f"Дополнительно определён Токен OUT: {transaction['token_out']} — {transaction['amount_out']}")
+                            elif other_tx['to'].lower() == address.lower():
+                                transaction["token_in"] = other_tx.get('tokenSymbol', 'Неизвестно')
+                                transaction["token_in_address"] = other_contract
+                                transaction["amount_in"] = other_tx.get('value', 'Неизвестно')
+                                logger.debug(f"Дополнительно определён Токен IN: {transaction['token_in']} — {transaction['amount_in']}")
 
                 # Преобразование значений в читаемый формат (например, из wei в токены, для ERC-20 делим на 10^18)
                 try:
