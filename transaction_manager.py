@@ -1,11 +1,10 @@
 import asyncio
 import time
-from database import Database
+from utils.logger_config import logger
 from utils.arbiscan import get_token_transactions
-from utils.message_formatter import format_swap_message
-from utils.logger_config import logger, update_log_settings
-from send_message import send_message
+from utils.message_formatter import format_swap_message, send_message
 from config.settings import DEFAULT_THREAD_ID
+from database import Database
 
 db = Database()
 
@@ -13,12 +12,10 @@ async def check_token_transactions(bot, chat_id):
     while True:
         start_time = time.time()
         try:
-            check_interval = int(db.get_setting("CHECK_INTERVAL") or "10")
-            send_last_transaction = int(db.get_setting("SEND_LAST_TRANSACTION") or "0")
-            transaction_info = int(db.get_setting("TRANSACTION_INFO") or "0")
-            debug = int(db.get_setting("DEBUG") or "0")
-
-            update_log_settings()
+            check_interval = int(db.get_setting("CHECK_INTERVAL") or 10)
+            send_last_transaction = int(db.get_setting("SEND_LAST_TRANSACTION") or 0)
+            transaction_info = int(db.get_setting("TRANSACTION_INFO") or 0)
+            debug = int(db.get_setting("DEBUG") or 0)
 
             watched_wallets = db.get_all_wallets()
             tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}
@@ -72,7 +69,7 @@ async def check_token_transactions(bot, chat_id):
                         )
 
                         if text.startswith("Ошибка"):
-                            if int(db.get_setting("API_ERRORS", "1")):
+                            if int(db.get_setting("API_ERRORS") or 1):
                                 logger.error(f"Ошибка форматирования: {text}")
                             continue
 
@@ -81,7 +78,7 @@ async def check_token_transactions(bot, chat_id):
                             if transaction_info:
                                 logger.info(f"Сообщение отправлено в тред {thread_id}")
                         except Exception as e:
-                            if int(db.get_setting("API_ERRORS", "1")):
+                            if int(db.get_setting("API_ERRORS") or 1):
                                 logger.error(f"Ошибка отправки: {str(e)}")
 
             if send_last_transaction:
@@ -114,14 +111,14 @@ async def check_token_transactions(bot, chat_id):
                             if transaction_info:
                                 logger.info(f"Последняя транзакция отправлена в тред {thread_id}")
                         except Exception as e:
-                            if int(db.get_setting("API_ERRORS", "1")):
+                            if int(db.get_setting("API_ERRORS") or 1):
                                 logger.error(f"Ошибка отправки последней транзакции: {str(e)}")
 
             if transaction_info:
                 logger.info(f"Проверка завершена. Время: {time.time() - start_time:.2f} сек")
 
         except Exception as e:
-            if int(db.get_setting("API_ERRORS", "1")):
+            if int(db.get_setting("API_ERRORS") or 1):
                 logger.error(f"Ошибка: {str(e)}")
 
         await asyncio.sleep(check_interval)

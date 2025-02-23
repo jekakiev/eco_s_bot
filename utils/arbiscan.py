@@ -2,6 +2,9 @@ import asyncio
 import aiohttp
 from config.settings import ARBISCAN_API_KEY
 from utils.logger_config import logger
+from database import Database
+
+db = Database()
 
 async def get_token_info(contract_address):
     if not contract_address or not contract_address.startswith("0x"):
@@ -36,18 +39,18 @@ async def get_token_price(chain, contract_address):
                 if 'pair' in data and 'baseToken' in data['pair'] and 'priceUsd' in data['pair']['baseToken']:
                     price_usd = str(data['pair']['baseToken']['priceUsd'])
                     return price_usd, ""
-                if int(db.get_setting("API_ERRORS", "1")):
+                if int(db.get_setting("API_ERRORS") or 1):
                     logger.warning(f"Не удалось получить цену через DexScreener API для {contract_address}")
                 return "0", "Цена не определена"
     except aiohttp.ClientResponseError as e:
-        if int(db.get_setting("API_ERRORS", "1")):
+        if int(db.get_setting("API_ERRORS") or 1):
             if e.status == 404:
                 logger.warning(f"Токен {contract_address} не найден в DexScreener API для {chain}")
             else:
                 logger.warning(f"Ошибка при запросе к DexScreener API для {contract_address}: {str(e)}")
         return "0", "Цена не определена"
     except Exception as e:
-        if int(db.get_setting("API_ERRORS", "1")):
+        if int(db.get_setting("API_ERRORS") or 1):
             logger.warning(f"Ошибка при запросе к DexScreener API для {contract_address}: {str(e)}")
         return "0", "Цена не определена"
 
@@ -55,7 +58,7 @@ async def get_token_transactions(wallet_addresses):
     api_key = ARBISCAN_API_KEY
     base_url = "https://api.arbiscan.io/api"
     all_transactions = {}
-    debug = int(db.get_setting("DEBUG", "0"))
+    debug = int(db.get_setting("DEBUG") or 0)
 
     async with aiohttp.ClientSession() as session:
         for address in wallet_addresses:
@@ -159,8 +162,9 @@ async def get_token_transactions(wallet_addresses):
                             transaction["token_out_url"] = ""
 
                         transaction["usd_value"] = tx.get('valueUSD', '0')
-                        if transaction["usd_value"] == "0" and int(db.get_setting("API_ERRORS", "1")):
-                            logger.warning(f"Не удалось получить valueUSD для транзакции {tx['hash']}")
+                        if transaction["usd_value"] == "0":
+                            if int(db.get_setting("API_ERRORS") or 1):
+                                logger.warning(f"Не удалось получить valueUSD для транзакции {tx['hash']}")
 
                         if transaction["usd_value"] == "0" and (transaction["token_in_address"] or transaction["token_out_address"]):
                             try:
@@ -174,15 +178,15 @@ async def get_token_transactions(wallet_addresses):
                                             if amount != "Неизвестно":
                                                 amount_float = float(amount)
                                                 transaction["usd_value"] = str(amount_float * float(price_usd))
-                                                if int(db.get_setting("DEBUG", "0")):
+                                                if debug:
                                                     logger.debug(f"Получена стоимость через DexScreener: ${transaction['usd_value']}")
                                             break
                             except Exception as e:
-                                if int(db.get_setting("API_ERRORS", "1")):
+                                if int(db.get_setting("API_ERRORS") or 1):
                                     logger.warning(f"Не удалось получить стоимость через DexScreener: {str(e)}")
 
                         transactions.append(transaction)
-                        await asyncio.sleep(0.05)  # Минимальная задержка для соблюдения лимита API
+                        await asyncio.sleep(0.05)
 
                     all_transactions[address] = transactions
                 else:
