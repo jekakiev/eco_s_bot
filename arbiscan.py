@@ -1,5 +1,6 @@
 import requests
-from settings import ARBISCAN_API_KEY  # Убираем DEXSCREENER_API_KEY, чтобы избежать ошибки
+import time
+from settings import ARBISCAN_API_KEY
 from logger_config import logger  # Добавляем импорт logger для отладки
 
 def get_token_info(contract_address):
@@ -24,21 +25,27 @@ def get_token_info(contract_address):
 
 def get_token_price(chain, contract_address):
     if not contract_address or not contract_address.startswith("0x"):
-        return "0"
-    base_url = "https://api.dexscreener.com/latest/dex/prices/{}/{}".format(chain, contract_address)
+        return "0", "Цена не определена"
+    base_url = "https://api.dexscreener.com/latest/dex/tokens/{}/{}".format(chain, contract_address)
     headers = {}
     try:
-        # Пробуем без API-ключа для бесплатного плана
-        response = requests.get(base_url, headers=headers)
+        response = requests.get(base_url, headers=headers, timeout=10)  # Добавляем таймаут
         response.raise_for_status()  # Проверяем, есть ли ошибка HTTP
         data = response.json()
-        if 'price' in data and data['price'] is not None and data['price'].get('usd'):
-            return str(data['price']['usd'])  # Возвращаем цену в USD как строку
+        if 'pair' in data and 'baseToken' in data['pair'] and 'priceUsd' in data['pair']['baseToken']:
+            price_usd = str(data['pair']['baseToken']['priceUsd'])
+            return price_usd, ""  # Возвращаем цену в USD как строку и пустое сообщение об ошибке
         logger.warning(f"Не удалось получить цену через DexScreener API для {contract_address}: цена отсутствует в ответе")
-        return "0"
+        return "0", "Цена не определена"
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 404:
+            logger.warning(f"Токен {contract_address} не найден в DexScreener API для {chain}: {str(e)}")
+        else:
+            logger.warning(f"Ошибка при запросе к DexScreener API для {contract_address}: {str(e)}")
+        return "0", "Цена не определена"
     except requests.exceptions.RequestException as e:
         logger.warning(f"Ошибка при запросе к DexScreener API для {contract_address}: {str(e)}")
-        return "0"
+        return "0", "Цена не определена"
 
 def get_token_transactions(wallet_addresses):
     api_key = ARBISCAN_API_KEY
@@ -169,7 +176,7 @@ def get_token_transactions(wallet_addresses):
                         for token_address_key in ["token_in_address", "token_out_address"]:
                             token_address = transaction[token_address_key]
                             if token_address:
-                                price_usd = get_token_price("arbitrum", token_address)  # Используем DexScreener для Arbitrum
+                                price_usd, price_status = get_token_price("arbitrum", token_address)  # Используем DexScreener для Arbitrum
                                 if price_usd != "0":
                                     amount_key = "amount_in" if token_address_key == "token_in_address" else "amount_out"
                                     amount = transaction[amount_key]
@@ -178,10 +185,21 @@ def get_token_transactions(wallet_addresses):
                                         transaction["usd_value"] = str(amount_float * float(price_usd))
                                         logger.debug(f"Получена стоимость через DexScreener API для {token_symbol}: ${transaction['usd_value']}")
                                     break  # Останавливаем после первого успешного получения цены
+                                else:
+                                    # Если цена не определена, добавляем статус для уведомления
+                                    transaction["usd_value_status"] = price_status
                     except Exception as e:
                         logger.warning(f"Не удалось получить стоимость через DexScreener API для {token_address}: {str(e)}")
+                        transaction["usd_value_status"] = "Цена не определена"
+
+                # Добавляем статус в транзакцию, если он есть
+                if "usd_value_status" in transaction and transaction["usd_value_status"]:
+                    transaction["usd_value"] = f"{transaction['usd_value']} ({transaction['usd_value_status']})"
 
                 transactions.append(transaction)
+                # Задержка между запросами, чтобы не превышать лимит 300 запросов в минуту
+                time.sleep(0.1)
+
             all_transactions[address] = transactions
         else:
             all_transactions[address] = []

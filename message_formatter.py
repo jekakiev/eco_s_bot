@@ -27,10 +27,17 @@ def format_number(value):
 
 def format_swap_message(tx_hash, sender, sender_url, amount_in, token_in, token_in_url, amount_out, token_out, token_out_url, usd_value):
     try:
+        # Разделяем usd_value на значение и статус, если он есть
+        usd_value_str = str(usd_value) if usd_value != "Неизвестно" else "Неизвестно"
+        usd_status = ""
+        if isinstance(usd_value, str) and "(" in usd_value and ")" in usd_value:
+            usd_value_str, usd_status = usd_value.split(" (", 1)
+            usd_status = f" ({usd_status.rstrip(')')}"  # Убираем закрывающую скобку и добавляем открывающую для форматирования
+
         # Форматируем суммы и цену с учётом новых правил
         formatted_amount_in = format_number(amount_in)
         formatted_amount_out = format_number(amount_out)
-        formatted_usd = format_number(usd_value)
+        formatted_usd = format_number(usd_value_str) + usd_status  # Добавляем статус, если он есть
 
         # Формируем сообщение
         message = (
