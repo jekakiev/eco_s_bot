@@ -143,7 +143,8 @@ class Database:
         try:
             cursor.execute("SELECT id, address, name, tokens FROM wallets")
             result = [{"id": row[0], "address": row[1], "name": row[2], "tokens": row[3]} for row in cursor.fetchall()]
-            if int(self.get_setting("DEBUG", "0")):
+            debug_setting = self.get_setting("DEBUG")
+            if debug_setting and int(debug_setting):
                 logger.debug(f"Получены кошельки из базы: {result}")
             return result
         except mysql.connector.Error as e:
@@ -160,7 +161,8 @@ class Database:
             cursor.execute("SELECT id, address, name, tokens FROM wallets WHERE id = %s", (wallet_id,))
             row = cursor.fetchone()
             result = {"id": row[0], "address": row[1], "name": row[2], "tokens": row[3]} if row else None
-            if int(self.get_setting("DEBUG", "0")):
+            debug_setting = self.get_setting("DEBUG")
+            if debug_setting and int(debug_setting):
                 logger.debug(f"Получен кошелек по ID {wallet_id}: {result}")
             return result
         except mysql.connector.Error as e:
@@ -177,7 +179,8 @@ class Database:
             cursor.execute("SELECT id, address, name, tokens FROM wallets WHERE address = %s", (address,))
             row = cursor.fetchone()
             result = {"id": row[0], "address": row[1], "name": row[2], "tokens": row[3]} if row else None
-            if int(self.get_setting("DEBUG", "0")):
+            debug_setting = self.get_setting("DEBUG")
+            if debug_setting and int(debug_setting):
                 logger.debug(f"Получен кошелек по адресу {address}: {result}")
             return result
         except mysql.connector.Error as e:
@@ -195,7 +198,8 @@ class Database:
             cursor.execute("INSERT IGNORE INTO transactions (tx_hash, wallet_address, token_name, usd_value) VALUES (%s, %s, %s, %s)",
                           (tx_hash, wallet_address, token_name, usd_value))
             conn.commit()
-            if int(self.get_setting("TRANSACTION_INFO", "0")):
+            transaction_info_setting = self.get_setting("TRANSACTION_INFO")
+            if transaction_info_setting and int(transaction_info_setting):
                 logger.info(f"Транзакция добавлена/обновлена: {tx_hash}, {wallet_address}, {token_name}, {usd_value}")
         except mysql.connector.Error as e:
             logger.error(f"Ошибка при добавлении транзакции: {str(e)}")
@@ -210,7 +214,8 @@ class Database:
         try:
             cursor.execute("SELECT 1 FROM transactions WHERE tx_hash = %s", (tx_hash,))
             result = cursor.fetchone() is not None
-            if int(self.get_setting("DEBUG", "0")):
+            debug_setting = self.get_setting("DEBUG")
+            if debug_setting and int(debug_setting):
                 logger.debug(f"Проверка существования транзакции {tx_hash}: {result}")
             return result
         except mysql.connector.Error as e:
@@ -233,7 +238,8 @@ class Database:
                 "usd_value": row[3],
                 "timestamp": row[4]
             } if row else None
-            if int(self.get_setting("DEBUG", "0")):
+            debug_setting = self.get_setting("DEBUG")
+            if debug_setting and int(debug_setting):
                 logger.debug(f"Получена последняя транзакция: {result}")
             return result
         except mysql.connector.Error as e:
@@ -250,7 +256,8 @@ class Database:
             cursor.execute("SELECT tx_hash, token_name, usd_value, timestamp FROM transactions WHERE wallet_address = %s ORDER BY timestamp DESC LIMIT %s", (wallet_address, limit))
             rows = cursor.fetchall()
             result = [{"tx_hash": row[0], "token_name": row[1], "usd_value": row[2], "timestamp": row[3]} for row in rows]
-            if int(self.get_setting("DEBUG", "0")):
+            debug_setting = self.get_setting("DEBUG")
+            if debug_setting and int(debug_setting):
                 logger.debug(f"Получены транзакции для кошелька {wallet_address}: {result}")
             return result
         except mysql.connector.Error as e:
@@ -268,7 +275,8 @@ class Database:
             cursor.execute("INSERT IGNORE INTO tracked_tokens (token_name, contract_address, thread_id) VALUES (%s, %s, %s)",
                           (token_name, contract_address, thread_id))
             conn.commit()
-            if int(self.get_setting("INTERFACE_INFO", "0")):
+            interface_info_setting = self.get_setting("INTERFACE_INFO")
+            if interface_info_setting and int(interface_info_setting):
                 logger.info(f"Токен добавлен/обновлён: {token_name}, {contract_address}, {thread_id}")
         except mysql.connector.Error as e:
             logger.error(f"Ошибка при добавлении токена: {str(e)}")
@@ -284,7 +292,8 @@ class Database:
             cursor.execute("UPDATE tracked_tokens SET token_name = %s, thread_id = %s WHERE id = %s",
                           (token_name, thread_id, token_id))
             conn.commit()
-            if int(self.get_setting("INTERFACE_INFO", "0")):
+            interface_info_setting = self.get_setting("INTERFACE_INFO")
+            if interface_info_setting and int(interface_info_setting):
                 logger.info(f"Токен с ID {token_id} обновлён: {token_name}, {thread_id}")
         except mysql.connector.Error as e:
             logger.error(f"Ошибка при обновлении токена с ID {token_id}: {str(e)}")
@@ -299,7 +308,8 @@ class Database:
         try:
             cursor.execute("DELETE FROM tracked_tokens WHERE id = %s", (token_id,))
             conn.commit()
-            if int(self.get_setting("INTERFACE_INFO", "0")):
+            interface_info_setting = self.get_setting("INTERFACE_INFO")
+            if interface_info_setting and int(interface_info_setting):
                 logger.info(f"Токен с ID {token_id} удалён.")
         except mysql.connector.Error as e:
             logger.error(f"Ошибка при удалении токена с ID {token_id}: {str(e)}")
@@ -314,7 +324,8 @@ class Database:
         try:
             cursor.execute("SELECT id, token_name, contract_address, thread_id FROM tracked_tokens")
             result = [{"id": row[0], "token_name": row[1], "contract_address": row[2], "thread_id": row[3]} for row in cursor.fetchall()]
-            if int(self.get_setting("DEBUG", "0")):
+            debug_setting = self.get_setting("DEBUG")
+            if debug_setting and int(debug_setting):
                 logger.debug(f"Получены токены из базы: {result}")
             return result
         except mysql.connector.Error as e:
@@ -331,7 +342,8 @@ class Database:
             cursor.execute("SELECT id, token_name, contract_address, thread_id FROM tracked_tokens WHERE id = %s", (token_id,))
             row = cursor.fetchone()
             result = {"id": row[0], "token_name": row[1], "contract_address": row[2], "thread_id": row[3]} if row else None
-            if int(self.get_setting("DEBUG", "0")):
+            debug_setting = self.get_setting("DEBUG")
+            if debug_setting and int(debug_setting):
                 logger.debug(f"Получен токен по ID {token_id}: {result}")
             return result
         except mysql.connector.Error as e:
@@ -348,7 +360,8 @@ class Database:
             cursor.execute("SELECT id, token_name, contract_address, thread_id FROM tracked_tokens WHERE contract_address = %s", (contract_address,))
             row = cursor.fetchone()
             result = {"id": row[0], "token_name": row[1], "contract_address": row[2], "thread_id": row[3]} if row else None
-            if int(self.get_setting("DEBUG", "0")):
+            debug_setting = self.get_setting("DEBUG")
+            if debug_setting and int(debug_setting):
                 logger.debug(f"Получен токен по адресу {contract_address}: {result}")
             return result
         except mysql.connector.Error as e:
@@ -365,7 +378,8 @@ class Database:
         try:
             cursor.execute("SELECT setting_name, setting_value FROM bot_settings")
             settings = {row[0]: row[1] for row in cursor.fetchall()}
-            if int(self.get_setting("DEBUG", "0")):  # Исправлено: self вместо db
+            debug_setting = self.get_setting("DEBUG")
+            if debug_setting and int(debug_setting):
                 logger.debug(f"Получены настройки из базы: {settings}")
             return settings
         except mysql.connector.Error as e:
@@ -381,7 +395,8 @@ class Database:
         try:
             cursor.execute("SELECT setting_value FROM bot_settings WHERE setting_name = %s", (setting_name,))
             result = cursor.fetchone()
-            if int(self.get_setting("DEBUG", "0")):  # Исправлено: self вместо db
+            debug_setting = self.get_setting("DEBUG")
+            if debug_setting and int(debug_setting):
                 logger.debug(f"Получено значение настройки {setting_name}: {result[0] if result else None}")
             return result[0] if result else None
         except mysql.connector.Error as e:
@@ -398,7 +413,8 @@ class Database:
             cursor.execute("INSERT INTO bot_settings (setting_name, setting_value) VALUES (%s, %s) "
                           "ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)", (setting_name, setting_value))
             conn.commit()
-            if int(self.get_setting("INTERFACE_INFO", "0")):  # Исправлено: self вместо db
+            interface_info_setting = self.get_setting("INTERFACE_INFO")
+            if interface_info_setting and int(interface_info_setting):
                 logger.info(f"Настройка {setting_name} обновлена на: {setting_value}")
         except mysql.connector.Error as e:
             logger.error(f"Ошибка при обновлении настройки {setting_name}: {str(e)}")
