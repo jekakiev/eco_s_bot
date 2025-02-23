@@ -11,7 +11,7 @@ from .callbacks import (
 from aiogram.filters import Command
 from .states import WalletStates, TokenStates, SettingStates
 from database import Database
-from logger_config import logger
+from utils.logger_config import logger
 
 db = Database()
 
@@ -42,7 +42,7 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(show_commands, F.data == "show_commands")
     dp.callback_query.register(show_settings, F.data == "show_settings")
     dp.callback_query.register(edit_setting_start, F.data.startswith("edit_setting_"))
-    dp.callback_query.register(toggle_setting, F.data.startswith("toggle_"))  # Изменил с toggle_log_setting на toggle_setting
+    dp.callback_query.register(toggle_setting, F.data.startswith("toggle_"))
     dp.message.register(process_setting_value, SettingStates.waiting_for_setting_value)
     dp.callback_query.register(go_home, F.data == "home")
     

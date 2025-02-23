@@ -8,10 +8,10 @@ from .keyboards import (
 )
 from .states import WalletStates, TokenStates, SettingStates
 from database import Database
-from logger_config import logger, update_log_settings
+from utils.logger_config import logger, update_log_settings
 import requests
 import time
-from settings import ARBISCAN_API_KEY
+from config.settings import ARBISCAN_API_KEY
 
 db = Database()
 
@@ -141,7 +141,7 @@ async def process_contract_address(message: types.Message, state: FSMContext):
         "endblock": 99999999,
         "sort": "desc",
         "offset": 0,
-        "limit": 10,  # Ограничение на 10 последних транзакций
+        "limit": 10,
         "apikey": ARBISCAN_API_KEY
     }
     response = requests.get("https://api.arbiscan.io/api", params=params)
@@ -246,20 +246,18 @@ async def show_settings(callback: types.CallbackQuery):
 # === РЕДАКТИРОВАНИЕ НАСТРОЙКИ ===
 async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Нажата кнопка настройки: {callback.data}")
-    # Исправлен парсинг, чтобы брать полный setting_name
-    setting_name = callback.data.replace("edit_setting_", "")  # Убираем "edit_setting_" и оставляем имя настройки
+    setting_name = callback.data.replace("edit_setting_", "")
     current_value = db.get_setting(setting_name)
     if current_value is None:
-        # Fallback если настройка не найдена
         default_values = {
             "CHECK_INTERVAL": "10",
             "LOG_TRANSACTIONS": "0",
             "LOG_SUCCESSFUL_TRANSACTIONS": "0",
-            "SEND_LAST_TRANSACTION": "0"  # Новая настройка
+            "SEND_LAST_TRANSACTION": "0"
         }
         current_value = default_values.get(setting_name, "0")
         logger.warning(f"Настройка {setting_name} не найдена в базе, использую значение по умолчанию: {current_value}")
-        db.update_setting(setting_name, current_value)  # Сохраняем дефолтное значение в базу
+        db.update_setting(setting_name, current_value)
 
     if setting_name == "CHECK_INTERVAL":
         text = f"⚙️ Интервал проверки\nТекущее значение: {current_value} секунд\nВведите интервал обновления в секундах (мин. 1):"
@@ -270,21 +268,18 @@ async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
 # === ПЕРЕКЛЮЧЕНИЕ ЗНАЧЕНИЯ ЛОГОВ/НАСТРОЕК ПРЯМО В СПИСКЕ ===
 async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Нажата кнопка переключения настройки: {callback.data}")
-    # Исправлен парсинг, чтобы брать полный setting_name
-    setting_name = callback.data.replace("toggle_", "")  # Убираем "toggle_" и оставляем имя настройки
+    setting_name = callback.data.replace("toggle_", "")
     current_value = db.get_setting(setting_name)
     if current_value is None:
-        current_value = "0"  # Дефолтное значение, если настройка отсутствует
+        current_value = "0"
         db.update_setting(setting_name, current_value)
         logger.warning(f"Настройка {setting_name} не найдена в базе, установлено значение по умолчанию: {current_value}")
     
     new_value = "1" if int(current_value) == 0 else "0"
     db.update_setting(setting_name, new_value)
     
-    # Обновляем фильтры логов после изменения настроек
     update_log_settings()
     
-    # Обновляем сообщение с актуальными значениями в дужках
     text, reply_markup = get_settings_list()
     unique_suffix = f" (ID: {int(time.time())})"
     await callback.message.edit_text(f"✅ Настройка {setting_name} обновлена на: {'Вкл' if new_value == '1' else 'Выкл'}{unique_suffix}\n_________\n{text}", reply_markup=reply_markup)
