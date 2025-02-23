@@ -10,6 +10,7 @@ from utils.logger_config import logger
 db = Database()
 
 async def check_token_transactions(bot, chat_id):
+    last_sent_transaction_hash = None  # Отслеживаем последнюю отправленную транзакцию
     while True:
         start_time = time.time()
         try:
@@ -85,7 +86,7 @@ async def check_token_transactions(bot, chat_id):
 
             if send_last_transaction:
                 last_transaction = db.get_last_transaction()
-                if last_transaction:
+                if last_transaction and last_transaction['tx_hash'] != last_sent_transaction_hash:
                     wallet = db.get_wallet_by_address(last_transaction['wallet_address'])
                     wallet_name = wallet['name'] if wallet else last_transaction['wallet_address']
                     contract_address = last_transaction.get('token_out_address', '').lower()
@@ -110,6 +111,7 @@ async def check_token_transactions(bot, chat_id):
                     if not text.startswith("Ошибка"):
                         try:
                             await send_message(chat_id, thread_id, text, parse_mode=parse_mode)
+                            last_sent_transaction_hash = last_transaction['tx_hash']  # Запоминаем отправленную транзакцию
                             if transaction_info:
                                 logger.info(f"Последняя транзакция отправлена в тред {thread_id}")
                         except Exception as e:
