@@ -1,10 +1,6 @@
 import requests
-from settings import ARBISCAN_API_KEY
+from settings import ARBISCAN_API_KEY, DEXSCREENER_API_KEY  # Добавляем DEXSCREENER_API_KEY
 from logger_config import logger  # Добавляем импорт logger для отладки
-from pycoingecko import CoinGeckoAPI
-
-# Инициализируем CoinGecko
-cg = CoinGeckoAPI()
 
 def get_token_info(contract_address):
     if not contract_address or not contract_address.startswith("0x"):
@@ -25,6 +21,25 @@ def get_token_info(contract_address):
             "tokenDecimal": data['result'][0].get('decimals', '18')
         }
     return {"tokenSymbol": "Неизвестно", "tokenDecimal": "18"}
+
+def get_token_price(chain, contract_address):
+    if not contract_address or not contract_address.startswith("0x"):
+        return "0"
+    base_url = "https://api.dexscreener.com/latest/dex/prices/{}/{}".format(chain, contract_address)
+    headers = {}
+    if DEXSCREENER_API_KEY:  # Если API-ключ указан, добавляем его в заголовки
+        headers = {"Authorization": f"Bearer {DEXSCREENER_API_KEY}"}
+    try:
+        response = requests.get(base_url, headers=headers)
+        response.raise_for_status()  # Проверяем, есть ли ошибка HTTP
+        data = response.json()
+        if 'price' in data and data['price'] is not None and data['price'].get('usd'):
+            return str(data['price']['usd'])  # Возвращаем цену в USD как строку
+        logger.warning(f"Не удалось получить цену через DexScreener API для {contract_address}: цена отсутствует в ответе")
+        return "0"
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"Ошибка при запросе к DexScreener API для {contract_address}: {str(e)}")
+        return "0"
 
 def get_token_transactions(wallet_addresses):
     api_key = ARBISCAN_API_KEY
@@ -146,32 +161,26 @@ def get_token_transactions(wallet_addresses):
                 # Попробуем получить valueUSD, если доступно
                 transaction["usd_value"] = tx.get('valueUSD', '0')
                 if transaction["usd_value"] == "0":
-                    logger.warning(f"Не удалось получить valueUSD для транзакции {tx['hash']}, используется значение по умолчанию 0")
+                    logger.warning(f"Не удалось получить valueUSD для транзакции {tx['hash']} через Arbiscan, ищем через DexScreener")
 
-                # Интеграция с CoinGecko для получения usd_value, если оно равно 0
+                # Интеграция с DexScreener API для получения usd_value, если оно равно 0
                 if transaction["usd_value"] == "0" and (transaction["token_in_address"] or transaction["token_out_address"]):
                     try:
-                        # Проверяем оба адреса токенов (IN и OUT)
+                        # Проверяем оба адреса токенов (IN и OUT) для Arbitrum
                         for token_address_key in ["token_in_address", "token_out_address"]:
                             token_address = transaction[token_address_key]
                             if token_address:
-                                token_price = cg.get_token_price(
-                                    id="arbitrum-one",  # ID сети Arbitrum
-                                    contract_addresses=[token_address],
-                                    vs_currencies=["usd"]
-                                )
-                                if token_price and token_address in token_price:
-                                    price_usd = token_price[token_address]["usd"]
-                                    if price_usd:
-                                        amount_key = "amount_in" if token_address_key == "token_in_address" else "amount_out"
-                                        amount = transaction[amount_key]
-                                        if amount != "Неизвестно":
-                                            amount_float = float(amount)
-                                            transaction["usd_value"] = str(amount_float * price_usd)
-                                            logger.debug(f"Получена стоимость через CoinGecko для {token_symbol}: ${transaction['usd_value']}")
-                                            break  # Останавливаем после первого успешного получения цены
+                                price_usd = get_token_price("arbitrum", token_address)  # Используем DexScreener для Arbitrum
+                                if price_usd != "0":
+                                    amount_key = "amount_in" if token_address_key == "token_in_address" else "amount_out"
+                                    amount = transaction[amount_key]
+                                    if amount != "Неизвестно":
+                                        amount_float = float(amount)
+                                        transaction["usd_value"] = str(amount_float * float(price_usd))
+                                        logger.debug(f"Получена стоимость через DexScreener API для {token_symbol}: ${transaction['usd_value']}")
+                                    break  # Останавливаем после первого успешного получения цены
                     except Exception as e:
-                        logger.warning(f"Не удалось получить стоимость через CoinGecko для {token_address}: {str(e)}")
+                        logger.warning(f"Не удалось получить стоимость через DexScreener API для {token_address}: {str(e)}")
 
                 transactions.append(transaction)
             all_transactions[address] = transactions

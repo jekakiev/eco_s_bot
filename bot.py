@@ -91,13 +91,19 @@ async def get_last_transaction_command(message: types.Message):
         if text.startswith("Ошибка"):
             logger.error(f"Ошибка форматирования сообщения для транзакции {last_transaction['tx_hash']}: {text}")
         else:
-            await bot.send_message(
-                chat_id=CHAT_ID,
-                message_thread_id=thread_id,
-                text=text,
-                parse_mode=parse_mode,
-                disable_web_page_preview=True
-            )
+            logger.debug(f"Отправка сообщения в Telegram для транзакции {last_transaction['tx_hash']}: CHAT_ID={CHAT_ID}, thread_id={thread_id}")
+            try:
+                await bot.send_message(
+                    chat_id=CHAT_ID,
+                    message_thread_id=thread_id,
+                    text=text,
+                    parse_mode=parse_mode,
+                    disable_web_page_preview=True
+                )
+                if LOG_SUCCESSFUL_TRANSACTIONS:
+                    logger.info(f"Команда /get_last_transaction отправила сообщение для чата {message.chat.id} в тред {thread_id}")
+            except Exception as e:
+                logger.error(f"Ошибка при отправке сообщения для транзакции {last_transaction['tx_hash']}: {str(e)}")
     else:
         await message.answer("Нет записей о транзакциях.", disable_web_page_preview=True)
     if LOG_SUCCESSFUL_TRANSACTIONS:
@@ -180,6 +186,8 @@ async def check_token_transactions():
                             usd_value=tx.get('usd_value', '0')
                         )
 
+                        logger.debug(f"Сформированное сообщение для транзакции {tx_hash}: {text}")  # Добавляем отладку сообщения
+
                         if text.startswith("Ошибка"):
                             logger.error(f"Ошибка форматирования сообщения для транзакции {tx_hash}: {text}")
                             continue
@@ -187,13 +195,18 @@ async def check_token_transactions():
                         if LOG_SUCCESSFUL_TRANSACTIONS:
                             logger.info(f"Кошелёк '{wallet_name}' обнаружено {new_transactions_count} новых транзакций, сообщение отправлено в тред с ID {thread_id}")
 
-                        await bot.send_message(
-                            chat_id=CHAT_ID,
-                            message_thread_id=thread_id,
-                            text=text,
-                            parse_mode=parse_mode,
-                            disable_web_page_preview=True
-                        )
+                        logger.debug(f"Попытка отправки сообщения в Telegram: CHAT_ID={CHAT_ID}, thread_id={thread_id}")
+                        try:
+                            await bot.send_message(
+                                chat_id=CHAT_ID,
+                                message_thread_id=thread_id,
+                                text=text,
+                                parse_mode=parse_mode,
+                                disable_web_page_preview=True
+                            )
+                        except Exception as e:
+                            logger.error(f"Ошибка при отправке сообщения для транзакции {tx_hash}: {str(e)}")
+                            continue
 
             # Отправка последней транзакции в тред, если настройка включена
             if SEND_LAST_TRANSACTION:
@@ -234,6 +247,7 @@ async def check_token_transactions():
                     if not text.startswith("Ошибка"):
                         logger.debug(f"Попытка отправки последней транзакции в тред {thread_id}: SEND_LAST_TRANSACTION={SEND_LAST_TRANSACTION}")
                         if SEND_LAST_TRANSACTION:
+                            logger.debug(f"Отправка сообщения в Telegram: CHAT_ID={CHAT_ID}, thread_id={thread_id}")
                             try:
                                 await bot.send_message(
                                     chat_id=CHAT_ID,
