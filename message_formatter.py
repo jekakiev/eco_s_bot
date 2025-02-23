@@ -1,4 +1,4 @@
-from aiogram.utils.markdown import ParseMode
+from aiogram.enums import ParseMode
 
 def format_swap_message(tx_hash, sender, sender_url, amount_in, token_in, token_in_url, amount_out, token_out, token_out_url, usd_value):
     try:
