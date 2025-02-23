@@ -138,6 +138,7 @@ def get_commands_list():
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_settings_list():
+    # Всегда получаем свежие данные из базы
     settings = db.get_all_settings()
     check_interval = settings.get("CHECK_INTERVAL", "10")
     send_last = "✅" if settings.get("SEND_LAST_TRANSACTION", "0") == "1" else "❌"

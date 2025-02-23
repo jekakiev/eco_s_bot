@@ -22,7 +22,7 @@ async def show_wallets(callback: types.CallbackQuery):
     try:
         text, reply_markup = get_wallets_list()
         await callback.message.answer(text, disable_web_page_preview=True, reply_markup=reply_markup)
-        await callback.answer()  # Закрываем callback
+        await callback.answer()
     except Exception as e:
         if int(db.get_setting("API_ERRORS") or 1):
             logger.error(f"Ошибка при отправке списка кошельков: {str(e)}")
@@ -373,9 +373,13 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
     new_value = "1" if int(current_value) == 0 else "0"
     db.update_setting(setting_name, new_value)
     update_log_settings()
-    text, reply_markup = get_settings_list()
+    text, reply_markup = get_settings_list()  # Обновляем список настроек
     unique_suffix = f" (ID: {int(time.time())})"
-    await callback.message.edit_text(f"✅ Настройка {setting_name} обновлена на: {'Вкл' if new_value == '1' else 'Выкл'}{unique_suffix}\n_________\n{text}", reply_markup=reply_markup)
+    await callback.message.edit_text(
+        f"✅ Настройка {setting_name} обновлена на: {'Вкл' if new_value == '1' else 'Выкл'}{unique_suffix}\n_________\n{text}",
+        reply_markup=reply_markup,
+        disable_web_page_preview=True
+    )
     await callback.answer()
 
 async def process_setting_value(message: types.Message, state: FSMContext):
@@ -393,9 +397,13 @@ async def process_setting_value(message: types.Message, state: FSMContext):
                 raise ValueError("Интервал должен быть не менее 1 секунды")
         
         db.update_setting(setting_name, str(new_value))
-        text, reply_markup = get_settings_list()
+        text, reply_markup = get_settings_list()  # Обновляем список настроек
         await state.clear()
-        await message.answer(f"✅ Настройка {setting_name} обновлена на: {new_value}\n_________\n{text}", reply_markup=reply_markup)
+        await message.answer(
+            f"✅ Настройка {setting_name} обновлена на: {new_value}\n_________\n{text}",
+            reply_markup=reply_markup,
+            disable_web_page_preview=True
+        )
     except ValueError as e:
         await message.answer(f"❌ Ошибка: {str(e)}. Попробуйте ещё раз:", reply_markup=get_interval_edit_keyboard())
     except Exception as e:
