@@ -328,8 +328,7 @@ async def show_settings(callback: types.CallbackQuery, state: FSMContext):
     if int(db.get_setting("INTERFACE_INFO") or 0):
         logger.info("Кнопка 'Настройки' нажата")
     text, reply_markup = get_settings_list()
-    msg = await callback.message.edit_text(text, reply_markup=reply_markup, disable_web_page_preview=True)
-    await state.update_data(settings_message_id=msg.message_id)  # Сохраняем ID сообщения настроек
+    await callback.message.answer(text, reply_markup=reply_markup, disable_web_page_preview=True)
     await callback.answer()
 
 async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
@@ -356,7 +355,7 @@ async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
         text = f"⚙️ Интервал проверки\nТекущее значение: {current_value} секунд\nВведите интервал обновления в секундах (мин. 1):"
         await state.set_state(SettingStates.waiting_for_setting_value)
         await callback.message.edit_text(text, reply_markup=get_interval_edit_keyboard())
-    await state.update_data(setting_name=setting_name, settings_message_id=callback.message.message_id)
+    await state.update_data(setting_name=setting_name)
     await callback.answer()
 
 async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
@@ -380,7 +379,6 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
         reply_markup=reply_markup,
         disable_web_page_preview=True
     )
-    await state.update_data(settings_message_id=callback.message.message_id)  # Обновляем ID сообщения
     await callback.answer()
 
 async def process_setting_value(message: types.Message, state: FSMContext):
@@ -391,7 +389,6 @@ async def process_setting_value(message: types.Message, state: FSMContext):
         new_value = message.text
         data = await state.get_data()
         setting_name = data["setting_name"]
-        settings_message_id = data.get("settings_message_id")  # Получаем ID сообщения настроек
         
         if setting_name == "CHECK_INTERVAL":
             new_value = int(new_value)
@@ -400,20 +397,18 @@ async def process_setting_value(message: types.Message, state: FSMContext):
         
         db.update_setting(setting_name, str(new_value))
         text, reply_markup = get_settings_list()
-        await message.chat.bot.edit_message_text(
-            chat_id=message.chat.id,
-            message_id=settings_message_id,
-            text=f"✅ Настройка {setting_name} обновлена на: {new_value}\n_________\n{text}",
+        await state.clear()
+        await message.answer(
+            f"✅ Настройка {setting_name} обновлена на: {new_value}\n_________\n{text}",
             reply_markup=reply_markup,
             disable_web_page_preview=True
         )
-        await state.clear()
     except ValueError as e:
         await message.answer(f"❌ Ошибка: {str(e)}. Попробуйте ещё раз:", reply_markup=get_interval_edit_keyboard())
     except Exception as e:
         if int(db.get_setting("API_ERRORS") or 1):
             logger.error(f"Ошибка при обновлении настройки: {str(e)}")
-        await message.answer("❌ Произошла ошибка при обновлении настройки.", reply_markup=get_interval_edit_keyboard())
+        await message.answer("❌ Произошла ошибка при обновлении настройки.", reply_markup=get_back_button())
 
 async def go_home(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'go_home' получен от {callback.from_user.id}")

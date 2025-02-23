@@ -2,8 +2,8 @@ import asyncio
 import time
 from database import Database
 from utils.arbiscan import get_token_transactions
-from utils.message_formatter import format_swap_message  # Только format_swap_message
-from send_message import send_message  # Импорт из send_message.py
+from utils.message_formatter import format_swap_message
+from send_message import send_message
 from config.settings import DEFAULT_THREAD_ID
 from utils.logger_config import logger
 
@@ -13,6 +13,7 @@ async def check_token_transactions(bot, chat_id):
     while True:
         start_time = time.time()
         try:
+            # Перечитываем настройки в каждом цикле
             check_interval = int(db.get_setting("CHECK_INTERVAL") or 10)
             send_last_transaction = int(db.get_setting("SEND_LAST_TRANSACTION") or 0)
             transaction_info = int(db.get_setting("TRANSACTION_INFO") or 0)
@@ -75,7 +76,7 @@ async def check_token_transactions(bot, chat_id):
                             continue
 
                         try:
-                            await send_message(chat_id, thread_id, text, parse_mode=parse_mode)  # Используем parse_mode
+                            await send_message(chat_id, thread_id, text, parse_mode=parse_mode)
                             if transaction_info:
                                 logger.info(f"Сообщение отправлено в тред {thread_id}")
                         except Exception as e:
@@ -108,7 +109,7 @@ async def check_token_transactions(bot, chat_id):
 
                     if not text.startswith("Ошибка"):
                         try:
-                            await send_message(chat_id, thread_id, text, parse_mode=parse_mode)  # Используем parse_mode
+                            await send_message(chat_id, thread_id, text, parse_mode=parse_mode)
                             if transaction_info:
                                 logger.info(f"Последняя транзакция отправлена в тред {thread_id}")
                         except Exception as e:
