@@ -374,7 +374,7 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
     db.update_setting(setting_name, new_value)
     update_log_settings()
     text, reply_markup = get_settings_list()
-    await callback.message.answer(
+    await callback.message.edit_text(
         f"✅ Настройка {setting_name} обновлена на: {'Вкл' if new_value == '1' else 'Выкл'}\n_________\n{text}",
         reply_markup=reply_markup,
         disable_web_page_preview=True
