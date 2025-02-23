@@ -184,7 +184,7 @@ class Database:
     def get_tracked_token_by_address(self, contract_address):
         self.cursor.execute("SELECT id, token_name, contract_address, thread_id FROM tracked_tokens WHERE contract_address = %s", (contract_address,))
         row = self.cursor.fetchone()
-       _above = {"id": row[0], "token_name": row[1], "contract_address": row[2], "thread_id": row[3]} if row else None
+        result = {"id": row[0], "token_name": row[1], "contract_address": row[2], "thread_id": row[3]} if row else None
         if int(self.get_setting("DEBUG") or 0):
             logger.debug(f"Получен токен по адресу {contract_address}: {result}")
         return result
