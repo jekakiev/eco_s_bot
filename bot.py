@@ -52,17 +52,7 @@ async def get_last_transaction_command(message: types.Message):
         wallet_name = wallet['name'] if wallet else last_transaction['wallet_address']
         tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}  # Маппинг по contract_address, нижний регистр
         thread_id = DEFAULT_THREAD_ID  # Дефолтный тред
-        contract_address = last_transaction.get('token_out_address', '').lower()  # Используем token_out_address из транзакции
-
-        # Если contract_address пустой, попробуем найти по token_name (на случай, если адрес отсутствует)
-        if not contract_address:
-            token_name = last_transaction.get('token_name', 'Неизвестно').upper()
-            tracked_by_name = {t["token_name"].upper(): t["contract_address"].lower() for t in db.get_all_tracked_tokens()}
-            if token_name in tracked_by_name:
-                contract_address = tracked_by_name[token_name]
-                logger.debug(f"Contract_address не найден, использован token_name={token_name} для получения contract_address={contract_address}")
-            else:
-                logger.error(f"Не удалось определить contract_address для token_name={token_name}")
+        contract_address = last_transaction.get('token_out_address', '').lower()  # Используем token_out_address из транзакции (для OUT)
 
         # Убеждаемся, что contract_address начинается с "0x", если это необходимо
         if contract_address and not contract_address.startswith("0x"):
@@ -80,12 +70,12 @@ async def get_last_transaction_command(message: types.Message):
             tx_hash=last_transaction['tx_hash'],
             sender=wallet_name,
             sender_url=f"https://arbiscan.io/address/{last_transaction['wallet_address']}",
-            amount_in="Неизвестно",  # Пока оставим, так как точные суммы нужно уточнить
-            token_in=last_transaction['token_name'],
-            token_in_url=f"https://arbiscan.io/token/{last_transaction['token_name']}",  # Уточнить контракт
-            amount_out="Неизвестно",
-            token_out=last_transaction['token_name'],
-            token_out_url=f"https://arbiscan.io/token/{last_transaction['token_name']}",  # Уточнить контракт
+            amount_in=last_transaction['amount_in'],
+            token_in=last_transaction['token_in'],
+            token_in_url=last_transaction.get('token_in_url', ''),
+            amount_out=last_transaction['amount_out'],
+            token_out=last_transaction['token_out'],
+            token_out_url=last_transaction.get('token_out_url', ''),
             usd_value=last_transaction['usd_value']
         )
 
@@ -145,17 +135,7 @@ async def check_token_transactions():
                 for tx in tx_list:
                     tx_hash = tx.get("tx_hash", "")
                     token_out = tx.get("token_out", "Неизвестно")
-                    contract_address = tx.get("token_out_address", "").lower()  # Используем token_out_address, приводим к нижнему регистру
-
-                    # Если contract_address пустой, попробуем найти по token_name (на случай, если адрес отсутствует)
-                    if not contract_address:
-                        token_name = tx.get("token_out", "Неизвестно").upper()
-                        tracked_by_name = {t["token_name"].upper(): t["contract_address"].lower() for t in db.get_all_tracked_tokens()}
-                        if token_name in tracked_by_name:
-                            contract_address = tracked_by_name[token_name]
-                            logger.debug(f"Contract_address не найден, использован token_name={token_name} для получения contract_address={contract_address}")
-                        else:
-                            logger.error(f"Не удалось определить contract_address для token_name={token_name}")
+                    contract_address = tx.get("token_out_address", "").lower()  # Используем token_out_address (для OUT), приводим к нижнему регистру
 
                     # Убеждаемся, что contract_address начинается с "0x", если это необходимо
                     if contract_address and not contract_address.startswith("0x"):
@@ -179,13 +159,13 @@ async def check_token_transactions():
                             tx_hash=tx_hash,
                             sender=wallet_name,
                             sender_url=f"https://arbiscan.io/address/{wallet_address}",
-                            amount_in=tx.get("amount_in", "Неизвестно"),
-                            token_in=tx.get("token_in", "Неизвестно"),
-                            token_in_url=f"https://arbiscan.io/token/{tx.get('token_in_address', '')}",
-                            amount_out=tx.get("amount_out", "Неизвестно"),
-                            token_out=token_out,
-                            token_out_url=f"https://arbiscan.io/token/{tx.get('token_out_address', '')}",
-                            usd_value=tx.get("usd_value", "Неизвестно")
+                            amount_in=tx['amount_in'],
+                            token_in=tx['token_in'],
+                            token_in_url=tx.get('token_in_url', ''),
+                            amount_out=tx['amount_out'],
+                            token_out=tx['token_out'],
+                            token_out_url=tx.get('token_out_url', ''),
+                            usd_value=tx['usd_value']
                         )
 
                         if text.startswith("Ошибка"):
@@ -214,16 +194,6 @@ async def check_token_transactions():
                     thread_id = DEFAULT_THREAD_ID  # Дефолтный тред
                     contract_address = last_transaction.get('token_out_address', '').lower()  # Используем token_out_address из транзакции
 
-                    # Если contract_address пустой, попробуем найти по token_name (на случай, если адрес отсутствует)
-                    if not contract_address:
-                        token_name = last_transaction.get('token_name', 'Неизвестно').upper()
-                        tracked_by_name = {t["token_name"].upper(): t["contract_address"].lower() for t in db.get_all_tracked_tokens()}
-                        if token_name in tracked_by_name:
-                            contract_address = tracked_by_name[token_name]
-                            logger.debug(f"Contract_address не найден, использован token_name={token_name} для получения contract_address={contract_address}")
-                        else:
-                            logger.error(f"Не удалось определить contract_address для token_name={token_name}")
-
                     # Убеждаемся, что contract_address начинается с "0x", если это необходимо
                     if contract_address and not contract_address.startswith("0x"):
                         contract_address = "0x" + contract_address
@@ -240,12 +210,12 @@ async def check_token_transactions():
                         tx_hash=last_transaction['tx_hash'],
                         sender=wallet_name,
                         sender_url=f"https://arbiscan.io/address/{last_transaction['wallet_address']}",
-                        amount_in="Неизвестно",  # Пока оставим, так как точные суммы нужно уточнить
-                        token_in=last_transaction['token_name'],
-                        token_in_url=f"https://arbiscan.io/token/{last_transaction['token_name']}",  # Уточнить контракт
-                        amount_out="Неизвестно",
-                        token_out=last_transaction['token_name'],
-                        token_out_url=f"https://arbiscan.io/token/{last_transaction['token_name']}",  # Уточнить контракт
+                        amount_in=last_transaction['amount_in'],
+                        token_in=last_transaction['token_in'],
+                        token_in_url=last_transaction.get('token_in_url', ''),
+                        amount_out=last_transaction['amount_out'],
+                        token_out=last_transaction['token_out'],
+                        token_out_url=last_transaction.get('token_out_url', ''),
                         usd_value=last_transaction['usd_value']
                     )
 

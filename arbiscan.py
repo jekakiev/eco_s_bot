@@ -1,113 +1,83 @@
 import requests
 from settings import ARBISCAN_API_KEY
-import logging
-
-logger = logging.getLogger('main_logger')
 
 def get_token_transactions(wallet_addresses):
-    """
-    Получает последние 10 транзакций для списка кошельков, разбивая запросы на части по 5 адресов
-    без дополнительных задержек, но с учётом лимита Arbiscan (5 запросов/сек).
-    """
-    if not wallet_addresses or not isinstance(wallet_addresses, (list, str)):
-        return {}
-
-    # Если передан один адрес как строка, конвертируем в список
-    if isinstance(wallet_addresses, str):
-        wallet_addresses = [wallet_addresses]
-
-    # Ограничиваем количество адресов в одном запросе (5 — безопасный лимит для tokentx)
-    max_addresses_per_request = 5
+    api_key = ARBISCAN_API_KEY
+    base_url = "https://api.arbiscan.io/api"
     all_transactions = {}
 
-    for i in range(0, len(wallet_addresses), max_addresses_per_request):
-        chunk_addresses = wallet_addresses[i:i + max_addresses_per_request]
-        addresses = ",".join(chunk_addresses)
-        
-        # Параметры запросa для tokentx
+    for address in wallet_addresses:
         params = {
             "module": "account",
             "action": "tokentx",
-            "address": addresses,
-            "startblock": 0,  # Начальный блок (0 для всех блоков, но ограничим позже)
-            "endblock": 99999999,  # Конечный блок (максимум)
-            "sort": "desc",  # Сортировка по убыванию (новые транзакции первыми)
-            "offset": 0,  # Начало пагинации
-            "limit": 10,  # Ограничение на 10 последних транзакций
-            "apikey": ARBISCAN_API_KEY
+            "address": address,
+            "startblock": 0,
+            "endblock": 99999999,
+            "sort": "desc",
+            "apikey": api_key
         }
+        response = requests.get(base_url, params=params)
+        data = response.json()
 
-        try:
-            response = requests.get("https://api.arbiscan.io/api", params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
+        if data['status'] == "1" and data['result']:
+            transactions = []
+            for tx in data['result']:
+                # Определяем, является ли кошелёк отправителем или получателем
+                is_sender = tx['from'].lower() == address.lower()
+                is_receiver = tx['to'].lower() == address.lower()
 
-            if data.get("status") != "1":
-                logger.error(f"Arbiscan вернул ошибку: {data.get('message', 'Неизвестная ошибка')} для адресов {chunk_addresses}")
-                continue  # Пропускаем этот чанк, если ошибка
+                transaction = {
+                    "tx_hash": tx['hash'],
+                    "wallet_address": address,
+                    "token_in": "Неизвестно",  # Токен, который мы получили
+                    "token_in_address": "",    # Адрес токена, который мы получили
+                    "amount_in": "Неизвестно", # Количество токена, который мы получили
+                    "token_out": "Неизвестно", # Токен, который мы отдали
+                    "token_out_address": "",   # Адрес токена, который мы отдали
+                    "amount_out": "Неизвестно",# Количество токена, который мы отдали
+                    "usd_value": tx.get('valueUSD', '0')  # Стоимость в USD, если доступна
+                }
 
-            # Логируем полный ответ Arbiscan для анализа
-            logger.debug(f"Полный ответ Arbiscan для адресов {chunk_addresses}: {data}")
+                # Нормализация адресов контрактов
+                contract_address = tx.get('contractAddress', '').lower()
+                if contract_address and not contract_address.startswith("0x"):
+                    contract_address = "0x" + contract_address
 
-            # Группируем транзакции по hash, чтобы обработать свопы/переводы
-            tx_by_hash = {}
-            for tx in data.get("result", []):
-                tx_hash = tx.get("hash")
-                if tx_hash not in tx_by_hash:
-                    tx_by_hash[tx_hash] = []
-                tx_by_hash[tx_hash].append(tx)
+                # Определяем токены и суммы на основе направления
+                if is_sender:
+                    transaction["token_out"] = tx.get('tokenSymbol', 'Неизвестно')
+                    transaction["token_out_address"] = contract_address
+                    transaction["amount_out"] = tx.get('value', 'Неизвестно')
+                elif is_receiver:
+                    transaction["token_in"] = tx.get('tokenSymbol', 'Неизвестно')
+                    transaction["token_in_address"] = contract_address
+                    transaction["amount_in"] = tx.get('value', 'Неизвестно')
+                else:
+                    logger.warning(f"Не удалось определить направление транзакции {tx['hash']} для адреса {address}")
 
-            # Парсим транзакции, группируя их по кошелькам
-            for wallet_address in chunk_addresses:
-                wallet_address_lower = wallet_address.lower()
-                for tx_list in tx_by_hash.values():
-                    token_in = "Неизвестно"
-                    token_out = "Неизвестно"
-                    amount_in = "0"
-                    amount_out = "0"
-                    token_in_address = ""
-                    token_out_address = ""
-                    usd_value = "Неизвестно"  # Пока оставим, добавим API курсов позже
+                # Преобразование значений в читаемый формат (например, из wei в токены, для ERC-20 делим на 10^18)
+                try:
+                    if transaction["amount_in"] != "Неизвестно":
+                        transaction["amount_in"] = str(float(transaction["amount_in"]) / 10**18)  # Пример для ERC-20
+                    if transaction["amount_out"] != "Неизвестно":
+                        transaction["amount_out"] = str(float(transaction["amount_out"]) / 10**18)  # Пример для ERC-20
+                except (ValueError, ZeroDivisionError):
+                    pass  # Оставляем "Неизвестно", если преобразование невозможно
 
-                    for tx in tx_list:
-                        # Получаем децималы токена для конвертации из wei
-                        decimals = int(tx.get("tokenDecimal", "18"))  # По умолчанию 18, как для ERC-20
-                        value = int(tx.get("value", "0"))  # Убедимся, что value — целое число
-                        readable_value = value / (10 ** decimals) if decimals > 0 else value
+                # Устанавливаем URL для токенов
+                if transaction["token_in_address"]:
+                    transaction["token_in_url"] = f"https://arbiscan.io/token/{transaction['token_in_address']}"
+                else:
+                    transaction["token_in_url"] = ""
 
-                        if tx["to"].lower() == wallet_address_lower:
-                            # Входящая транзакция
-                            token_in = tx.get("tokenSymbol", "Неизвестно")
-                            token_in_address = tx.get("contractAddress", "")
-                            amount_in = str(readable_value)
-                        elif tx["from"].lower() == wallet_address_lower:
-                            # Исходящая транзакция
-                            token_out = tx.get("tokenSymbol", "Неизвестно")
-                            token_out_address = tx.get("contractAddress", "")
-                            amount_out = str(readable_value)
+                if transaction["token_out_address"]:
+                    transaction["token_out_url"] = f"https://arbiscan.io/token/{transaction['token_out_address']}"
+                else:
+                    transaction["token_out_url"] = ""
 
-                    if token_in != "Неизвестно" or token_out != "Неизвестно":
-                        if wallet_address_lower not in all_transactions:
-                            all_transactions[wallet_address_lower] = []
-                        all_transactions[wallet_address_lower].append({
-                            "tx_hash": tx_list[0].get("hash"),
-                            "token_in": token_in,
-                            "token_in_address": token_in_address,
-                            "amount_in": amount_in,
-                            "token_out": token_out,
-                            "token_out_address": token_out_address,
-                            "amount_out": amount_out,
-                            "usd_value": usd_value
-                        })
-
-            logger.info(f"Успешно получены транзакции для {len(chunk_addresses)} адресов: {chunk_addresses}")
-
-        except requests.RequestException as e:
-            logger.error(f"Ошибка при запросе к Arbiscan для адресов {chunk_addresses}: {str(e)}")
-            continue
-
-        except Exception as e:
-            logger.error(f"Произошла ошибка обработки ответа Arbiscan для адресов {chunk_addresses}: {str(e)}")
-            continue
+                transactions.append(transaction)
+            all_transactions[address] = transactions
+        else:
+            all_transactions[address] = []
 
     return all_transactions
