@@ -9,7 +9,7 @@ from .keyboards import (
 from .states import WalletStates, TokenStates, SettingStates
 from database import Database
 from utils.logger_config import logger, update_log_settings
-import requests
+import aiohttp  # Заменяем requests на aiohttp
 import time
 from config.settings import ARBISCAN_API_KEY
 
@@ -159,17 +159,24 @@ async def process_contract_address(message: types.Message, state: FSMContext):
         "limit": 10,
         "apikey": ARBISCAN_API_KEY
     }
-    response = requests.get("https://api.arbiscan.io/api", params=params)
-    if response.status_code == 200 and response.json().get("status") == "1":
-        token_info = response.json()["result"][0]
-        token_name = token_info.get("tokenName", "Неизвестно")
-        await state.update_data(contract_address=contract_address, token_name=token_name)
-        await state.set_state(TokenStates.waiting_for_name_confirmation)
-        await message.answer(f"🪙 Название токена: *{token_name}*. Всё верно?", parse_mode="Markdown", reply_markup=get_token_name_confirmation_keyboard())
-    else:
-        if int(db.get_setting("API_ERRORS", "1")):
-            logger.error(f"Ошибка проверки токена {contract_address}: {response.status_code}, {response.text}")
-        await message.answer("❌ Не удалось проверить токен. Проверьте адрес и попробуйте ещё раз.", reply_markup=get_back_button())
+    async with aiohttp.ClientSession() as session:
+        async with session.get("https://api.arbiscan.io/api", params=params) as response:
+            if response.status == 200:
+                data = await response.json()
+                if data.get("status") == "1":
+                    token_info = data["result"][0]
+                    token_name = token_info.get("tokenName", "Неизвестно")
+                    await state.update_data(contract_address=contract_address, token_name=token_name)
+                    await state.set_state(TokenStates.waiting_for_name_confirmation)
+                    await message.answer(f"🪙 Название токена: *{token_name}*. Всё верно?", parse_mode="Markdown", reply_markup=get_token_name_confirmation_keyboard())
+                else:
+                    if int(db.get_setting("API_ERRORS", "1")):
+                        logger.error(f"Ошибка проверки токена {contract_address}: {data.get('message', 'Нет данных')}")
+                    await message.answer("❌ Не удалось проверить токен. Проверьте адрес и попробуйте ещё раз.", reply_markup=get_back_button())
+            else:
+                if int(db.get_setting("API_ERRORS", "1")):
+                    logger.error(f"Ошибка проверки токена {contract_address}: HTTP {response.status}")
+                await message.answer("❌ Не удалось проверить токен. Проверьте адрес и попробуйте ещё раз.", reply_markup=get_back_button())
 
 async def confirm_token_name(callback: types.CallbackQuery, state: FSMContext):
     if int(db.get_setting("INTERFACE_INFO", "0")):
