@@ -9,7 +9,12 @@ from transaction_manager import start_transaction_monitoring
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-register_handlers(dp)
+# Регистрируем обработчики перед запуском
+try:
+    register_handlers(dp)
+    logger.info("Обработчики успешно зарегистрированы")
+except Exception as e:
+    logger.error(f"Ошибка при регистрации обработчиков: {str(e)}")
 
 @dp.message(Command("start"))
 async def start_command(message):
@@ -17,7 +22,7 @@ async def start_command(message):
 
 @dp.message(Command("get_last_transaction"))
 async def get_last_transaction_command(message):
-    await message.answer("Функция в разработке!")  # Позже доработаем
+    await message.answer("Функция в разработке!")
 
 @dp.message(Command("get_thread_id"))
 async def get_thread_id_command(message):
