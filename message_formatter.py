@@ -2,10 +2,27 @@ from aiogram.enums import ParseMode
 
 def format_swap_message(tx_hash, sender, sender_url, amount_in, token_in, token_in_url, amount_out, token_out, token_out_url, usd_value):
     try:
-        # Форматируем суммы, убирая лишние нули и приводя к читаемому виду
-        formatted_amount_in = f"{float(amount_in):,.2f}" if amount_in and amount_in != "Неизвестно" else "Неизвестно"
-        formatted_amount_out = f"{float(amount_out):,.2f}" if amount_out and amount_out != "Неизвестно" else "Неизвестно"
-        formatted_usd = f"{float(usd_value):,.2f}" if usd_value and usd_value != "Неизвестно" else "Неизвестно"
+        # Функция для форматирования чисел с учётом маленьких значений
+        def format_number(value):
+            if value == "Неизвестно" or not value:
+                return "Неизвестно"
+            try:
+                num = float(value)
+                if num == 0:
+                    return "0.00"
+                elif 0 < num < 0.0001:  # Если число очень маленькое, используем научную нотацию
+                    return f"{num:.6e}"
+                elif 0.0001 <= num < 1:  # Для чисел от 0.0001 до 1 показываем до 6 знаков
+                    return f"{num:.6f}".rstrip('0').rstrip('.')
+                else:  # Для больших чисел используем стандартный формат с 2 знаками
+                    return f"{num:,.2f}"
+            except (ValueError, TypeError):
+                return "Неизвестно"
+
+        # Форматируем суммы, учитывая маленькие значения
+        formatted_amount_in = format_number(amount_in)
+        formatted_amount_out = format_number(amount_out)
+        formatted_usd = format_number(usd_value)
 
         # Формируем сообщение
         message = (
