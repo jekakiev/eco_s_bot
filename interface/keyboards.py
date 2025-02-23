@@ -139,28 +139,36 @@ def get_commands_list():
 
 def get_settings_list():
     settings = db.get_all_settings()
-    check_interval = settings.get("CHECK_INTERVAL", "60")
-    log_transactions = "✅" if settings.get("LOG_TRANSACTIONS", "1") == "1" else "❌"
-    log_successful = "✅" if settings.get("LOG_SUCCESSFUL_TRANSACTIONS", "1") == "1" else "❌"
+    check_interval = settings.get("CHECK_INTERVAL", "10")
     send_last = "✅" if settings.get("SEND_LAST_TRANSACTION", "0") == "1" else "❌"
+    api_errors = "✅" if settings.get("API_ERRORS", "1") == "1" else "❌"
+    transaction_info = "✅" if settings.get("TRANSACTION_INFO", "0") == "1" else "❌"
+    interface_info = "✅" if settings.get("INTERFACE_INFO", "0") == "1" else "❌"
+    debug = "✅" if settings.get("DEBUG", "0") == "1" else "❌"
     
     text = (
         "⚙️ Настройки бота:\n\n"
         "⏱ Интервал проверки — интервал между проверками транзакций (в секундах).\n"
-        "📝 Логи транзакций — включение детального логирования всех транзакций.\n"
-        "✅ Логи успешных транзакций — включение логирования успешных транзакций и их отправки.\n"
-        "📨 Последняя транзакция — отправка данных последней транзакции в тред каждые CHECK_INTERVAL секунд."
+        "📨 Последняя транзакция — отправка последней транзакции каждые CHECK_INTERVAL секунд.\n"
+        "🚨 Ошибки API — логи ошибок внешних API (DexScreener, Arbiscan).\n"
+        "📝 Логи транзакций — информация о проверке и отправке транзакций.\n"
+        "🖱 Логи интерфейса — действия в меню и командах.\n"
+        "🔍 Отладка — подробные отладочные сообщения."
     )
     keyboard = [
         [
-            InlineKeyboardButton(text=f"⏱ Интервал проверки ({check_interval} сек)", callback_data="edit_setting_CHECK_INTERVAL")
+            InlineKeyboardButton(text=f"⏱ Интервал проверки ({check_interval} сек)", callback_data="edit_setting_CHECK_INTERVAL"),
+            InlineKeyboardButton(text=f"📨 Последняя транзакция ({send_last})", callback_data="toggle_SEND_LAST_TRANSACTION")
         ],
         [
-            InlineKeyboardButton(text=f"📝 Логи транзакций ({log_transactions})", callback_data="toggle_LOG_TRANSACTIONS"),
-            InlineKeyboardButton(text=f"✅ Логи успешных ({log_successful})", callback_data="toggle_LOG_SUCCESSFUL_TRANSACTIONS")
+            InlineKeyboardButton(text=f"🚨 Ошибки API ({api_errors})", callback_data="toggle_API_ERRORS"),
+            InlineKeyboardButton(text=f"📝 Логи транзакций ({transaction_info})", callback_data="toggle_TRANSACTION_INFO")
         ],
         [
-            InlineKeyboardButton(text=f"📨 Последняя транзакция ({send_last})", callback_data="toggle_SEND_LAST_TRANSACTION"),
+            InlineKeyboardButton(text=f"🖱 Логи интерфейса ({interface_info})", callback_data="toggle_INTERFACE_INFO"),
+            InlineKeyboardButton(text=f"🔍 Отладка ({debug})", callback_data="toggle_DEBUG")
+        ],
+        [
             InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")
         ]
     ]

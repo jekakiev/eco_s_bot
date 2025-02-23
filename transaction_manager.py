@@ -13,29 +13,22 @@ async def check_token_transactions(bot, chat_id):
     while True:
         start_time = time.time()
         try:
-            # Получаем настройки напрямую из БД
             check_interval = int(db.get_setting("CHECK_INTERVAL") or "10")
-            log_transactions = int(db.get_setting("LOG_TRANSACTIONS") or "0")
-            log_successful_transactions = int(db.get_setting("LOG_SUCCESSFUL_TRANSACTIONS") or "0")
             send_last_transaction = int(db.get_setting("SEND_LAST_TRANSACTION") or "0")
+            transaction_info = int(db.get_setting("TRANSACTION_INFO") or "0")
+            debug = int(db.get_setting("DEBUG") or "0")
 
-            # Обновляем настройки логов
             update_log_settings()
 
             watched_wallets = db.get_all_wallets()
             tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}
             default_thread_id = DEFAULT_THREAD_ID
 
-            if log_transactions:
+            if transaction_info:
                 logger.info(f"Начинаем проверку новых транзакций. Количество кошельков: {len(watched_wallets)}")
 
             wallet_addresses = [wallet["address"] for wallet in watched_wallets]
-            max_addresses_per_request = 5
-            all_transactions = {}
-            for i in range(0, len(wallet_addresses), max_addresses_per_request):
-                chunk_addresses = wallet_addresses[i:i + max_addresses_per_request]
-                transactions = get_token_transactions(chunk_addresses)
-                all_transactions.update(transactions)
+            all_transactions = await get_token_transactions(wallet_addresses)
 
             new_transactions_count = 0
             for wallet_address, tx_list in all_transactions.items():
@@ -59,9 +52,11 @@ async def check_token_transactions(bot, chat_id):
                         thread_id = default_thread_id
                         if contract_address in tracked_tokens:
                             thread_id = tracked_tokens[contract_address]["thread_id"]
-                            logger.debug(f"Найден токен: thread_id={thread_id}")
+                            if debug:
+                                logger.debug(f"Найден токен: thread_id={thread_id}")
                         else:
-                            logger.warning(f"Contract_address {contract_address} не найден, использую {thread_id}")
+                            if debug:
+                                logger.warning(f"Contract_address {contract_address} не найден, использую {thread_id}")
 
                         text, parse_mode = format_swap_message(
                             tx_hash=tx_hash,
@@ -77,15 +72,17 @@ async def check_token_transactions(bot, chat_id):
                         )
 
                         if text.startswith("Ошибка"):
-                            logger.error(f"Ошибка форматирования: {text}")
+                            if int(db.get_setting("API_ERRORS", "1")):
+                                logger.error(f"Ошибка форматирования: {text}")
                             continue
 
                         try:
                             await send_message(chat_id, thread_id, text)
-                            if log_successful_transactions:
+                            if transaction_info:
                                 logger.info(f"Сообщение отправлено в тред {thread_id}")
                         except Exception as e:
-                            logger.error(f"Ошибка отправки: {str(e)}")
+                            if int(db.get_setting("API_ERRORS", "1")):
+                                logger.error(f"Ошибка отправки: {str(e)}")
 
             if send_last_transaction:
                 last_transaction = db.get_last_transaction()
@@ -114,16 +111,18 @@ async def check_token_transactions(bot, chat_id):
                     if not text.startswith("Ошибка"):
                         try:
                             await send_message(chat_id, thread_id, text)
-                            if log_successful_transactions:
+                            if transaction_info:
                                 logger.info(f"Последняя транзакция отправлена в тред {thread_id}")
                         except Exception as e:
-                            logger.error(f"Ошибка отправки последней транзакции: {str(e)}")
+                            if int(db.get_setting("API_ERRORS", "1")):
+                                logger.error(f"Ошибка отправки последней транзакции: {str(e)}")
 
-            if log_transactions:
+            if transaction_info:
                 logger.info(f"Проверка завершена. Время: {time.time() - start_time:.2f} сек")
 
         except Exception as e:
-            logger.error(f"Ошибка: {str(e)}")
+            if int(db.get_setting("API_ERRORS", "1")):
+                logger.error(f"Ошибка: {str(e)}")
 
         await asyncio.sleep(check_interval)
 
