@@ -1,25 +1,33 @@
 from aiogram.enums import ParseMode
 
+def format_number(value):
+    if value == "Неизвестно" or not value:
+        return "Неизвестно"
+    try:
+        num = float(value)
+        if num == 0:
+            return "0.00"
+        elif 0 < num < 0.00001:  # Меньше 0.00001 — форматируем с верхним индексом
+            exponent = int(-1 * (num.log10() // 1))
+            mantissa = num / (10 ** exponent)
+            superscript = ''.join(['⁰¹²³⁴⁵⁶⁷⁸⁹'[int(d)] for d in str(exponent)])
+            return f"0.0{superscript}1"
+        elif 0.00001 <= num < 1:  # От 0.00001 до 1 — показываем как есть
+            return f"{num:.6f}".rstrip('0').rstrip('.')
+        elif 1 <= num < 1_000_000:  # От 1 до 1 млн — стандартный формат
+            return f"{num:,.2f}"
+        elif 1_000_000 <= num < 1_000_000_000:  # Миллионы
+            return f"{num / 1_000_000:.2f}M"
+        elif 1_000_000_000 <= num < 1_000_000_000_000:  # Миллиарды
+            return f"{num / 1_000_000_000:.2f}B"
+        else:  # Триллионы и больше
+            return f"{num / 1_000_000_000_000:.2f}T"
+    except (ValueError, TypeError, AttributeError):
+        return "Неизвестно"
+
 def format_swap_message(tx_hash, sender, sender_url, amount_in, token_in, token_in_url, amount_out, token_out, token_out_url, usd_value):
     try:
-        # Функция для форматирования чисел с учётом маленьких значений
-        def format_number(value):
-            if value == "Неизвестно" or not value:
-                return "Неизвестно"
-            try:
-                num = float(value)
-                if num == 0:
-                    return "0.00"
-                elif 0 < num < 0.0001:  # Если число очень маленькое, используем научную нотацию
-                    return f"{num:.6e}"
-                elif 0.0001 <= num < 1:  # Для чисел от 0.0001 до 1 показываем до 6 знаков
-                    return f"{num:.6f}".rstrip('0').rstrip('.')
-                else:  # Для больших чисел используем стандартный формат с 2 знаками
-                    return f"{num:,.2f}"
-            except (ValueError, TypeError):
-                return "Неизвестно"
-
-        # Форматируем суммы, учитывая маленькие значения
+        # Форматируем суммы и цену с учётом новых правил
         formatted_amount_in = format_number(amount_in)
         formatted_amount_out = format_number(amount_out)
         formatted_usd = format_number(usd_value)

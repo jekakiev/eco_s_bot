@@ -66,26 +66,38 @@ async def get_last_transaction_command(message: types.Message):
         else:
             logger.warning(f"Contract_address {contract_address} не найден в tracked_tokens, используется дефолтный тред {thread_id}")
 
+        # Проверяем, есть ли amount_in, если нет — используем "Неизвестно"
+        amount_in = last_transaction.get('amount_in', 'Неизвестно')
+        token_in = last_transaction.get('token_in', 'Неизвестно')
+        token_in_url = last_transaction.get('token_in_url', '')
+        amount_out = last_transaction.get('amount_out', 'Неизвестно')
+        token_out = last_transaction.get('token_out', 'Неизвестно')
+        token_out_url = last_transaction.get('token_out_url', '')
+        usd_value = last_transaction.get('usd_value', '0')
+
         text, parse_mode = format_swap_message(
             tx_hash=last_transaction['tx_hash'],
             sender=wallet_name,
             sender_url=f"https://arbiscan.io/address/{last_transaction['wallet_address']}",
-            amount_in=last_transaction['amount_in'],
-            token_in=last_transaction['token_in'],
-            token_in_url=last_transaction.get('token_in_url', ''),
-            amount_out=last_transaction['amount_out'],
-            token_out=last_transaction['token_out'],
-            token_out_url=last_transaction.get('token_out_url', ''),
-            usd_value=last_transaction['usd_value']
+            amount_in=amount_in,
+            token_in=token_in,
+            token_in_url=token_in_url,
+            amount_out=amount_out,
+            token_out=token_out,
+            token_out_url=token_out_url,
+            usd_value=usd_value
         )
 
-        await bot.send_message(
-            chat_id=CHAT_ID,
-            message_thread_id=thread_id,
-            text=text,
-            parse_mode=parse_mode,
-            disable_web_page_preview=True
-        )
+        if text.startswith("Ошибка"):
+            logger.error(f"Ошибка форматирования сообщения для транзакции {last_transaction['tx_hash']}: {text}")
+        else:
+            await bot.send_message(
+                chat_id=CHAT_ID,
+                message_thread_id=thread_id,
+                text=text,
+                parse_mode=parse_mode,
+                disable_web_page_preview=True
+            )
     else:
         await message.answer("Нет записей о транзакциях.", disable_web_page_preview=True)
     if LOG_SUCCESSFUL_TRANSACTIONS:
@@ -159,13 +171,13 @@ async def check_token_transactions():
                             tx_hash=tx_hash,
                             sender=wallet_name,
                             sender_url=f"https://arbiscan.io/address/{wallet_address}",
-                            amount_in=tx['amount_in'],
-                            token_in=tx['token_in'],
+                            amount_in=tx.get('amount_in', 'Неизвестно'),
+                            token_in=tx.get('token_in', 'Неизвестно'),
                             token_in_url=tx.get('token_in_url', ''),
-                            amount_out=tx['amount_out'],
-                            token_out=tx['token_out'],
+                            amount_out=tx.get('amount_out', 'Неизвестно'),
+                            token_out=tx.get('token_out', 'Неизвестно'),
                             token_out_url=tx.get('token_out_url', ''),
-                            usd_value=tx['usd_value']
+                            usd_value=tx.get('usd_value', '0')
                         )
 
                         if text.startswith("Ошибка"):
@@ -210,13 +222,13 @@ async def check_token_transactions():
                         tx_hash=last_transaction['tx_hash'],
                         sender=wallet_name,
                         sender_url=f"https://arbiscan.io/address/{last_transaction['wallet_address']}",
-                        amount_in=last_transaction['amount_in'],
-                        token_in=last_transaction['token_in'],
+                        amount_in=last_transaction.get('amount_in', 'Неизвестно'),
+                        token_in=last_transaction.get('token_in', 'Неизвестно'),
                         token_in_url=last_transaction.get('token_in_url', ''),
-                        amount_out=last_transaction['amount_out'],
-                        token_out=last_transaction['token_out'],
+                        amount_out=last_transaction.get('amount_out', 'Неизвестно'),
+                        token_out=last_transaction.get('token_out', 'Неизвестно'),
                         token_out_url=last_transaction.get('token_out_url', ''),
-                        usd_value=last_transaction['usd_value']
+                        usd_value=last_transaction.get('usd_value', '0')
                     )
 
                     if not text.startswith("Ошибка"):
