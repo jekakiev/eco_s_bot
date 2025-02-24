@@ -30,6 +30,9 @@ async def request_transaction_hash(message: types.Message, state: FSMContext):
         return
     transaction_data = await get_transaction_by_hash(transaction_hash)
     
+    # Логування для діагностики
+    logger.info(f"Ответ API для хеша {transaction_hash}: {transaction_data}")
+    
     # Розділяємо текст на частини по 4000 символів
     chunk_size = 4000
     for i in range(0, len(transaction_data), chunk_size):
@@ -45,8 +48,8 @@ async def get_transaction_by_hash(transaction_hash):
     api_key = ARBISCAN_API_KEY
     base_url = "https://api.arbiscan.io/api"
     params = {
-        "module": "transaction",
-        "action": "gettxinfo",
+        "module": "proxy",  # Змінено на proxy для action=tx
+        "action": "tx",     # Змінено з gettxinfo на tx для отримання деталей транзакції
         "txhash": transaction_hash,
         "apikey": api_key
     }
@@ -54,9 +57,10 @@ async def get_transaction_by_hash(transaction_hash):
         async with session.get(base_url, params=params) as response:
             if response.status == 200:
                 data = await response.json()
+                logger.info(f"Полный JSON-ответ от API: {data}")  # Додаткове логування для діагностики
                 if data.get("status") == "1" and data.get("result"):
                     return str(data["result"])  # Повертаємо сирі JSON-дани як строку
                 else:
-                    return "❌ Нет данных о транзакции или произошла ошибка."
+                    return "❌ Нет данных о транзакции или произошла ошибка: " + data.get("message", "Нет сообщения об ошибке")
             else:
                 return f"❌ Ошибка API: HTTP {response.status}"
