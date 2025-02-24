@@ -29,23 +29,31 @@ async def select_wallet(callback: types.CallbackQuery, state: FSMContext):
     if not wallet:
         await callback.answer("❌ Кошелек не найден!", show_alert=True)
         return
-    transaction_data = await get_latest_transaction(wallet['address'])
+    transaction_data = await get_latest_swap_transaction(wallet['address'])
     
     # Розділяємо текст на частини по 4000 символів
     chunk_size = 4000
     for i in range(0, len(transaction_data), chunk_size):
         chunk = transaction_data[i:i + chunk_size]
         await callback.message.answer(
-            f"📊 Последняя транзакция для кошелька {wallet['name']} ({wallet['address']}):\n\n{chunk}",
+            f"📊 Последняя своп-транзакция для кошелька {wallet['name']} ({wallet['address']}):\n\n{chunk}",
             disable_web_page_preview=True
         )
     await callback.message.edit_reply_markup(reply_markup=get_main_menu())
     await state.clear()
     await callback.answer()
 
-async def get_latest_transaction(wallet_address):
+async def get_latest_swap_transaction(wallet_address):
     api_key = ARBISCAN_API_KEY
     base_url = "https://api.arbiscan.io/api"
+    # Список відомих methodId для свопів у Uniswap V2/V3
+    swap_method_ids = [
+        "0x38ed1739",  # swapExactTokensForTokens
+        "0x7ff36ab5",  # swapTokensForExactTokens
+        # Додай інші methodId, якщо потрібно
+    ]
+    uniswap_router_address = "0xE592427A0AEce92De3Edee1F18E0157C05861564"  # Uniswap Router V2 на Arbitrum One
+
     params = {
         "module": "account",
         "action": "txlist",
@@ -53,8 +61,7 @@ async def get_latest_transaction(wallet_address):
         "startblock": 0,
         "endblock": 99999999,
         "sort": "desc",
-        "offset": 1,  # Отримуємо лише одну транзакцію
-        "limit": 1,   # Отримуємо лише одну транзакцію
+        "limit": 20,  # Отримуємо до 20 останніх транзакцій
         "apikey": api_key
     }
     async with aiohttp.ClientSession() as session:
@@ -62,7 +69,13 @@ async def get_latest_transaction(wallet_address):
             if response.status == 200:
                 data = await response.json()
                 if data.get("status") == "1" and data.get("result"):
-                    return str(data["result"][0])  # Повертаємо лише одну останню транзакцію як строку
+                    # Фільтруємо своп-транзакції
+                    for transaction in data["result"]:
+                        # Перевіряємо, чи це своп (to — Uniswap Router і methodId співпадає)
+                        if (transaction.get("to", "").lower() == uniswap_router_address.lower() and 
+                            transaction.get("methodId", "").lower() in [mid.lower() for mid in swap_method_ids]):
+                            return str(transaction)  # Повертаємо сирі дані своп-транзакції
+                    return "❌ Нет данных о своп-транзакциях."
                 else:
                     return "❌ Нет данных о транзакциях или произошла ошибка."
             else:
