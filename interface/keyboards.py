@@ -15,6 +15,9 @@ def get_main_menu():
         ],
         [
             InlineKeyboardButton(text="Тест апи (последняя транза)", callback_data="test_api_last_transaction")
+        ],
+        [
+            InlineKeyboardButton(text="Тест апи (по хешу транзы)", callback_data="test_api_by_hash")
         ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)

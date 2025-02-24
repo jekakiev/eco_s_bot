@@ -35,7 +35,7 @@ async def select_wallet(callback: types.CallbackQuery, state: FSMContext):
     swap_tx_data = await get_latest_swap_transaction(wallet['address'])
     
     # Надсилаємо дані про своп-транзакцію (якщо є)
-    swap_tx_str = str(swap_tx_data)  # Конвертуємо в рядок, якщо це словник
+    swap_tx_str = str(swap_tx_data)
     if swap_tx_str.startswith("❌"):
         await callback.message.answer(swap_tx_str, disable_web_page_preview=True)
     else:
@@ -90,20 +90,22 @@ async def get_latest_transaction(wallet_address):
 async def get_latest_swap_transaction(wallet_address):
     api_key = ARBISCAN_API_KEY
     base_url = "https://api.arbiscan.io/api"
-    # Список відомих methodId для свопів у Uniswap V2/V3 і SushiSwap
+    # Список відомих methodId для свопів у Uniswap V2/V3, SushiSwap і твій випадок
     swap_method_ids = [
         "0x38ed1739",  # swapExactTokensForTokens (Uniswap V2)
         "0x7ff36ab5",  # swapTokensForExactTokens (Uniswap V2)
         "0x022c0d9f",  # exactInputSingle (Uniswap V3)
         "0x0298adcd",  # exactOutputSingle (Uniswap V3)
         "0x8803dbee",  # swapExactTokensForTokens (SushiSwap, можливо)
+        "0x1fff991f",  # Твій methodId для свопу (додано на основі логів)
         # Додай інші methodId, якщо потрібно
     ]
-    # Адреси маршрутизаторів DEX на Arbitrum
+    # Адреси маршрутизаторів DEX на Arbitrum, включаючи твій контракт
     dex_router_addresses = [
         "0xE592427A0AEce92De3Edee1F18E0157C05861564",  # Uniswap Router V2
         "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45",  # Uniswap Router V3
         "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",  # SushiSwap Router
+        "0xb254ee265261675528bddb0796741c0c65a4c158",  # Твій контракт для свопу (додано на основі логів)
         # Додай інші адреси DEX, якщо потрібно
     ]
 

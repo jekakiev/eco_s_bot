@@ -16,6 +16,9 @@ from .callbacks.settings_callbacks import (
 from .callbacks.test_api_last_transaction import (
     show_test_api, select_wallet
 )
+from .callbacks.test_api_by_hash import (
+    show_test_api_by_hash, request_transaction_hash
+)
 from aiogram.filters import Command
 from .states import WalletStates, TokenStates, SettingStates
 from database import Database
@@ -60,6 +63,9 @@ def register_handlers(dp: Dispatcher):
     
     dp.callback_query.register(show_test_api, F.data == "test_api_last_transaction")
     dp.callback_query.register(select_wallet, F.data.startswith("select_wallet_"))
+    
+    dp.callback_query.register(show_test_api_by_hash, F.data == "test_api_by_hash")
+    dp.message.register(request_transaction_hash, WalletStates.waiting_for_transaction_hash)
     
     wallet_commands = [f"Edit_{wallet['address'][-4:]}" for wallet in db.get_all_wallets()]
     if wallet_commands:
