@@ -330,7 +330,7 @@ async def show_settings(callback: types.CallbackQuery, state: FSMContext):
     if int(db.get_setting("INTERFACE_INFO") or 0):
         logger.info("Кнопка 'Настройки' нажата")
     text, reply_markup = get_settings_list()
-    msg = await callback.message.answer(text, reply_markup=reply_markup, disable_web_page_preview=True)
+    msg = await callback.message.edit_text(text, reply_markup=reply_markup, disable_web_page_preview=True)
     await state.update_data(settings_message_id=msg.message_id)
     await callback.answer()
 
@@ -382,13 +382,18 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
     new_text = f"✅ Настройка обновлена: {setting_name} теперь {updated_value}\n_____________________\n{text}"
     data = await state.get_data()
     settings_message_id = data.get("settings_message_id")
-    await bot.edit_message_text(
-        chat_id=callback.message.chat.id,
-        message_id=settings_message_id,
-        text=new_text,
-        reply_markup=reply_markup,
-        disable_web_page_preview=True
-    )
+    try:
+        await bot.edit_message_text(
+            chat_id=callback.message.chat.id,
+            message_id=settings_message_id,
+            text=new_text,
+            reply_markup=reply_markup,
+            disable_web_page_preview=True
+        )
+    except Exception as e:
+        logger.error(f"Ошибка редактирования сообщения: {str(e)}")
+        msg = await callback.message.answer(new_text, reply_markup=reply_markup, disable_web_page_preview=True)
+        await state.update_data(settings_message_id=msg.message_id)
     await callback.answer()
 
 async def process_setting_value(message: types.Message, state: FSMContext):
@@ -410,14 +415,20 @@ async def process_setting_value(message: types.Message, state: FSMContext):
         updated_value = db.get_setting(setting_name)
         text, reply_markup = get_settings_list()
         settings_message_id = data.get("settings_message_id")
+        try:
+            await bot.edit_message_text(
+                chat_id=message.chat.id,
+                message_id=settings_message_id,
+                text=f"✅ Настройка обновлена: {setting_name} теперь {updated_value} сек\n_____________________\n{text}",
+                reply_markup=reply_markup,
+                disable_web_page_preview=True
+            )
+        except Exception as e:
+            logger.error(f"Ошибка редактирования сообщения: {str(e)}")
+            msg = await message.answer(f"✅ Настройка обновлена: {setting_name} теперь {updated_value} сек\n_____________________\n{text}",
+                                       reply_markup=reply_markup, disable_web_page_preview=True)
+            await state.update_data(settings_message_id=msg.message_id)
         await state.clear()
-        await bot.edit_message_text(
-            chat_id=message.chat.id,
-            message_id=settings_message_id,
-            text=f"✅ Настройка обновлена: {setting_name} теперь {updated_value} сек\n_____________________\n{text}",
-            reply_markup=reply_markup,
-            disable_web_page_preview=True
-        )
     except ValueError as e:
         await message.answer(f"❌ Ошибка: {str(e)}. Попробуйте ещё раз:", reply_markup=get_interval_edit_keyboard())
     except Exception as e:
