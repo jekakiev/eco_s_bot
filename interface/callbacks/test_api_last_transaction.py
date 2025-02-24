@@ -35,26 +35,27 @@ async def select_wallet(callback: types.CallbackQuery, state: FSMContext):
     swap_tx_data = await get_latest_swap_transaction(wallet['address'])
     
     # Надсилаємо дані про своп-транзакцію (якщо є)
-    if swap_tx_data.startswith("❌"):
-        swap_text = swap_tx_data
+    swap_tx_str = str(swap_tx_data)  # Конвертуємо в рядок, якщо це словник
+    if swap_tx_str.startswith("❌"):
+        await callback.message.answer(swap_tx_str, disable_web_page_preview=True)
     else:
         # Розділяємо текст своп-транзакції на частини по 4000 символів
         chunk_size = 4000
-        for i in range(0, len(swap_tx_data), chunk_size):
-            chunk = swap_tx_data[i:i + chunk_size]
+        for i in range(0, len(swap_tx_str), chunk_size):
+            chunk = swap_tx_str[i:i + chunk_size]
             await callback.message.answer(
                 f"📊 Последняя своп-транзакция для кошелька {wallet['name']} ({wallet['address']}):\n\n{chunk}",
                 disable_web_page_preview=True
             )
     
     # Надсилаємо хеш найновішої транзакції з посиланням
-    if latest_tx.startswith("❌"):
+    if isinstance(latest_tx, str) and latest_tx.startswith("❌"):
         await callback.message.answer(f"❗ Ошибка получения последней транзакции: {latest_tx}", disable_web_page_preview=True)
     else:
         tx_hash = latest_tx.get("hash", "Неизвестно")
         tx_link = f"https://arbiscan.io/tx/{tx_hash}"
         await callback.message.answer(
-            f"🔗 Хеш последней транзакции: {tx_hash}\nПосмотреть на Arbiscan: {tx_link}",
+            f"🔗 Хеш последной транзакции: {tx_hash}\nПосмотреть на Arbiscan: {tx_link}",
             disable_web_page_preview=True
         )
     
@@ -89,19 +90,21 @@ async def get_latest_transaction(wallet_address):
 async def get_latest_swap_transaction(wallet_address):
     api_key = ARBISCAN_API_KEY
     base_url = "https://api.arbiscan.io/api"
-    # Список відомих methodId для свопів у Uniswap V2/V3
+    # Список відомих methodId для свопів у Uniswap V2/V3 і SushiSwap
     swap_method_ids = [
         "0x38ed1739",  # swapExactTokensForTokens (Uniswap V2)
         "0x7ff36ab5",  # swapTokensForExactTokens (Uniswap V2)
         "0x022c0d9f",  # exactInputSingle (Uniswap V3)
         "0x0298adcd",  # exactOutputSingle (Uniswap V3)
+        "0x8803dbee",  # swapExactTokensForTokens (SushiSwap, можливо)
         # Додай інші methodId, якщо потрібно
     ]
     # Адреси маршрутизаторів DEX на Arbitrum
     dex_router_addresses = [
         "0xE592427A0AEce92De3Edee1F18E0157C05861564",  # Uniswap Router V2
         "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45",  # Uniswap Router V3
-        # Додай інші адреси DEX, наприклад, SushiSwap, якщо потрібно
+        "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",  # SushiSwap Router
+        # Додай інші адреси DEX, якщо потрібно
     ]
 
     params = {
@@ -111,7 +114,7 @@ async def get_latest_swap_transaction(wallet_address):
         "startblock": 0,
         "endblock": 99999999,
         "sort": "desc",
-        "limit": 50,  # Отримуємо до 50 останніх транзакцій для перевірки
+        "limit": 100,  # Отримуємо до 100 останніх транзакцій для перевірки
         "apikey": api_key
     }
     async with aiohttp.ClientSession() as session:
@@ -123,7 +126,7 @@ async def get_latest_swap_transaction(wallet_address):
                     for transaction in data["result"]:
                         to_address = transaction.get("to", "").lower()
                         method_id = transaction.get("methodId", "").lower()
-                        logger.info(f"Проверяем транзакцию: to={to_address}, methodId={method_id}")  # Логування для діагностики
+                        logger.info(f"Проверяем транзакцию: to={to_address}, methodId={method_id}, hash={transaction.get('hash', 'Неизвестно')}")  # Додано хеш для діагностики
                         # Перевіряємо, чи це своп (to — адреса DEX і methodId співпадає)
                         if (to_address in [addr.lower() for addr in dex_router_addresses] and 
                             method_id in [mid.lower() for mid in swap_method_ids]):
