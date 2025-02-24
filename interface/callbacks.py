@@ -11,7 +11,9 @@ from database import Database
 from utils.logger_config import logger, update_log_settings
 import aiohttp
 import time
+import asyncio
 from config.settings import ARBISCAN_API_KEY
+from bot import bot
 
 db = Database()
 
@@ -328,7 +330,8 @@ async def show_settings(callback: types.CallbackQuery, state: FSMContext):
     if int(db.get_setting("INTERFACE_INFO") or 0):
         logger.info("Кнопка 'Настройки' нажата")
     text, reply_markup = get_settings_list()
-    await callback.message.answer(text, reply_markup=reply_markup, disable_web_page_preview=True)
+    msg = await callback.message.answer(text, reply_markup=reply_markup, disable_web_page_preview=True)
+    await state.update_data(settings_message_id=msg.message_id)
     await callback.answer()
 
 async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
@@ -372,10 +375,17 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
     
     new_value = "1" if int(current_value) == 0 else "0"
     db.update_setting(setting_name, new_value)
+    await asyncio.sleep(0.5)
     update_log_settings()
     text, reply_markup = get_settings_list()
-    await callback.message.edit_text(
-        f"✅ Настройка {setting_name} обновлена на: {'Вкл' if new_value == '1' else 'Выкл'}\n_________\n{text}",
+    updated_value = "включено" if new_value == "1" else "выключено"
+    new_text = f"✅ Настройка обновлена: {setting_name} теперь {updated_value}\n_____________________\n{text}"
+    data = await state.get_data()
+    settings_message_id = data.get("settings_message_id")
+    await bot.edit_message_text(
+        chat_id=callback.message.chat.id,
+        message_id=settings_message_id,
+        text=new_text,
         reply_markup=reply_markup,
         disable_web_page_preview=True
     )
@@ -396,10 +406,15 @@ async def process_setting_value(message: types.Message, state: FSMContext):
                 raise ValueError("Интервал должен быть не менее 1 секунды")
         
         db.update_setting(setting_name, str(new_value))
+        await asyncio.sleep(0.5)
+        updated_value = db.get_setting(setting_name)
         text, reply_markup = get_settings_list()
+        settings_message_id = data.get("settings_message_id")
         await state.clear()
-        await message.answer(
-            f"✅ Настройка {setting_name} обновлена на: {new_value}\n_________\n{text}",
+        await bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=settings_message_id,
+            text=f"✅ Настройка обновлена: {setting_name} теперь {updated_value} сек\n_____________________\n{text}",
             reply_markup=reply_markup,
             disable_web_page_preview=True
         )
