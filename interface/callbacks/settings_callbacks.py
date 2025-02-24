@@ -42,9 +42,8 @@ async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
     current_value = data.get("check_interval", db.get_setting(setting_name) or "150")
     if setting_name == "CHECK_INTERVAL":
         text = f"⚙️ Интервал проверки\nТекущее значение: {current_value} секунд\nВведите интервал обновления в секундах (мин. 1):"
-        await state.set_state(SettingStates.waiting_for_setting_value)
-        await callback.message.edit_text(text, reply_markup=get_interval_edit_keyboard())
-    await state.update_data(setting_name=setting_name)
+        msg = await callback.message.edit_text(text, reply_markup=get_interval_edit_keyboard())
+        await state.update_data(settings_message_id=msg.message_id, setting_name=setting_name)
     await callback.answer()
 
 async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
@@ -94,11 +93,13 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
             reply_markup=reply_markup,
             disable_web_page_preview=True
         )
+        msg = await bot.send_message(chat_id=callback.message.chat.id, text="Тестовое сообщение для получения ID")  # Тест для оновлення ID
+        await msg.delete()
     except Exception as e:
         logger.error(f"Ошибка редактирования сообщения: {str(e)}")
         msg = await callback.message.answer(text, reply_markup=reply_markup, disable_web_page_preview=True)
         await state.update_data(settings_message_id=msg.message_id, check_interval=check_interval, send_last=send_last, api_errors=api_errors, transaction_info=transaction_info, interface_info=interface_info, debug=debug)
-    await state.update_data(check_interval=check_interval, send_last=send_last, api_errors=api_errors, transaction_info=transaction_info, interface_info=interface_info, debug=debug)
+    await state.update_data(check_interval=check_interval, send_last=send_last, api_errors=api_errors, transaction_info=transaction_info, interface_info=interface_info, debug=debug, settings_message_id=data.get("settings_message_id"))
     await callback.answer()
 
 async def process_setting_value(message: types.Message, state: FSMContext):
@@ -138,11 +139,13 @@ async def process_setting_value(message: types.Message, state: FSMContext):
                 reply_markup=reply_markup,
                 disable_web_page_preview=True
             )
+            msg = await bot.send_message(chat_id=message.chat.id, text="Тестовое сообщение для получения ID")  # Тест для оновлення ID
+            await msg.delete()
         except Exception as e:
             logger.error(f"Ошибка редактирования сообщения: {str(e)}")
             msg = await message.answer(text, reply_markup=reply_markup, disable_web_page_preview=True)
             await state.update_data(settings_message_id=msg.message_id, check_interval=check_interval, send_last=data.get("send_last", "❌ВЫКЛ"), api_errors=data.get("api_errors", "❌ВЫКЛ"), transaction_info=data.get("transaction_info", "✅ВКЛ"), interface_info=data.get("interface_info", "❌ВЫКЛ"), debug=data.get("debug", "❌ВЫКЛ"))
-        await state.update_data(check_interval=check_interval)
+        await state.update_data(check_interval=check_interval, settings_message_id=data.get("settings_message_id"))
         await state.clear()
     except ValueError as e:
         await message.answer(f"❌ Ошибка: {str(e)}. Попробуйте ещё раз:", reply_markup=get_interval_edit_keyboard())
