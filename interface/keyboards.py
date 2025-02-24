@@ -138,40 +138,39 @@ def get_commands_list():
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_settings_list():
-    # Всегда получаем свежие данные из базы
     settings = db.get_all_settings()
     check_interval = settings.get("CHECK_INTERVAL", "10")
-    send_last = "✅" if settings.get("SEND_LAST_TRANSACTION", "0") == "1" else "❌"
-    api_errors = "✅" if settings.get("API_ERRORS", "1") == "1" else "❌"
-    transaction_info = "✅" if settings.get("TRANSACTION_INFO", "0") == "1" else "❌"
-    interface_info = "✅" if settings.get("INTERFACE_INFO", "0") == "1" else "❌"
-    debug = "✅" if settings.get("DEBUG", "0") == "1" else "❌"
+    send_last = "✅ВКЛ" if settings.get("SEND_LAST_TRANSACTION", "0") == "1" else "❌ВЫКЛ"
+    api_errors = "✅ВКЛ" if settings.get("API_ERRORS", "1") == "1" else "❌ВЫКЛ"
+    transaction_info = "✅ВКЛ" if settings.get("TRANSACTION_INFO", "0") == "1" else "❌ВЫКЛ"
+    interface_info = "✅ВКЛ" if settings.get("INTERFACE_INFO", "0") == "1" else "❌ВЫКЛ"
+    debug = "✅ВКЛ" if settings.get("DEBUG", "0") == "1" else "❌ВЫКЛ"
     
     text = (
-        "⚙️ Настройки бота:\n\n"
-        "⏱ Интервал проверки — интервал между проверками транзакций (в секундах).\n"
-        "📨 Последняя транзакция — отправка последней транзакции каждые CHECK_INTERVAL секунд.\n"
-        "🚨 Ошибки API — логи ошибок внешних API (DexScreener, Arbiscan).\n"
-        "📝 Логи транзакций — информация о проверке и отправке транзакций.\n"
-        "🖱 Логи интерфейса — действия в меню и командах.\n"
-        "🔍 Отладка — подробные отладочные сообщения."
+        "⚙️ Настройки бота\n\n"
+        f"⏱ Интервал проверки ({check_interval} сек) — как часто бот проверяет новые транзакции.\n"
+        f"📨 Последняя транзакция ({send_last}) — отправка последней транзакции каждые {check_interval} сек.\n"
+        f"🚨 Ошибки API ({api_errors}) — логи ошибок внешних API (DexScreener, Arbiscan).\n"
+        f"📝 Транзакций ({transaction_info}) — логирование проверки и отправки транзакций.\n"
+        f"🖱 Интерфейса ({interface_info}) — логи действий в меню и командах.\n"
+        f"🔍 Отладка ({debug}) — подробные отладочные сообщения для диагностики.\n"
     )
     keyboard = [
+        [InlineKeyboardButton(text="Нажми что бы изменить", callback_data="noop")],
         [
-            InlineKeyboardButton(text=f"⏱ Интервал проверки ({check_interval} сек)", callback_data="edit_setting_CHECK_INTERVAL"),
-            InlineKeyboardButton(text=f"📨 Последняя транзакция ({send_last})", callback_data="toggle_SEND_LAST_TRANSACTION")
+            InlineKeyboardButton(text="⏱ Изменить интервал", callback_data="edit_setting_CHECK_INTERVAL"),
+            InlineKeyboardButton(text="📨 Последняя транзакция", callback_data="toggle_SEND_LAST_TRANSACTION")
+        ],
+        [InlineKeyboardButton(text="ЛОГИ", callback_data="noop")],
+        [
+            InlineKeyboardButton(text="🚨 Ошибки API", callback_data="toggle_API_ERRORS"),
+            InlineKeyboardButton(text="📝 Транзакции", callback_data="toggle_TRANSACTION_INFO")
         ],
         [
-            InlineKeyboardButton(text=f"🚨 Ошибки API ({api_errors})", callback_data="toggle_API_ERRORS"),
-            InlineKeyboardButton(text=f"📝 Логи транзакций ({transaction_info})", callback_data="toggle_TRANSACTION_INFO")
+            InlineKeyboardButton(text="🖱 Интерфейс", callback_data="toggle_INTERFACE_INFO"),
+            InlineKeyboardButton(text="🔍 Отладка", callback_data="toggle_DEBUG")
         ],
-        [
-            InlineKeyboardButton(text=f"🖱 Логи интерфейса ({interface_info})", callback_data="toggle_INTERFACE_INFO"),
-            InlineKeyboardButton(text=f"🔍 Отладка ({debug})", callback_data="toggle_DEBUG")
-        ],
-        [
-            InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")
-        ]
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]
     ]
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 

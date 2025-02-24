@@ -1,12 +1,17 @@
 from aiogram import Dispatcher, F, types
-from .callbacks import (
+from .callbacks.wallets import (
     show_wallets, add_wallet_start, process_wallet_address, process_wallet_name,
     toggle_token, confirm_tokens, save_tokens, delete_wallet, rename_wallet_start,
-    process_new_wallet_name, edit_tokens_start, show_tokens, add_token_start,
-    process_contract_address, confirm_token_name, reject_token_name, thread_exists,
-    thread_not_exists, process_thread_id, edit_token_start, edit_token_thread,
-    process_edit_thread_id, delete_token, show_commands, show_settings, edit_setting_start,
-    process_setting_value, toggle_setting, go_home
+    process_new_wallet_name, edit_tokens_start
+)
+from .callbacks.tokens import (
+    show_tokens, add_token_start, process_contract_address, confirm_token_name,
+    reject_token_name, thread_exists, thread_not_exists, process_thread_id,
+    edit_token_start, edit_token_thread, process_edit_thread_id, delete_token
+)
+from .callbacks.settings_callbacks import (
+    show_commands, show_settings, edit_setting_start, process_setting_value,
+    toggle_setting, go_home
 )
 from aiogram.filters import Command
 from .states import WalletStates, TokenStates, SettingStates
@@ -29,6 +34,7 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(rename_wallet_start, F.data.startswith("rename_wallet_"))
     dp.message.register(process_new_wallet_name, WalletStates.waiting_for_new_name)
     dp.callback_query.register(edit_tokens_start, F.data.startswith("edit_tokens_"))
+    
     dp.callback_query.register(show_tokens, F.data == "show_tokens")
     dp.callback_query.register(add_token_start, F.data == "add_token")
     dp.message.register(process_contract_address, TokenStates.waiting_for_contract_address)
@@ -41,6 +47,7 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(edit_token_thread, F.data.startswith("edit_token_"))
     dp.message.register(process_edit_thread_id, TokenStates.waiting_for_edit_thread_id)
     dp.callback_query.register(delete_token, F.data.startswith("delete_token_"))
+    
     dp.callback_query.register(show_commands, F.data == "show_commands")
     dp.callback_query.register(show_settings, F.data == "show_settings")
     dp.callback_query.register(edit_setting_start, F.data.startswith("edit_setting_"))
