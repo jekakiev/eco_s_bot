@@ -53,6 +53,8 @@ async def get_latest_transaction(wallet_address):
         "startblock": 0,
         "endblock": 99999999,
         "sort": "desc",
+        "offset": 1,  # Отримуємо лише одну транзакцію
+        "limit": 1,   # Отримуємо лише одну транзакцію
         "apikey": api_key
     }
     async with aiohttp.ClientSession() as session:
@@ -60,7 +62,7 @@ async def get_latest_transaction(wallet_address):
             if response.status == 200:
                 data = await response.json()
                 if data.get("status") == "1" and data.get("result"):
-                    return str(data)  # Повертаємо сирі JSON-дани як строку
+                    return str(data["result"][0])  # Повертаємо лише одну останню транзакцію як строку
                 else:
                     return "❌ Нет данных о транзакциях или произошла ошибка."
             else:
