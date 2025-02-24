@@ -5,7 +5,8 @@ class WalletStates(StatesGroup):
     waiting_for_name = State()
     waiting_for_tokens = State()
     waiting_for_new_name = State()
-    waiting_for_wallet_selection = State()  # Новий стан для вибору гаманця
+    waiting_for_wallet_selection = State()  # Стан для вибору гаманця в тесті API
+    waiting_for_transaction_hash = State()  # Новий стан для введення хеша транзакції
 
 class TokenStates(StatesGroup):
     waiting_for_contract_address = State()
