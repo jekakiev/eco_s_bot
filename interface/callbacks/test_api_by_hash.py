@@ -48,8 +48,8 @@ async def get_transaction_by_hash(transaction_hash):
     api_key = ARBISCAN_API_KEY
     base_url = "https://api.arbiscan.io/api"
     params = {
-        "module": "proxy",  # Залишаємо proxy для eth_getTransactionByHash
-        "action": "eth_getTransactionByHash",  # Змінено на коректний action для деталей транзакції
+        "module": "proxy",
+        "action": "eth_getTransactionByHash",
         "txhash": transaction_hash,
         "apikey": api_key
     }
@@ -58,7 +58,7 @@ async def get_transaction_by_hash(transaction_hash):
             if response.status == 200:
                 data = await response.json()
                 logger.info(f"Полный JSON-ответ от API: {data}")  # Додаткове логування для діагностики
-                if data.get("status") == "1" and data.get("result"):
+                if data.get("result"):  # Перевіряємо наявність result у JSON-RPC-відповіді
                     return str(data["result"])  # Повертаємо сирі JSON-дани як строку
                 else:
                     return "❌ Нет данных о транзакции или произошла ошибка: " + data.get("message", "Нет сообщения об ошибке")
