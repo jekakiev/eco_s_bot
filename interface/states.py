@@ -1,10 +1,11 @@
-from aiogram.fsm.state import StatesGroup, State
+from aiogram.fsm.state import State, StatesGroup
 
 class WalletStates(StatesGroup):
     waiting_for_address = State()
     waiting_for_name = State()
     waiting_for_tokens = State()
     waiting_for_new_name = State()
+    waiting_for_wallet_selection = State()  # Новий стан для вибору гаманця
 
 class TokenStates(StatesGroup):
     waiting_for_contract_address = State()

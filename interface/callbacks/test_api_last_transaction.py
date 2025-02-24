@@ -30,11 +30,16 @@ async def select_wallet(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer("❌ Кошелек не найден!", show_alert=True)
         return
     transaction_data = await get_latest_transaction(wallet['address'])
-    await callback.message.edit_text(
-        f"📊 Последняя транзакция для кошелька {wallet['name']} ({wallet['address']}):\n\n{transaction_data}",
-        reply_markup=get_main_menu(),
-        disable_web_page_preview=True
-    )
+    
+    # Розділяємо текст на частини по 4000 символів
+    chunk_size = 4000
+    for i in range(0, len(transaction_data), chunk_size):
+        chunk = transaction_data[i:i + chunk_size]
+        await callback.message.answer(
+            f"📊 Последняя транзакция для кошелька {wallet['name']} ({wallet['address']}):\n\n{chunk}",
+            disable_web_page_preview=True
+        )
+    await callback.message.edit_reply_markup(reply_markup=get_main_menu())
     await state.clear()
     await callback.answer()
 
