@@ -48,8 +48,8 @@ async def get_transaction_by_hash(transaction_hash):
     api_key = ARBISCAN_API_KEY
     base_url = "https://api.arbiscan.io/api"
     params = {
-        "module": "proxy",  # Змінено на proxy для action=tx
-        "action": "tx",     # Змінено з gettxinfo на tx для отримання деталей транзакції
+        "module": "proxy",  # Залишаємо proxy для eth_getTransactionByHash
+        "action": "eth_getTransactionByHash",  # Змінено на коректний action для деталей транзакції
         "txhash": transaction_hash,
         "apikey": api_key
     }
