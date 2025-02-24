@@ -13,6 +13,9 @@ from .callbacks.settings_callbacks import (
     show_commands, show_settings, edit_setting_start, process_setting_value,
     toggle_setting, go_home
 )
+from .callbacks.test_api_last_transaction import (
+    show_test_api, select_wallet
+)
 from aiogram.filters import Command
 from .states import WalletStates, TokenStates, SettingStates
 from database import Database
@@ -54,6 +57,9 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(toggle_setting, F.data.startswith("toggle_"))
     dp.message.register(process_setting_value, SettingStates.waiting_for_setting_value)
     dp.callback_query.register(go_home, F.data == "home")
+    
+    dp.callback_query.register(show_test_api, F.data == "test_api_last_transaction")
+    dp.callback_query.register(select_wallet, F.data.startswith("select_wallet_"))
     
     wallet_commands = [f"Edit_{wallet['address'][-4:]}" for wallet in db.get_all_wallets()]
     if wallet_commands:

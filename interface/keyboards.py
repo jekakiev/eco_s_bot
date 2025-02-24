@@ -12,6 +12,9 @@ def get_main_menu():
         [
             InlineKeyboardButton(text="ℹ️ Команды", callback_data="show_commands"),
             InlineKeyboardButton(text="⚙️ Настройки", callback_data="show_settings")
+        ],
+        [
+            InlineKeyboardButton(text="Тест апи (последняя транза)", callback_data="test_api_last_transaction")
         ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -64,12 +67,10 @@ def get_wallets_list():
     text = "📜 Список кошельков:\n\n"
     for wallet in wallets:
         text += f"💰 {wallet['name']} — {wallet['address'][-4:]}\n"
-    keyboard = [
-        [
-            InlineKeyboardButton(text="➕ Добавить кошелек", callback_data="add_wallet"),
-            InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")
-        ]
-    ]
+    keyboard = []
+    for wallet in wallets:
+        keyboard.append([InlineKeyboardButton(text=f"💰 {wallet['name']} ({wallet['address'][-4:]})", callback_data=f"select_wallet_{wallet['id']}")])
+    keyboard.append([InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")])
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_tracked_tokens_list():
