@@ -1,13 +1,13 @@
 import asyncio
-from aiogram import Bot, Dispatcher
+from aiogram import Dispatcher
 from aiogram.filters import Command
 from interface import register_handlers, get_main_menu
-from config.settings import BOT_TOKEN, CHAT_ID
+from config.settings import CHAT_ID
+from config.bot_instance import bot
 from utils.logger_config import logger
 from transaction_manager import start_transaction_monitoring
 from database import Database
 
-bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 db = Database()
 

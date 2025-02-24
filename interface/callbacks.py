@@ -13,7 +13,7 @@ import aiohttp
 import time
 import asyncio
 from config.settings import ARBISCAN_API_KEY
-from bot import bot
+from config.bot_instance import bot
 
 db = Database()
 

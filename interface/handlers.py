@@ -18,7 +18,6 @@ db = Database()
 def register_handlers(dp: Dispatcher):
     logger.info("Регистрация обработчиков callback-запросов началась")
     
-    # Регистрация callback'ов для кнопок меню
     dp.callback_query.register(show_wallets, F.data == "show_wallets")
     dp.callback_query.register(add_wallet_start, F.data == "add_wallet")
     dp.message.register(process_wallet_address, WalletStates.waiting_for_address)
@@ -49,7 +48,6 @@ def register_handlers(dp: Dispatcher):
     dp.message.register(process_setting_value, SettingStates.waiting_for_setting_value)
     dp.callback_query.register(go_home, F.data == "home")
     
-    # Регистрация команд для кошельков и токенов
     wallet_commands = [f"Edit_{wallet['address'][-4:]}" for wallet in db.get_all_wallets()]
     if wallet_commands:
         dp.message.register(edit_wallet_command, Command(commands=wallet_commands))
