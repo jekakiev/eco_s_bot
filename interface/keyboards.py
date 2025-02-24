@@ -138,7 +138,6 @@ def get_commands_list():
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_settings_list(check_interval="150", send_last="❌ВЫКЛ", api_errors="❌ВЫКЛ", transaction_info="✅ВКЛ", interface_info="❌ВЫКЛ", debug="❌ВЫКЛ"):
-    settings = db.get_all_settings()
     text = (
         "⚙️ Настройки бота\n\n"
         "⏱ Интервал проверки — как часто бот проверяет новые транзакции\n"

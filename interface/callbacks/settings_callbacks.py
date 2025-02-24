@@ -22,10 +22,10 @@ async def show_settings(callback: types.CallbackQuery, state: FSMContext):
     if int(db.get_setting("INTERFACE_INFO") or 0):
         logger.info("Кнопка 'Настройки' нажата")
     settings = db.get_all_settings()
-    check_interval = settings.get("CHECK_INTERVAL", "10")
+    check_interval = settings.get("CHECK_INTERVAL", "150")
     send_last = "✅ВКЛ" if settings.get("SEND_LAST_TRANSACTION", "0") == "1" else "❌ВЫКЛ"
-    api_errors = "✅ВКЛ" if settings.get("API_ERRORS", "1") == "1" else "❌ВЫКЛ"
-    transaction_info = "✅ВКЛ" if settings.get("TRANSACTION_INFO", "0") == "1" else "❌ВЫКЛ"
+    api_errors = "✅ВКЛ" if settings.get("API_ERRORS", "0") == "1" else "❌ВЫКЛ"
+    transaction_info = "✅ВКЛ" if settings.get("TRANSACTION_INFO", "1") == "1" else "❌ВЫКЛ"
     interface_info = "✅ВКЛ" if settings.get("INTERFACE_INFO", "0") == "1" else "❌ВЫКЛ"
     debug = "✅ВКЛ" if settings.get("DEBUG", "0") == "1" else "❌ВЫКЛ"
     text, reply_markup = get_settings_list(check_interval, send_last, api_errors, transaction_info, interface_info, debug)
@@ -39,7 +39,7 @@ async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
         logger.info(f"Нажата кнопка настройки: {callback.data}")
     setting_name = callback.data.replace("edit_setting_", "")
     data = await state.get_data()
-    current_value = data.get("check_interval", db.get_setting(setting_name) or "10")
+    current_value = data.get("check_interval", db.get_setting(setting_name) or "150")
     if setting_name == "CHECK_INTERVAL":
         text = f"⚙️ Интервал проверки\nТекущее значение: {current_value} секунд\nВведите интервал обновления в секундах (мин. 1):"
         await state.set_state(SettingStates.waiting_for_setting_value)
@@ -55,6 +55,7 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     
     # Локальні значення для кнопок
+    check_interval = data.get("check_interval", "150")
     send_last = data.get("send_last", "❌ВЫКЛ")
     api_errors = data.get("api_errors", "❌ВЫКЛ")
     transaction_info = data.get("transaction_info", "✅ВКЛ")
@@ -84,14 +85,7 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
     update_log_settings()
     
     # Оновлення клавіатури з локальними значеннями
-    text, reply_markup = get_settings_list(
-        check_interval=data.get("check_interval", "150"),
-        send_last=send_last,
-        api_errors=api_errors,
-        transaction_info=transaction_info,
-        interface_info=interface_info,
-        debug=debug
-    )
+    text, reply_markup = get_settings_list(check_interval, send_last, api_errors, transaction_info, interface_info, debug)
     await bot.edit_message_text(
         chat_id=callback.message.chat.id,
         message_id=data.get("settings_message_id"),
@@ -99,7 +93,7 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
         reply_markup=reply_markup,
         disable_web_page_preview=True
     )
-    await state.update_data(send_last=send_last, api_errors=api_errors, transaction_info=transaction_info, interface_info=interface_info, debug=debug)
+    await state.update_data(check_interval=check_interval, send_last=send_last, api_errors=api_errors, transaction_info=transaction_info, interface_info=interface_info, debug=debug)
     await callback.answer()
 
 async def process_setting_value(message: types.Message, state: FSMContext):
@@ -115,8 +109,8 @@ async def process_setting_value(message: types.Message, state: FSMContext):
             new_value = int(new_value)
             if new_value < 1:
                 raise ValueError("Интервал должен быть не менее 1 секунды")
-            db_value = str(new_value)
             check_interval = f"{new_value} сек"
+            db_value = str(new_value)
         
         # Запис у базу
         db.update_setting(setting_name, db_value)
