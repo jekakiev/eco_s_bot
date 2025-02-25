@@ -18,7 +18,8 @@ class TransactionsDB:
                     is_processed BOOLEAN DEFAULT FALSE,
                     amount_usd DECIMAL(20, 2) DEFAULT 0.00,
                     INDEX idx_wallet_address (wallet_address),
-                    INDEX idx_timestamp (timestamp)
+                    INDEX idx_timestamp (timestamp),
+                    UNIQUE KEY unique_transaction_hash (transaction_hash)
                 )
             """)
             logger.info("Таблица transactions создана или проверена.")

@@ -16,7 +16,7 @@ register_handlers(dp)
 logger.info("Обработчики зарегистрированы")
 
 # Регистрируем команду /Editw_<wallet_id> динамически
-@dp.message(Command(commands=["Editw_"]))
+@dp.message(lambda message: message.text and message.text.startswith("/Editw_"))
 async def dynamic_edit_wallet_command(message: types.Message):
     logger.info(f"Динамическая команда /Editw_ получена от {message.from_user.id}: {message.text}")
     if should_log("interface"):
