@@ -2,14 +2,12 @@ from aiogram import types
 from aiogram.fsm.context import FSMContext
 from ..keyboards import get_main_menu, get_back_button
 from ..states import WalletStates
-from app_config import db  # Імпортуємо db з app_config
+from app_config import db  # Імпортуємо db з app_config, а не створюємо тут
 from utils.logger_config import logger, should_log
 import aiohttp
 import json
 from config.settings import ARBISCAN_API_KEY
 from utils.arbiscan import get_token_info
-
-db = Database()
 
 async def show_test_api_by_hash(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'test_api_by_hash' получен от {callback.from_user.id}")
