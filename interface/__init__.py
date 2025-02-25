@@ -23,6 +23,10 @@ async def edit_wallet_command(message: types.Message):
             logger.debug(f"Попытка найти кошелек с ID: {wallet_id}, полный текст команды: {message.text}")
         # Форсируем повторное подключение к базе, чтобы исключить кэширование или сбой
         db.reconnect()
+        if not db.connection or not db.connection.is_connected():
+            if should_log("debug"):
+                logger.debug("Подключение к базе разорвано, пытаемся переподключиться")
+            db.reconnect()
         wallet = db.wallets.get_wallet_by_id(wallet_id)
         if should_log("debug"):
             logger.debug(f"Список кошельков из базы для проверки (после reconnect): {db.wallets.get_all_wallets()}")

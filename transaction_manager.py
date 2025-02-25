@@ -21,7 +21,7 @@ async def check_token_transactions(bot: Bot, chat_id: str):
                 transactions = await get_token_transactions(wallet_address, tokens)
                 for tx in transactions:
                     if not tx.get('is_processed', False):
-                        tx_hash = tx.get('hash', 'Неизвестно')
+                        tx_hash = tx.get('hash', 'Неизвестно')  # Используем tx_hash вместо transaction_hash
                         try:
                             amount_usd = await convert_to_usd(tx)  # Конвертація суми в долари
                             if amount_usd > 50:  # Фільтрація за сумою
@@ -70,7 +70,7 @@ async def get_token_transactions(wallet_address, tokens):
                     for tx in data["result"]:
                         if tx.get("tokenSymbol") in tokens:
                             tx["is_processed"] = False
-                            tx["hash"] = tx.get("hash", "Неизвестно")  # Убедимся, что hash присутствует
+                            tx["hash"] = tx.get("hash", "Неизвестно")  # Используем hash как tx_hash
                             # Отримання decimals для токена
                             token_info = await get_token_info(tx.get("contractAddress", ""))
                             decimals = int(token_info.get("tokenDecimal", 18))
@@ -113,7 +113,7 @@ async def convert_to_usd(tx):
     try:
         contract_address = tx.get("contractAddress", "")
         value = tx.get("value", "0")
-        tx_hash = tx.get("hash", "Неизвестно")  # Добавлено для отслеживания
+        tx_hash = tx.get("hash", "Неизвестно")  # Используем tx_hash вместо transaction_hash
         token_info = await get_token_info(contract_address)
         decimals = int(token_info.get("tokenDecimal", 18))
         value_float = float(value) / (10 ** decimals) if value and value != "0" else 0
