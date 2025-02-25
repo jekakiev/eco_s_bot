@@ -27,7 +27,15 @@ file_handler = logging.FileHandler(log_file)
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
-def update_log_settings(db):
+def update_log_settings(db=None):
+    # Если db не передан, пытаемся получить его через app_config
+    if db is None:
+        try:
+            from app_config import db  # Імпортуємо db з app_config
+        except ImportError:
+            logger.warning("Не удалось найти базу данных для обновления настроек логирования")
+            return
+    
     debug = db.settings.get_setting("DEBUG", "0") == "1"
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
     interface_info = db.settings.get_setting("INTERFACE_INFO", "0") == "1"

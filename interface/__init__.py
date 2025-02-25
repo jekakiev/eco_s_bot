@@ -29,6 +29,7 @@ async def edit_wallet_command(message: types.Message):
             db.reconnect()
         wallet = db.wallets.get_wallet_by_id(wallet_id)
         if should_log("debug"):
+            logger.debug(f"Результат get_wallet_by_id для ID {wallet_id}: {wallet}")
             logger.debug(f"Список кошельков из базы для проверки (после reconnect): {db.wallets.get_all_wallets()}")
         if not wallet:
             if should_log("debug"):

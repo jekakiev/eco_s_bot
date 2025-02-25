@@ -39,7 +39,9 @@ class WalletsDB:
             self.cursor.execute("SELECT id, address, name, tokens FROM wallets WHERE id = %s", (wallet_id,))
             result = self.cursor.fetchone()
             if should_log("debug"):
-                logger.debug(f"Результат запроса для ID {wallet_id}: {result}")
+                logger.debug(f"Результат запроса для ID {wallet_id} (rowcount: {self.cursor.rowcount}): {result}")
+            if result is None and should_log("debug"):
+                logger.debug(f"Проверка всех записей в таблице wallets: {self.get_all_wallets()}")
             return result  # Повертаємо None, якщо гаманець не знайдено
         except Error as e:
             if should_log("api_errors"):
