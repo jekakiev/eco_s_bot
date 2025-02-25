@@ -8,7 +8,7 @@ class SettingsDB:
 
     def create_table(self):
         try:
-            self.cursor.execute("CREATE TABLE IF NOT EXISTS settings (key VARCHAR(255) NOT NULL PRIMARY KEY, value VARCHAR(255))")
+            self.cursor.execute("CREATE TABLE IF NOT EXISTS settings (`key` VARCHAR(255) NOT NULL PRIMARY KEY, value VARCHAR(255))")
             logger.info("Таблица settings создана или проверена.")
         except Error as e:
             logger.error(f"Ошибка создания таблицы settings: {str(e)}")
@@ -16,7 +16,7 @@ class SettingsDB:
 
     def get_setting(self, key, default=None):
         try:
-            self.cursor.execute("SELECT value FROM settings WHERE key = %s", (key,))
+            self.cursor.execute("SELECT value FROM settings WHERE `key` = %s", (key,))
             result = self.cursor.fetchone()
             return result[0] if result else default
         except Error as e:
@@ -26,7 +26,7 @@ class SettingsDB:
     def set_setting(self, key, value):
         try:
             self.cursor.execute(
-                "INSERT INTO settings (key, value) VALUES (%s, %s) "
+                "INSERT INTO settings (`key`, value) VALUES (%s, %s) "
                 "ON DUPLICATE KEY UPDATE value = VALUES(value)",
                 (key, value)
             )
