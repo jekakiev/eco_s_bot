@@ -61,6 +61,11 @@ class Database:
             self._connect()
         if not self.cursor or self.cursor.closed:
             self.cursor = self.connection.cursor()
+        # Обновляем объекты DB для использования нового курсора
+        self.wallets = WalletsDB(self.cursor, self.connection)
+        self.tracked_tokens = TrackedTokensDB(self.cursor, self.connection)
+        self.settings = SettingsDB(self.cursor, self.connection)
+        self.transactions = TransactionsDB(self.cursor, self.connection)
 
     def __del__(self):
         if hasattr(self, 'cursor') and self.cursor:

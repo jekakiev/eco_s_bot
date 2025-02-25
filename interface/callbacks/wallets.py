@@ -97,7 +97,11 @@ async def confirm_tokens(callback: types.CallbackQuery, state: FSMContext):
     if not selected_tokens:
         await callback.answer("⚠️ Вы не выбрали ни одной монеты!", show_alert=True)
         return
+    # Форсируем повторное подключение к базе, чтобы исключить кэширование
+    db.reconnect()
     wallet_id = db.wallets.add_wallet(wallet_address, wallet_name, ",".join(selected_tokens))
+    if should_log("debug"):
+        logger.debug(f"Добавлен кошелек с ID: {wallet_id}, список кошельков после добавления: {db.wallets.get_all_wallets()}")
     await state.clear()
     sent_message = await callback.message.edit_text(f"✅ Кошелек {wallet_name} ({wallet_address[-4:]}) добавлен! Используйте /Editw_{wallet_id} для редактирования.", reply_markup=get_main_menu())
     await callback.answer()
@@ -128,6 +132,7 @@ async def delete_wallet(callback: types.CallbackQuery, state: FSMContext):
     wallet_id = callback.data.replace("delete_wallet_", "")
     if should_log("debug"):
         logger.debug(f"Попытка удаления кошелька с ID: {wallet_id}")
+    db.reconnect()
     wallet = db.wallets.get_wallet_by_id(wallet_id)
     if not wallet:
         if should_log("debug"):
@@ -144,6 +149,7 @@ async def rename_wallet_start(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
         logger.info(f"Переименование кошелька: {callback.data}")
     wallet_id = callback.data.replace("rename_wallet_", "")
+    db.reconnect()
     wallet = db.wallets.get_wallet_by_id(wallet_id)
     if not wallet:
         await callback.answer("❌ Кошелек не найден!", show_alert=True)
@@ -164,6 +170,7 @@ async def process_new_wallet_name(message: types.Message, state: FSMContext):
         return
     user_data = await state.get_data()
     wallet_id = user_data["wallet_id"]
+    db.reconnect()
     wallet = db.wallets.get_wallet_by_id(wallet_id)
     if not wallet:
         sent_message = await message.answer("❌ Кошелек не найден!", reply_markup=get_back_button())
@@ -180,6 +187,7 @@ async def edit_tokens_start(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
         logger.info(f"Редактирование токенов для кошелька: {callback.data}")
     wallet_id = callback.data.replace("edit_tokens_", "")
+    db.reconnect()
     wallet = db.wallets.get_wallet_by_id(wallet_id)
     if not wallet:
         if should_log("debug"):

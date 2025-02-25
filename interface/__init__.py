@@ -21,9 +21,11 @@ async def edit_wallet_command(message: types.Message):
         wallet_id = int(wallet_id)
         if should_log("debug"):
             logger.debug(f"Попытка найти кошелек с ID: {wallet_id}, полный текст команды: {message.text}")
+        # Форсируем повторное подключение к базе, чтобы исключить кэширование
+        db.reconnect()
         wallet = db.wallets.get_wallet_by_id(wallet_id)
         if should_log("debug"):
-            logger.debug(f"Список кошельков из базы для проверки: {db.wallets.get_all_wallets()}")
+            logger.debug(f"Список кошельков из базы для проверки (после reconnect): {db.wallets.get_all_wallets()}")
         if not wallet:
             if should_log("debug"):
                 logger.debug(f"Кошелек с ID {wallet_id} не найден в базе. Список кошельков: {db.wallets.get_all_wallets()}")
