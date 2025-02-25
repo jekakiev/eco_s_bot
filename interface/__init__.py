@@ -37,6 +37,8 @@ async def edit_wallet_command(message: types.Message):
             await message.answer("❌ Кошелек не найден.")
             return
         from .keyboards import get_wallet_control_keyboard
+        if should_log("debug"):
+            logger.debug(f"Кошелек найден: ID={wallet[0]}, Адрес={wallet[1]}, Имя={wallet[2]}, Токены={wallet[3]}")
         text = f"Имя кошелька: {wallet[2]}\nАдрес кошелька: {wallet[1]}"  # wallet[2] — name, wallet[1] — address
         sent_message = await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet[0]))  # wallet[0] — id
         # Удаляем сообщение пользователя с командой
