@@ -58,8 +58,12 @@ class Database:
     def reconnect(self):
         """Переподключение к базе данных при необходимости."""
         if not self.connection or not self.connection.is_connected():
+            if should_log("debug"):
+                logger.debug("Подключение к базе разорвано, пытаемся переподключиться")
             self._connect()
         if not self.cursor or self.cursor.closed:
+            if should_log("debug"):
+                logger.debug("Курсор закрыт, создаём новый")
             self.cursor = self.connection.cursor()
         # Обновляем объекты DB для использования нового курсора
         self.wallets = WalletsDB(self.cursor, self.connection)

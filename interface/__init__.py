@@ -42,7 +42,7 @@ async def edit_wallet_command(message: types.Message):
         await message.delete()
     except Exception as e:
         if should_log("api_errors"):
-            logger.error(f"Ошибка обработки команды /Editw: {str(e)}")
+            logger.error(f"Ошибка обработки команды /Editw: {str(e)}", exc_info=True)  # Добавлено exc_info=True для полного стека вызовов
         await message.answer("❌ Ошибка при обработке команды.")
 
 async def edit_token_command(message: types.Message):
@@ -68,5 +68,5 @@ async def edit_token_command(message: types.Message):
         await message.delete()
     except Exception as e:
         if should_log("api_errors"):
-            logger.error(f"Ошибка обработки команды /edit: {str(e)}")
+            logger.error(f"Ошибка обработки команды /edit: {str(e)}", exc_info=True)  # Добавлено exc_info=True для полного стека вызовов
         await message.answer("❌ Ошибка при обработке команды.")

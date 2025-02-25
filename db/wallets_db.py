@@ -34,12 +34,16 @@ class WalletsDB:
 
     def get_wallet_by_id(self, wallet_id):
         try:
+            if should_log("debug"):
+                logger.debug(f"Попытка получить кошелек с ID: {wallet_id}")
             self.cursor.execute("SELECT id, address, name, tokens FROM wallets WHERE id = %s", (wallet_id,))
             result = self.cursor.fetchone()
+            if should_log("debug"):
+                logger.debug(f"Результат запроса для ID {wallet_id}: {result}")
             return result  # Повертаємо None, якщо гаманець не знайдено
         except Error as e:
             if should_log("api_errors"):
-                logger.error(f"Ошибка получения кошелька по ID: {str(e)}")
+                logger.error(f"Ошибка получения кошелька по ID: {str(e)}", exc_info=True)
             return None
 
     def get_wallet_by_address(self, address):
