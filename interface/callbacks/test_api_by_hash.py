@@ -12,7 +12,7 @@ db = Database()
 
 async def show_test_api_by_hash(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'test_api_by_hash' получен от {callback.from_user.id}")
-    if int(db.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
         logger.info("Кнопка 'Тест апи (по хешу транзы)' нажата")
     await callback.message.edit_text(
         "📝 Введите хеш транзакции (например, 0x...):",
@@ -23,7 +23,7 @@ async def show_test_api_by_hash(callback: types.CallbackQuery, state: FSMContext
 
 async def request_transaction_hash(message: types.Message, state: FSMContext):
     logger.info(f"Сообщение с хешем транзакции от {message.from_user.id}: {message.text}")
-    if int(db.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
         logger.info(f"Введен хеш транзакции: {message.text}")
     transaction_hash = message.text.strip()
     if not transaction_hash.startswith("0x") or len(transaction_hash) != 66:  # Перевірка формату хеша (0x + 64 символи)
@@ -57,11 +57,56 @@ async def request_transaction_hash(message: types.Message, state: FSMContext):
             receipt = json.loads(receipt_data.replace("'", '"'))  # Конвертуємо рядок у словник
             logs = receipt.get("logs", [])
             if logs:
-                response_text += "=== Логи транзакции (возможные токены и суммы) ===\n"
+                response_text += "=== Возможные токены и суммы из логів ===\n"
                 for log in logs:
-                    response_text += f"Адрес контракта: {log.get('address')}\n"
-                    response_text += f"Topics: {log.get('topics')}\n"
-                    response_text += f"Data: {log.get('data')}\n\n"
+                    address = log.get("address", "Неизвестно")
+                    topics = log.get("topics", [])
+                    data = log.get("data", "0x")
+                    
+                    # Перевіряємо, чи це подія Transfer
+                    if topics and topics[0] == "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef":
+                        # Витягуємо відправника і отримувача з topics
+                        sender = topics[1][26:] if len(topics) > 1 else "Неизвестно"  # Останні 20 байт (адреса)
+                        recipient = topics[2][26:] if len(topics) > 2 else "Неизвестно"
+                        # Конвертуємо суму з data (припускаємо uint256)
+                        amount_hex = data[2:]  # Видаляємо "0x"
+                        try:
+                            amount = int(amount_hex, 16)  # Конвертуємо в десятковий
+                            # Припускаємо, що токен має 18 знаків (наприклад, ETH або DAI), але це потрібно уточнити
+                            decimals = 18  # Заміни на реальну десяткову частину токена
+                            human_readable_amount = amount / (10 ** decimals)
+                            response_text += f"Transfer: Адрес токена: {address}\n"
+                            response_text += f"Отправитель: {sender}\n"
+                            response_text += f"Получатель: {recipient}\n"
+                            response_text += f"Сумма: {human_readable_amount} (предполагается {decimals} знаков)\n\n"
+                        except ValueError as e:
+                            logger.error(f"Ошибка декодирования суммы: {str(e)}")
+                            response_text += f"Ошибка декодирования суммы для {address}\n\n"
+                    
+                    # Перевіряємо, чи це подія Swap (Uniswap V2/V3)
+                    elif topics and topics[0] == "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822":
+                        # Витягуємо токени з topics (припускаємо, що це Uniswap V2/V3)
+                        token0 = topics[1][26:] if len(topics) > 1 else "Неизвестно"
+                        token1 = topics[2][26:] if len(topics) > 2 else "Неизвестно"
+                        # Конвертуємо суми з data (припускаємо, що data має 2 uint256 для amount0 и amount1)
+                        if len(data) >= 66:  # Перевіряємо, чи є достатньо даних
+                            amount0_hex = data[2:66]  # Первые 32 байта
+                            amount1_hex = data[66:130]  # Следующие 32 байта
+                            try:
+                                amount0 = int(amount0_hex, 16)
+                                amount1 = int(amount1_hex, 16)
+                                # Припускаємо, що токени мають 18 знаків (заміни на реальну десяткову частину)
+                                decimals = 18
+                                human_readable_amount0 = amount0 / (10 ** decimals)
+                                human_readable_amount1 = amount1 / (10 ** decimals)
+                                response_text += f"Swap: Пул Uniswap: {address}\n"
+                                response_text += f"Токен 1: {token0}\n"
+                                response_text += f"Токен 2: {token1}\n"
+                                response_text += f"Сумма токена 1: {human_readable_amount0} (предполагается {decimals} знаков)\n"
+                                response_text += f"Сумма токена 2: {human_readable_amount1} (предполагается {decimals} знаков)\n\n"
+                            except ValueError as e:
+                                logger.error(f"Ошибка декодирования суммы свопа: {str(e)}")
+                                response_text += f"Ошибка декодирования суммы свопа для {address}\n\n"
         except json.JSONDecodeError as e:
             logger.error(f"Ошибка декодирования JSON логов: {str(e)}")
             response_text += "❗ Ошибка при обработке логів.\n\n"

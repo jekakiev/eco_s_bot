@@ -12,7 +12,7 @@ db = Database()
 
 async def show_test_api(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'test_api_last_transaction' получен от {callback.from_user.id}")
-    if int(db.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
         logger.info("Кнопка 'Тест апи (последняя транза)' нажата")
     text, reply_markup = get_wallets_list()
     msg = await callback.message.edit_text(text, reply_markup=reply_markup, disable_web_page_preview=True)
@@ -22,17 +22,17 @@ async def show_test_api(callback: types.CallbackQuery, state: FSMContext):
 
 async def select_wallet(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'select_wallet' получен от {callback.from_user.id}: {callback.data}")
-    if int(db.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
         logger.info(f"Выбран кошелек: {callback.data}")
     wallet_id = callback.data.replace("select_wallet_", "")
-    wallet = db.get_wallet_by_id(wallet_id)
+    wallet = db.wallets.get_wallet_by_id(wallet_id)
     if not wallet:
         await callback.answer("❌ Кошелек не найден!", show_alert=True)
         return
     
     # Отримання найновішої транзакції для хеша та посилання
-    latest_tx = await get_latest_transaction(wallet['address'])
-    swap_tx_data = await get_latest_swap_transaction(wallet['address'])
+    latest_tx = await get_latest_transaction(wallet[1])  # wallet[1] — це address
+    swap_tx_data = await get_latest_swap_transaction(wallet[1])
     
     # Надсилаємо дані про своп-транзакцію (якщо є)
     swap_tx_str = str(swap_tx_data)
@@ -44,7 +44,7 @@ async def select_wallet(callback: types.CallbackQuery, state: FSMContext):
         for i in range(0, len(swap_tx_str), chunk_size):
             chunk = swap_tx_str[i:i + chunk_size]
             await callback.message.answer(
-                f"📊 Последняя своп-транзакция для кошелька {wallet['name']} ({wallet['address']}):\n\n{chunk}",
+                f"📊 Последняя своп-транзакция для кошелька {wallet[2]} ({wallet[1]}):\n\n{chunk}",
                 disable_web_page_preview=True
             )
     
