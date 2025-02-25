@@ -93,7 +93,7 @@ async def confirm_tokens(callback: types.CallbackQuery, state: FSMContext):
         return
     db.wallets.add_wallet(wallet_address, wallet_name, ",".join(selected_tokens))
     await state.clear()
-    await callback.message.edit_text(f"✅ Кошелек {wallet_name} ({wallet_address[-4:]}) добавлен!", reply_markup=get_main_menu())
+    await callback.message.edit_text(f"✅ Кошелек {wallet_name} ({wallet_address[-4:]}) добавлен! Для обновления команд (/Edit_XXXX) перезапустите бота.", reply_markup=get_main_menu())
     await callback.answer()
 
 async def save_tokens(callback: types.CallbackQuery, state: FSMContext):
@@ -120,8 +120,12 @@ async def delete_wallet(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
         logger.info(f"Удаление кошелька: {callback.data}")
     wallet_id = callback.data.replace("delete_wallet_", "")
+    if should_log("debug"):
+        logger.debug(f"Попытка удаления кошелька с ID: {wallet_id}")
     wallet = db.wallets.get_wallet_by_id(wallet_id)
     if not wallet:
+        if should_log("debug"):
+            logger.debug(f"Кошелек с ID {wallet_id} не найден в базе: {db.wallets.get_all_wallets()}")
         await callback.answer("❌ Кошелек не найден!", show_alert=True)
         return
     db.wallets.delete_wallet(wallet_id)

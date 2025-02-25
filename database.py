@@ -15,6 +15,9 @@ class Database:
         self.tracked_tokens = None
         self.settings = None
         self.transactions = None  # Додано ініціалізацію
+        self._connect()
+
+    def _connect(self):
         try:
             # Додаємо timeout для підключення, щоб уникнути "Too many connections"
             self.connection = mysql.connector.connect(
@@ -52,18 +55,21 @@ class Database:
                 logger.error(f"Ошибка создания таблиц: {str(e)}")
             raise
 
+    def reconnect(self):
+        """Переподключение к базе данных при необходимости."""
+        if not self.connection or not self.connection.is_connected():
+            self._connect()
+        if not self.cursor or self.cursor.closed:
+            self.cursor = self.connection.cursor()
+
     def __del__(self):
         if hasattr(self, 'cursor') and self.cursor:
             try:
-                # Перевірка, чи курсор відкритий, через спробу закрити його
-                try:
-                    self.cursor.close()
-                except AttributeError:
-                    pass  # Ігноруємо, якщо атрибут closed відсутній
+                self.cursor.close()
             except Exception as e:
                 if should_log("api_errors", self):
                     logger.error(f"Ошибка при закрытии курсора: {str(e)}")
-        if hasattr(self, 'connection') and self.connection and self.connection.is_connected():
+        if hasattr(self, 'connection') and self.connection:
             try:
                 self.connection.close()
             except Exception as e:
@@ -71,3 +77,33 @@ class Database:
                     logger.error(f"Ошибка при закрытии соединения: {str(e)}")
             if should_log("transaction", self):
                 logger.info("База данных отключена успешно.")
+
+    def get_setting(self, key, default=None):
+        """Временный метод для доступа к настройкам через settings."""
+        self.reconnect()
+        try:
+            return self.settings.get_setting(key, default)
+        except Error as e:
+            if should_log("api_errors", self):
+                logger.error(f"Ошибка получения настройки {key}: {str(e)}")
+            return default
+
+    def get_all_wallets(self):
+        """Временный метод для доступа к кошелькам через wallets."""
+        self.reconnect()
+        try:
+            return self.wallets.get_all_wallets()
+        except Error as e:
+            if should_log("api_errors", self):
+                logger.error(f"Ошибка получения списка кошельков: {str(e)}")
+            return []
+
+    def get_all_tracked_tokens(self):
+        """Временный метод для доступа к токенам через tracked_tokens."""
+        self.reconnect()
+        try:
+            return self.tracked_tokens.get_all_tracked_tokens()
+        except Error as e:
+            if should_log("api_errors", self):
+                logger.error(f"Ошибка получения списка токенов: {str(e)}")
+            return []

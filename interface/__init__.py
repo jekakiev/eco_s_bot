@@ -1,3 +1,4 @@
+from aiogram import types
 from database import Database
 from .keyboards import get_main_menu, get_back_button, get_wallets_list, get_wallet_control_keyboard, get_tokens_keyboard, get_tracked_tokens_list, get_token_control_keyboard, get_token_name_confirmation_keyboard, get_thread_confirmation_keyboard, get_commands_list, get_settings_list, get_interval_edit_keyboard
 from .handlers import register_handlers
@@ -12,6 +13,8 @@ async def edit_wallet_command(message: types.Message):
     try:
         short_address = message.text.split("_")[1]
         wallets = db.wallets.get_all_wallets()  # Отримуємо кортежі
+        if should_log("debug"):
+            logger.debug(f"Список кошельков из базы: {wallets}")
         wallet = next((w for w in wallets if w[1].endswith(short_address)), None)  # w[1] — address
         if not wallet:
             if should_log("debug"):
@@ -33,6 +36,8 @@ async def edit_token_command(message: types.Message):
     try:
         short_address = message.text.split("_")[1]
         tokens = db.tracked_tokens.get_all_tracked_tokens()  # Отримуємо кортежі
+        if should_log("debug"):
+            logger.debug(f"Список токенов из базы: {tokens}")
         token = next((t for t in tokens if t[1].endswith(short_address)), None)  # t[1] — contract_address
         if not token:
             if should_log("debug"):
