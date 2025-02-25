@@ -8,12 +8,7 @@ class SettingsDB:
 
     def create_table(self):
         try:
-            self.cursor.execute("""
-                CREATE TABLE IF NOT EXISTS settings (
-                    key VARCHAR(255) NOT NULL PRIMARY KEY,
-                    value VARCHAR(255)
-                )
-            """)
+            self.cursor.execute("CREATE TABLE IF NOT EXISTS settings (key VARCHAR(255) NOT NULL PRIMARY KEY, value VARCHAR(255))")
             logger.info("Таблица settings создана или проверена.")
         except Error as e:
             logger.error(f"Ошибка создания таблицы settings: {str(e)}")
