@@ -5,7 +5,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from interface import register_handlers, get_main_menu
 from config.settings import BOT_TOKEN, CHAT_ID
 from config.bot_instance import bot
-from utils.logger_config import logger, update_log_settings, get_database
+from utils.logger_config import logger, update_log_settings
 from transaction_manager import start_transaction_monitoring
 from database import Database
 
@@ -19,6 +19,11 @@ logger.info("Обработчики зарегистрированы")
 # Отримання налаштувань для логів через db
 interface_info = db.settings.get_setting("INTERFACE_INFO", "0") == "1"
 api_errors = db.settings.get_setting("API_ERRORS", "0") == "1"
+
+if interface_info:
+    logger.info("Интерфейсная информация включена")
+if api_errors:
+    logger.info("Логи ошибок API включены")
 
 @dp.message(Command("start"))
 async def start_command(message):

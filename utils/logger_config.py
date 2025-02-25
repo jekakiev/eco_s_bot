@@ -36,12 +36,5 @@ def update_log_settings():
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
     logger.info(f"Логи обновлены. Режим отладки: {'включен' if debug else 'выключен'}")
 
-# Додано ініціалізацію db для використання у логах, але без циклічного імпорту
-db = get_database()
-interface_info = db.settings.get_setting("INTERFACE_INFO", "0") == "1"
-api_errors = db.settings.get_setting("API_ERRORS", "0") == "1"
-
-if interface_info:
-    logger.info("Интерфейсная информация включена")
-if api_errors:
-    logger.info("Логи ошибок API включены")
+# Видалив ініціалізацію db і логування interface_info/api_errors тут, щоб уникнути циклічного імпорту
+# Ці логування тепер потрібно додати в інших файлах, де використовується logger і є доступ до db
