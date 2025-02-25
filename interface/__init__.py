@@ -12,6 +12,8 @@ async def edit_wallet_command(message: types.Message):
         logger.info(f"Обработка команды /Edit для пользователя {message.from_user.id}")
     try:
         short_address = message.text.split("_")[1]
+        if should_log("debug"):
+            logger.debug(f"Попытка найти кошелек с последними 4 символами: {short_address}")
         wallets = db.wallets.get_all_wallets()  # Отримуємо кортежі
         if should_log("debug"):
             logger.debug(f"Список кошельков из базы: {wallets}")
