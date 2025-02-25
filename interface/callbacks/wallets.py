@@ -51,7 +51,12 @@ async def process_wallet_name(message: types.Message, state: FSMContext):
     await state.update_data(wallet_name=name)
     await state.set_state(WalletStates.waiting_for_tokens)
     await state.update_data(selected_tokens=[])
-    await message.answer("🪙 Выберите монеты для отслеживания:", reply_markup=get_tokens_keyboard([], is_edit=False))
+    tracked_tokens = [token[2] for token in db.tracked_tokens.get_all_tracked_tokens()]  # Берем токены из базы (token[2] — token_name)
+    if not tracked_tokens:
+        await message.answer("🪙 Токены для отслеживания ещё не добавлены. Добавьте токены через меню 'Показать токены' -> 'Добавить токен'.", reply_markup=get_main_menu())
+        await state.clear()
+    else:
+        await message.answer("🪙 Выберите монеты для отслеживания:", reply_markup=get_tokens_keyboard([], is_edit=False))
 
 async def toggle_token(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'toggle_token' получен от {callback.from_user.id}: {callback.data}")
@@ -165,7 +170,12 @@ async def edit_tokens_start(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer("❌ Кошелек не найден!", show_alert=True)
         return
     tokens = wallet[3].split(",") if wallet[3] else []  # Розділяємо рядок токенів, якщо вони є
-    await state.update_data(wallet_id=wallet_id, selected_tokens=tokens)
-    await callback.message.edit_text(f"🪙 Выберите токены для кошелька {wallet[2]}:", reply_markup=get_tokens_keyboard(tokens, is_edit=True))
-    await state.set_state(WalletStates.waiting_for_tokens)
+    tracked_tokens = [token[2] for token in db.tracked_tokens.get_all_tracked_tokens()]  # Берем токены из базы (token[2] — token_name)
+    if not tracked_tokens:
+        await callback.message.edit_text("🪙 Токены для отслеживания ещё не добавлены. Добавьте токены через меню 'Показать токены' -> 'Добавить токен'.", reply_markup=get_main_menu())
+        await state.clear()
+    else:
+        await state.update_data(wallet_id=wallet_id, selected_tokens=tokens)
+        await callback.message.edit_text(f"🪙 Выберите токены для кошелька {wallet[2]}:", reply_markup=get_tokens_keyboard(tokens, is_edit=True))
+        await state.set_state(WalletStates.waiting_for_tokens)
     await callback.answer()
