@@ -10,6 +10,9 @@ class Database:
     def __init__(self):
         self.connection = None
         self.cursor = None
+        self.wallets = None  # Ініціалізація атрибутів як None
+        self.tracked_tokens = None
+        self.settings = None
         try:
             self.connection = mysql.connector.connect(
                 host=os.getenv("MYSQL_HOST", "mysql.railway.internal"),
@@ -19,11 +22,11 @@ class Database:
                 port=int(os.getenv("MYSQL_PORT", "3306"))
             )
             self.cursor = self.connection.cursor()
-            self.create_tables()
-            # Ініціалізація атрибутів для доступу до таблиць
+            # Ініціалізація атрибутів до створення таблиць
             self.wallets = WalletsDB(self.cursor, self.connection)
             self.tracked_tokens = TrackedTokensDB(self.cursor, self.connection)
             self.settings = SettingsDB(self.cursor, self.connection)
+            self.create_tables()
             logger.info("База данных подключена успешно.")
         except Error as e:
             logger.error(f"Ошибка подключения к базе данных: {str(e)}")
