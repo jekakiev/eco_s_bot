@@ -20,6 +20,7 @@ class Database:
             )
             self.cursor = self.connection.cursor()
             self.create_tables()
+            # Ініціалізація атрибутів для доступу до таблиць
             self.wallets = WalletsDB(self.cursor, self.connection)
             self.tracked_tokens = TrackedTokensDB(self.cursor, self.connection)
             self.settings = SettingsDB(self.cursor, self.connection)
