@@ -1,5 +1,6 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from app_config import db  # Імпортуємо db з app_config
+from utils.logger_config import logger, should_log
 
 def get_main_menu():
     keyboard = [
@@ -24,12 +25,10 @@ def get_back_button():
     return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]])
 
 def get_tokens_keyboard(selected_tokens, is_edit=False):
-    tokens = [
-        "HITCOIN",
-        "S",
-        "ROSTIKSON 2.0",
-        "GRIMASS"
-    ]
+    # Получаем все отслеживаемые токены из базы данных
+    tokens = [token[2] for token in db.tracked_tokens.get_all_tracked_tokens()]  # token[2] — token_name
+    if should_log("debug"):
+        logger.debug(f"Полученные токены из базы: {tokens}")
     keyboard = []
     for i, token in enumerate(tokens):
         callback_data = f"toggle_token_{token}"
