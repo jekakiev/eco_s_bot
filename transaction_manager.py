@@ -2,7 +2,7 @@ import asyncio
 import aiohttp
 from aiogram import Bot
 from app_config import db  # Імпортуємо db з app_config
-from utils.logger_config import logger
+from utils.logger_config import logger, should_log
 from config.settings import ARBISCAN_API_KEY, CHAT_ID
 import json
 import requests  # Для отримання цін через CoinGecko
@@ -31,11 +31,11 @@ async def check_token_transactions(bot: Bot, chat_id: str):
                 db.transactions.clean_old_transactions(wallet_address, limit=20)
 
             check_interval = int(db.settings.get_setting("CHECK_INTERVAL", "10"))
-            if int(db.settings.get_setting("TRANSACTION_INFO", "1")):  # Оновлено на TRANSACTION_INFO для логів транзакцій
+            if should_log("transaction"):
                 logger.info(f"Проверка транзакций выполнена. Следующая через {check_interval} секунд.")
             await asyncio.sleep(check_interval)
         except Exception as e:
-            if int(db.settings.get_setting("API_ERRORS", "1")):
+            if should_log("api_errors"):
                 logger.error(f"Ошибка при проверке транзакций: {str(e)}")
             await asyncio.sleep(5)
 
@@ -113,7 +113,7 @@ async def convert_to_usd(tx):
         usd_value = value_float * float(price_usd)
         return usd_value if usd_value > 0 else 0
     except Exception as e:
-        if int(db.settings.get_setting("API_ERRORS", "1")):
+        if should_log("api_errors"):
             logger.error(f"Ошибка конвертации в USD: {str(e)}")
         return 0
 
@@ -129,21 +129,23 @@ async def get_token_price(chain, contract_address):
                 if 'pair' in data and 'baseToken' in data['pair'] and 'priceUsd' in data['pair']['baseToken']:
                     price_usd = str(data['pair']['baseToken']['priceUsd'])
                     return price_usd, ""
-                if int(db.settings.get_setting("API_ERRORS", "1")):
+                if should_log("api_errors"):
                     logger.warning(f"Не удалось получить цену через DexScreener API для {contract_address}")
                 return "0", "Цена не определена"
     except aiohttp.ClientResponseError as e:
-        if int(db.settings.get_setting("API_ERRORS", "1")):
+        if should_log("api_errors"):
             if e.status == 404:
                 logger.warning(f"Токен {contract_address} не найден в DexScreener API для {chain}")
             else:
                 logger.warning(f"Ошибка при запросе к DexScreener API для {contract_address}: {str(e)}")
         return "0", "Цена не определена"
     except Exception as e:
-        if int(db.settings.get_setting("API_ERRORS", "1")):
+        if should_log("api_errors"):
             logger.warning(f"Ошибка при запросе к DexScreener API для {contract_address}: {str(e)}")
         return "0", "Цена не определена"
 
 async def start_transaction_monitoring(bot: Bot, chat_id: str):
     logger.info("Запуск мониторинга транзакций")
+    if should_log("transaction"):
+        logger.info("Мониторинг транзакций начат")
     await check_token_transactions(bot, chat_id)

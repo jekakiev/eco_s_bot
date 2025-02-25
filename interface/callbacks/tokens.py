@@ -2,14 +2,13 @@ from aiogram import types
 from aiogram.fsm.context import FSMContext
 from ..keyboards import get_main_menu, get_tracked_tokens_list, get_token_control_keyboard, get_token_name_confirmation_keyboard, get_thread_confirmation_keyboard, get_back_button
 from ..states import TokenStates
-from database import Database
-from utils.logger_config import logger
-
-db = Database()
+from app_config import db  # Імпортуємо db з app_config
+from utils.logger_config import logger, should_log
+from utils.arbiscan import get_token_info
 
 async def show_tokens(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'show_tokens' получен от {callback.from_user.id}")
-    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
+    if should_log("interface"):
         logger.info("Кнопка 'Показать токены' нажата")
     text, reply_markup = get_tracked_tokens_list()
     await callback.message.edit_text(text, reply_markup=reply_markup, disable_web_page_preview=True)
@@ -17,7 +16,7 @@ async def show_tokens(callback: types.CallbackQuery, state: FSMContext):
 
 async def add_token_start(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'add_token' получен от {callback.from_user.id}")
-    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
+    if should_log("interface"):
         logger.info("Кнопка 'Добавить токен' нажата")
     await callback.message.edit_text("📝 Введите адрес контракта токена (например, 0x...):", reply_markup=get_back_button())
     await state.set_state(TokenStates.waiting_for_contract_address)
@@ -25,14 +24,15 @@ async def add_token_start(callback: types.CallbackQuery, state: FSMContext):
 
 async def process_contract_address(message: types.Message, state: FSMContext):
     logger.info(f"Сообщение с адресом контракта токена от {message.from_user.id}: {message.text}")
-    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
+    if should_log("interface"):
         logger.info(f"Введен адрес контракта токена: {message.text}")
     contract_address = message.text.strip()
     if not contract_address.startswith("0x") or len(contract_address) != 42:
         await message.answer("❌ Неверный формат адреса. Введите адрес в формате 0x... (42 символа).", reply_markup=get_back_button())
         return
-    existing_token = db.tracked_tokens.get_token_by_id(contract_address)  # Виправлено: get_token_by_id приймає token_id, а не contract_address
-    if existing_token:
+    # Перевіряємо, чи токен уже існує, за contract_address
+    existing_tokens = db.tracked_tokens.get_all_tracked_tokens()
+    if any(token[1].lower() == contract_address.lower() for token in existing_tokens):  # token[1] — contract_address
         await message.answer("❌ Такой токен уже отслеживается!", reply_markup=get_back_button())
         await state.clear()
         return
@@ -46,7 +46,7 @@ async def process_contract_address(message: types.Message, state: FSMContext):
 
 async def confirm_token_name(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'confirm_token_name' получен от {callback.from_user.id}")
-    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
+    if should_log("interface"):
         logger.info("Подтверждение названия токена")
     data = await state.get_data()
     token_name = data["token_name"]
@@ -57,7 +57,7 @@ async def confirm_token_name(callback: types.CallbackQuery, state: FSMContext):
 
 async def reject_token_name(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'reject_token_name' получен от {callback.from_user.id}")
-    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
+    if should_log("interface"):
         logger.info("Отмена имени токена нажата")
     await callback.message.edit_text("📝 Введите адрес контракта токена (например, 0x...):", reply_markup=get_back_button())
     await state.set_state(TokenStates.waiting_for_contract_address)
@@ -65,28 +65,28 @@ async def reject_token_name(callback: types.CallbackQuery, state: FSMContext):
 
 async def thread_exists(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'thread_exists' получен от {callback.from_user.id}")
-    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
+    if should_log("interface"):
         logger.info("Тред существует нажато")
-    await callback.message.edit_text("📝 Введите ID треда (например, 123456789):", reply_markup=get_back_button())
+    await callback.message.edit_text("📝 Введите ID треда (например, 123456789):\n💡 Чтобы узнать ID ветки, отправьте команду `/get_thread_id` прямо в нужный тред.", reply_markup=get_back_button(), parse_mode="Markdown")
     await state.set_state(TokenStates.waiting_for_thread_id)
     await callback.answer()
 
 async def thread_not_exists(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'thread_not_exists' получен от {callback.from_user.id}")
-    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
+    if should_log("interface"):
         logger.info("Тред не существует нажато")
     user_data = await state.get_data()
     contract_address = user_data["contract_address"]
     token_name = user_data["token_name"]
-    decimals = await get_token_decimals(contract_address)  # Отримання decimals через API
-    db.tracked_tokens.add_tracked_token(contract_address, token_name, decimals=decimals)  # Передача decimals
+    decimals = await get_token_info(contract_address)["tokenDecimal"]  # Отримання decimals
+    db.tracked_tokens.add_tracked_token(contract_address, token_name, decimals=int(decimals) if decimals.isdigit() else 18)  # Передача decimals
     await callback.message.edit_text(f"💎 Токен {token_name} ({contract_address[-4:]}) добавлен успешно!", reply_markup=get_main_menu())
     await state.clear()
     await callback.answer()
 
 async def process_thread_id(message: types.Message, state: FSMContext):
     logger.info(f"Сообщение с ID треда от {message.from_user.id}: {message.text}")
-    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
+    if should_log("interface"):
         logger.info(f"Введен ID треда: {message.text}")
     thread_id = message.text.strip()
     if not thread_id.isdigit():
@@ -95,21 +95,14 @@ async def process_thread_id(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     contract_address = user_data["contract_address"]
     token_name = user_data["token_name"]
-    decimals = await get_token_decimals(contract_address)  # Отримання decimals через API
-    db.tracked_tokens.add_tracked_token(contract_address, token_name, thread_id=thread_id, decimals=decimals)  # Передача decimals
+    decimals = await get_token_info(contract_address)["tokenDecimal"]  # Отримання decimals
+    db.tracked_tokens.add_tracked_token(contract_address, token_name, thread_id=thread_id, decimals=int(decimals) if decimals.isdigit() else 18)  # Передача decimals
     await message.answer(f"💎 Токен {token_name} ({contract_address[-4:]}) добавлен успешно в тред {thread_id}!", reply_markup=get_main_menu())
     await state.clear()
 
-async def get_token_decimals(contract_address):
-    token_info = await get_token_info(contract_address)
-    try:
-        return int(token_info["tokenDecimal"])
-    except (ValueError, TypeError):
-        return 18  # Значення за замовчуванням, якщо decimals не вдалося отримати
-
 async def edit_token_start(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'edit_token' получен от {callback.from_user.id}: {callback.data}")
-    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
+    if should_log("interface"):
         logger.info(f"Редактирование токена: {callback.data}")
     token_id = callback.data.replace("edit_token_", "")
     token = db.tracked_tokens.get_token_by_id(token_id)
@@ -123,7 +116,7 @@ async def edit_token_start(callback: types.CallbackQuery, state: FSMContext):
 
 async def edit_token_thread(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'edit_token_thread' получен от {callback.from_user.id}: {callback.data}")
-    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
+    if should_log("interface"):
         logger.info(f"Редактирование треда токена: {callback.data}")
     token_id = callback.data.replace("edit_token_thread_", "")
     token = db.tracked_tokens.get_token_by_id(token_id)
@@ -137,7 +130,7 @@ async def edit_token_thread(callback: types.CallbackQuery, state: FSMContext):
 
 async def process_edit_thread_id(message: types.Message, state: FSMContext):
     logger.info(f"Сообщение с новым ID треда токена от {message.from_user.id}: {message.text}")
-    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
+    if should_log("interface"):
         logger.info(f"Введен новый ID треда токена: {message.text}")
     thread_id = message.text.strip()
     user_data = await state.get_data()
@@ -155,7 +148,7 @@ async def process_edit_thread_id(message: types.Message, state: FSMContext):
 
 async def delete_token(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'delete_token' получен от {callback.from_user.id}: {callback.data}")
-    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
+    if should_log("interface"):
         logger.info(f"Удаление токена: {callback.data}")
     token_id = callback.data.replace("delete_token_", "")
     token = db.tracked_tokens.get_token_by_id(token_id)

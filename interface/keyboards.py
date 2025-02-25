@@ -1,7 +1,5 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from database import Database
-
-db = Database()
+from app_config import db  # Імпортуємо db з app_config
 
 def get_main_menu():
     keyboard = [
@@ -64,31 +62,23 @@ def get_wallet_control_keyboard(wallet_id):
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_wallets_list():
-    wallets = db.wallets.get_all_wallets()  # Оновлено на db.wallets.get_all_wallets()
+    wallets = db.wallets.get_all_wallets()
     if not wallets:
-        return "📜 Нет добавленных кошельков.", get_main_menu()
+        return "📜 Нет добавленных кошельков.", InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="➕ Добавить кошелек", callback_data="add_wallet"), InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]])
     text = "📜 Список кошельков:\n\n"
     for wallet in wallets:
-        text += f"💰 {wallet[2]} — {wallet[1][-4:]}\n"  # wallet[2] — name, wallet[1] — address
-    keyboard = []
-    for wallet in wallets:
-        keyboard.append([InlineKeyboardButton(text=f"💰 {wallet[2]} ({wallet[1][-4:]})", callback_data=f"select_wallet_{wallet[0]}")])  # wallet[0] — id
-    keyboard.append([InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")])
+        text += f"💰 {wallet[2]} ({wallet[1][-4:]}) — /Edit_{wallet[1][-4:]}\n"  # wallet[2] — name, wallet[1] — address
+    keyboard = [[InlineKeyboardButton(text="➕ Добавить кошелек", callback_data="add_wallet"), InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]]
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_tracked_tokens_list():
-    tokens = db.tracked_tokens.get_all_tracked_tokens()  # Оновлено на db.tracked_tokens.get_all_tracked_tokens()
+    tokens = db.tracked_tokens.get_all_tracked_tokens()
     if not tokens:
-        return "🪙 Нет отслеживаемых токенов.", get_main_menu()
+        return "🪙 Нет отслеживаемых токенов.", InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="➕ Добавить токен", callback_data="add_token"), InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]])
     text = "🪙 Список отслеживаемых токенов:\n\n"
     for token in tokens:
-        text += f"💎 {token[2]} — {token[1][-4:]} (Тред: {token[3] or 'Не указан'})\n"  # token[2] — token_name, token[1] — contract_address, token[3] — thread_id
-    keyboard = [
-        [
-            InlineKeyboardButton(text="➕ Добавить токен", callback_data="add_token"),
-            InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")
-        ]
-    ]
+        text += f"💎 {token[2]} ({token[1][-4:]}) — /edit_{token[1][-4:]}\n"  # token[2] — token_name, token[1] — contract_address
+    keyboard = [[InlineKeyboardButton(text="➕ Добавить токен", callback_data="add_token"), InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]]
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_token_control_keyboard(token_id):

@@ -2,17 +2,15 @@ from aiogram import types
 from aiogram.fsm.context import FSMContext
 from ..keyboards import get_main_menu, get_wallets_list, get_back_button
 from ..states import WalletStates
-from database import Database
-from utils.logger_config import logger
+from app_config import db  # Імпортуємо db з app_config
+from utils.logger_config import logger, should_log
 from utils.arbiscan import get_token_transactions
 import aiohttp
 from config.settings import ARBISCAN_API_KEY
 
-db = Database()
-
 async def show_test_api(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'test_api_last_transaction' получен от {callback.from_user.id}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if should_log("interface"):
         logger.info("Кнопка 'Тест апи (последняя транза)' нажата")
     text, reply_markup = get_wallets_list()
     msg = await callback.message.edit_text(text, reply_markup=reply_markup, disable_web_page_preview=True)
@@ -22,7 +20,7 @@ async def show_test_api(callback: types.CallbackQuery, state: FSMContext):
 
 async def select_wallet(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'select_wallet' получен от {callback.from_user.id}: {callback.data}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if should_log("interface"):
         logger.info(f"Выбран кошелек: {callback.data}")
     wallet_id = callback.data.replace("select_wallet_", "")
     wallet = db.wallets.get_wallet_by_id(wallet_id)
@@ -128,7 +126,8 @@ async def get_latest_swap_transaction(wallet_address):
                     for transaction in data["result"]:
                         to_address = transaction.get("to", "").lower()
                         method_id = transaction.get("methodId", "").lower()
-                        logger.info(f"Проверяем транзакцию: to={to_address}, methodId={method_id}, hash={transaction.get('hash', 'Неизвестно')}")  # Додано хеш для діагностики
+                        if should_log("debug"):
+                            logger.info(f"Проверяем транзакцию: to={to_address}, methodId={method_id}, hash={transaction.get('hash', 'Неизвестно')}")  # Додано хеш для діагностики
                         # Перевіряємо, чи це своп (to — адреса DEX і methodId співпадає)
                         if (to_address in [addr.lower() for addr in dex_router_addresses] and 
                             method_id in [mid.lower() for mid in swap_method_ids]):

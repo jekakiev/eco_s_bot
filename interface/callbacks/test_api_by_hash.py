@@ -2,17 +2,18 @@ from aiogram import types
 from aiogram.fsm.context import FSMContext
 from ..keyboards import get_main_menu, get_back_button
 from ..states import WalletStates
-from database import Database
-from utils.logger_config import logger
+from app_config import db  # Імпортуємо db з app_config
+from utils.logger_config import logger, should_log
 import aiohttp
 import json
 from config.settings import ARBISCAN_API_KEY
+from utils.arbiscan import get_token_info
 
 db = Database()
 
 async def show_test_api_by_hash(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'test_api_by_hash' получен от {callback.from_user.id}")
-    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
+    if should_log("interface"):
         logger.info("Кнопка 'Тест апи (по хешу транзы)' нажата")
     await callback.message.edit_text(
         "📝 Введите хеш транзакции (например, 0x...):",
@@ -23,7 +24,7 @@ async def show_test_api_by_hash(callback: types.CallbackQuery, state: FSMContext
 
 async def request_transaction_hash(message: types.Message, state: FSMContext):
     logger.info(f"Сообщение с хешем транзакции от {message.from_user.id}: {message.text}")
-    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
+    if should_log("interface"):
         logger.info(f"Введен хеш транзакции: {message.text}")
     transaction_hash = message.text.strip()
     if not transaction_hash.startswith("0x") or len(transaction_hash) != 66:  # Перевірка формату хеша (0x + 64 символи)
@@ -36,8 +37,9 @@ async def request_transaction_hash(message: types.Message, state: FSMContext):
     receipt_data = await get_transaction_receipt(transaction_hash)
     
     # Логування для діагностики
-    logger.info(f"Ответ API для хеша {transaction_hash} (транзакция): {transaction_data}")
-    logger.info(f"Ответ API для хеша {transaction_hash} (квитанция): {receipt_data}")
+    if should_log("debug"):
+        logger.info(f"Ответ API для хеша {transaction_hash} (транзакция): {transaction_data}")
+        logger.info(f"Ответ API для хеша {transaction_hash} (квитанция): {receipt_data}")
     
     # Формуємо текст для відправки
     response_text = f"📊 Данные транзакции по хешу {transaction_hash}:\n\n"
@@ -80,7 +82,8 @@ async def request_transaction_hash(message: types.Message, state: FSMContext):
                             response_text += f"Получатель: {recipient}\n"
                             response_text += f"Сумма: {human_readable_amount} (предполагается {decimals} знаков)\n\n"
                         except ValueError as e:
-                            logger.error(f"Ошибка декодирования суммы: {str(e)}")
+                            if should_log("api_errors"):
+                                logger.error(f"Ошибка декодирования суммы: {str(e)}")
                             response_text += f"Ошибка декодирования суммы для {address}\n\n"
                     
                     # Перевіряємо, чи це подія Swap (Uniswap V2/V3)
@@ -107,10 +110,12 @@ async def request_transaction_hash(message: types.Message, state: FSMContext):
                                 response_text += f"Сумма токена 1: {human_readable_amount0} (предполагается {decimals0} знаков)\n"
                                 response_text += f"Сумма токена 2: {human_readable_amount1} (предполагается {decimals1} знаков)\n\n"
                             except ValueError as e:
-                                logger.error(f"Ошибка декодирования суммы свопа: {str(e)}")
+                                if should_log("api_errors"):
+                                    logger.error(f"Ошибка декодирования суммы свопа: {str(e)}")
                                 response_text += f"Ошибка декодирования суммы свопа для {address}\n\n"
         except json.JSONDecodeError as e:
-            logger.error(f"Ошибка декодирования JSON логов: {str(e)}")
+            if should_log("api_errors"):
+                logger.error(f"Ошибка декодирования JSON логов: {str(e)}")
             response_text += "❗ Ошибка при обработке логів.\n\n"
     
     # Розділяємо текст на частини по 4000 символів
@@ -138,7 +143,8 @@ async def get_transaction_by_hash(transaction_hash):
         async with session.get(base_url, params=params) as response:
             if response.status == 200:
                 data = await response.json()
-                logger.info(f"Полный JSON-ответ от API (транзакция): {data}")
+                if should_log("debug"):
+                    logger.info(f"Полный JSON-ответ от API (транзакция): {data}")
                 if data.get("result"):
                     return str(data["result"])  # Повертаємо сирі JSON-дани як строку
                 else:
@@ -159,7 +165,8 @@ async def get_transaction_receipt(transaction_hash):
         async with session.get(base_url, params=params) as response:
             if response.status == 200:
                 data = await response.json()
-                logger.info(f"Полный JSON-ответ от API (квитанция): {data}")
+                if should_log("debug"):
+                    logger.info(f"Полный JSON-ответ от API (квитанция): {data}")
                 if data.get("result"):
                     return str(data["result"])  # Повертаємо сирі JSON-дани квитанції як строку
                 else:
