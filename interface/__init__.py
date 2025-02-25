@@ -22,9 +22,11 @@ async def edit_wallet_command(message: types.Message):
         if should_log("debug"):
             logger.debug(f"Попытка найти кошелек с ID: {wallet_id}, полный текст команды: {message.text}")
         wallet = db.wallets.get_wallet_by_id(wallet_id)
+        if should_log("debug"):
+            logger.debug(f"Список кошельков из базы для проверки: {db.wallets.get_all_wallets()}")
         if not wallet:
             if should_log("debug"):
-                logger.debug(f"Кошелек с ID {wallet_id} не найден в базе: {db.wallets.get_all_wallets()}")
+                logger.debug(f"Кошелек с ID {wallet_id} не найден в базе. Список кошельков: {db.wallets.get_all_wallets()}")
             await message.answer("❌ Кошелек не найден.")
             return
         from .keyboards import get_wallet_control_keyboard

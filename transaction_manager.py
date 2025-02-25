@@ -60,6 +60,7 @@ async def get_token_transactions(wallet_address, tokens):
                     for tx in data["result"]:
                         if tx.get("tokenSymbol") in tokens:
                             tx["is_processed"] = False
+                            tx["hash"] = tx.get("hash", "Неизвестно")  # Убедимся, что hash присутствует
                             # Отримання decimals для токена
                             token_info = await get_token_info(tx.get("contractAddress", ""))
                             decimals = int(token_info.get("tokenDecimal", 18))
@@ -67,7 +68,7 @@ async def get_token_transactions(wallet_address, tokens):
                             value = tx.get("value", "0")
                             try:
                                 value_float = float(value) / (10 ** decimals)
-                                tx["amount_usd"] = await convert_to_usd({"value": value, "contractAddress": tx.get("contractAddress", "")})
+                                tx["amount_usd"] = await convert_to_usd({"value": value, "contractAddress": tx.get("contractAddress", ""), "hash": tx["hash"]})
                             except (ValueError, TypeError):
                                 tx["amount_usd"] = 0
                             transactions.append(tx)
@@ -102,6 +103,7 @@ async def convert_to_usd(tx):
     try:
         contract_address = tx.get("contractAddress", "")
         value = tx.get("value", "0")
+        tx_hash = tx.get("hash", "Неизвестно")  # Добавлено для отслеживания
         token_info = await get_token_info(contract_address)
         decimals = int(token_info.get("tokenDecimal", 18))
         value_float = float(value) / (10 ** decimals) if value and value != "0" else 0
@@ -109,12 +111,14 @@ async def convert_to_usd(tx):
         # Отримання ціни через DexScreener
         price_usd, price_status = await get_token_price("arbitrum", contract_address)
         if price_usd == "0" or not price_usd:
+            if should_log("api_errors"):
+                logger.warning(f"Цена для токена {contract_address} не определена, хеш: {tx_hash}")
             return 0  # Якщо ціна не отримана, повертаємо 0
         usd_value = value_float * float(price_usd)
         return usd_value if usd_value > 0 else 0
     except Exception as e:
         if should_log("api_errors"):
-            logger.error(f"Ошибка конвертации в USD: {str(e)}")
+            logger.error(f"Ошибка конвертации в USD для хеша {tx_hash}: {str(e)}")
         return 0
 
 async def get_token_price(chain, contract_address):
