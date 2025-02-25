@@ -1,6 +1,6 @@
 import mysql.connector
 from mysql.connector import Error
-from config.settings import MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE, MYSQL_PORT
+import os
 from utils.logger_config import logger
 from db.wallets_db import WalletsDB
 from db.tracked_tokens_db import TrackedTokensDB
@@ -12,15 +12,14 @@ class Database:
         self.cursor = None
         try:
             self.connection = mysql.connector.connect(
-                host=MYSQL_HOST,
-                user=MYSQL_USER,
-                password=MYSQL_PASSWORD,
-                database=MYSQL_DATABASE,
-                port=MYSQL_PORT
+                host=os.getenv("MYSQL_HOST", "mysql.railway.internal"),
+                user=os.getenv("MYSQL_USER", "root"),
+                password=os.getenv("MYSQL_PASSWORD", "bHRedJRrWIqFmFpXAVFLYfdpqfPwNGjf"),
+                database=os.getenv("MYSQL_DATABASE", "railway"),
+                port=int(os.getenv("MYSQL_PORT", "3306"))
             )
             self.cursor = self.connection.cursor()
             self.create_tables()
-            # Ініціалізуємо екземпляри для кожної таблиці
             self.wallets = WalletsDB(self.cursor, self.connection)
             self.tracked_tokens = TrackedTokensDB(self.cursor, self.connection)
             self.settings = SettingsDB(self.cursor, self.connection)
@@ -31,7 +30,6 @@ class Database:
 
     def create_tables(self):
         try:
-            # Створюємо таблиці через екземпляри класів
             self.wallets.create_table()
             self.tracked_tokens.create_table()
             self.settings.create_table()
