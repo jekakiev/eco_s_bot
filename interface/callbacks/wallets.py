@@ -166,7 +166,6 @@ async def edit_tokens_start(callback: types.CallbackQuery, state: FSMContext):
         return
     tokens = wallet[3].split(",") if wallet[3] else []  # Розділяємо рядок токенів, якщо вони є
     await state.update_data(wallet_id=wallet_id, selected_tokens=tokens)
-    text, reply_markup = get_tokens_keyboard(tokens, is_edit=True)
-    await callback.message.edit_text(f"Выберите токены для кошелька {wallet[2]}:\n\n{text}", reply_markup=reply_markup)
+    await callback.message.edit_text(f"🪙 Выберите токены для кошелька {wallet[2]}:", reply_markup=get_tokens_keyboard(tokens, is_edit=True))
     await state.set_state(WalletStates.waiting_for_tokens)
     await callback.answer()
