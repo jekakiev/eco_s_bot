@@ -8,15 +8,24 @@ class TrackedTokensDB:
 
     def create_table(self):
         try:
+            # Спочатку створюємо таблицю без decimals, якщо її ще немає
             self.cursor.execute("""
                 CREATE TABLE IF NOT EXISTS tracked_tokens (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     contract_address VARCHAR(42) NOT NULL UNIQUE,
                     token_name VARCHAR(255) NOT NULL,
-                    thread_id VARCHAR(255),
-                    decimals INT DEFAULT 18
+                    thread_id VARCHAR(255)
                 )
             """)
+            # Перевіряємо, чи є стовпець decimals, і додаємо, якщо його немає
+            self.cursor.execute("""
+                SHOW COLUMNS FROM tracked_tokens LIKE 'decimals'
+            """)
+            if not self.cursor.fetchone():
+                self.cursor.execute("""
+                    ALTER TABLE tracked_tokens ADD COLUMN decimals INT DEFAULT 18
+                """)
+                logger.info("Стовпець decimals додано до таблиці tracked_tokens.")
             logger.info("Таблица tracked_tokens создана или проверена.")
         except Error as e:
             logger.error(f"Ошибка создания таблицы tracked_tokens: {str(e)}")

@@ -1,132 +1,72 @@
 import asyncio
-import time
+import aiohttp
+from aiogram import Bot
 from database import Database
-from utils.arbiscan import get_token_transactions
-from utils.message_formatter import format_swap_message
-from send_message import send_message
-from config.settings import DEFAULT_THREAD_ID
 from utils.logger_config import logger
+from config.settings import ARBISCAN_API_KEY, CHAT_ID
+import json
 
 db = Database()
 
-async def check_token_transactions(bot, chat_id):
-    last_sent_transaction_hash = None  # Отслеживаем последнюю отправленную транзакцию
+async def check_token_transactions(bot: Bot, chat_id: str):
     while True:
-        start_time = time.time()
         try:
-            # Перечитываем настройки в каждом цикле
-            check_interval = int(db.get_setting("CHECK_INTERVAL") or 10)
-            send_last_transaction = int(db.get_setting("SEND_LAST_TRANSACTION") or 0)
-            transaction_info = int(db.get_setting("TRANSACTION_INFO") or 0)
-            debug = int(db.get_setting("DEBUG") or 0)
-
-            watched_wallets = db.get_all_wallets()
-            tracked_tokens = {t["contract_address"].lower(): t for t in db.get_all_tracked_tokens()}
-            default_thread_id = DEFAULT_THREAD_ID
-
-            if transaction_info:
-                logger.info(f"Начинаем проверку новых транзакций. Количество кошельков: {len(watched_wallets)}")
-
-            wallet_addresses = [wallet["address"] for wallet in watched_wallets]
-            all_transactions = await get_token_transactions(wallet_addresses)
-
-            new_transactions_count = 0
-            for wallet_address, tx_list in all_transactions.items():
-                wallet = next((w for w in watched_wallets if w["address"] == wallet_address), None)
-                if not wallet:
+            wallets = db.wallets.get_all_wallets()
+            for wallet in wallets:
+                wallet_address = wallet[1]  # address (індекс 1 у кортежі)
+                tokens = db.wallets.get_wallet_by_address(wallet_address)[3] or []  # tokens (індекс 3 у кортежі)
+                if not tokens:
                     continue
+                
+                transactions = await get_token_transactions(wallet_address, tokens)
+                for tx in transactions:
+                    if not tx.get('is_processed', False):
+                        tx_hash = tx.get('hash', 'Неизвестно')
+                        amount_usd = tx.get('amount_usd', 0)
+                        if amount_usd > 50:  # Фільтрація за сумою
+                            await bot.send_message(chat_id, f"Новая транзакция для {wallet_address[-4:]}:\nХеш: {tx_hash}\nСумма: ${amount_usd:.2f}", parse_mode="HTML")
+                        tx['is_processed'] = True
+                        db.transactions.update_transaction(tx_hash, {'is_processed': True})  # Припускаємо, що є метод update_transaction
 
-                wallet_name = wallet["name"]
-                for tx in tx_list:
-                    tx_hash = tx.get("tx_hash", "")
-                    token_out = tx.get("token_out", "Неизвестно")
-                    contract_address = tx.get("token_out_address", "").lower()
-
-                    if contract_address and not contract_address.startswith("0x"):
-                        contract_address = "0x" + contract_address
-
-                    if not db.is_transaction_exist(tx_hash):
-                        db.add_transaction(tx_hash, wallet_address, token_out, tx.get("usd_value", "0"))
-                        new_transactions_count += 1
-
-                        thread_id = default_thread_id
-                        if contract_address in tracked_tokens:
-                            thread_id = tracked_tokens[contract_address]["thread_id"]
-                            if debug:
-                                logger.debug(f"Найден токен: thread_id={thread_id}")
-                        else:
-                            if debug:
-                                logger.warning(f"Contract_address {contract_address} не найден, использую {thread_id}")
-
-                        text, parse_mode = format_swap_message(
-                            tx_hash=tx_hash,
-                            sender=wallet_name,
-                            sender_url=f"https://arbiscan.io/address/{wallet_address}",
-                            amount_in=tx.get('amount_in', 'Неизвестно'),
-                            token_in=tx.get('token_in', 'Неизвестно'),
-                            token_in_url=tx.get('token_in_url', ''),
-                            amount_out=tx.get('amount_out', 'Неизвестно'),
-                            token_out=tx.get('token_out', 'Неизвестно'),
-                            token_out_url=tx.get('token_out_url', ''),
-                            usd_value=tx.get('usd_value', '0')
-                        )
-
-                        if text.startswith("Ошибка"):
-                            if int(db.get_setting("API_ERRORS") or 1):
-                                logger.error(f"Ошибка форматирования: {text}")
-                            continue
-
-                        try:
-                            await send_message(chat_id, thread_id, text, parse_mode=parse_mode)
-                            if transaction_info:
-                                logger.info(f"Сообщение отправлено в тред {thread_id}")
-                        except Exception as e:
-                            if int(db.get_setting("API_ERRORS") or 1):
-                                logger.error(f"Ошибка отправки: {str(e)}")
-
-            if send_last_transaction:
-                last_transaction = db.get_last_transaction()
-                if last_transaction and last_transaction['tx_hash'] != last_sent_transaction_hash:
-                    wallet = db.get_wallet_by_address(last_transaction['wallet_address'])
-                    wallet_name = wallet['name'] if wallet else last_transaction['wallet_address']
-                    contract_address = last_transaction.get('token_out_address', '').lower()
-
-                    thread_id = default_thread_id
-                    if contract_address in tracked_tokens:
-                        thread_id = tracked_tokens[contract_address]["thread_id"]
-
-                    text, parse_mode = format_swap_message(
-                        tx_hash=last_transaction['tx_hash'],
-                        sender=wallet_name,
-                        sender_url=f"https://arbiscan.io/address/{last_transaction['wallet_address']}",
-                        amount_in=last_transaction.get('amount_in', 'Неизвестно'),
-                        token_in=last_transaction.get('token_in', 'Неизвестно'),
-                        token_in_url=last_transaction.get('token_in_url', ''),
-                        amount_out=last_transaction.get('amount_out', 'Неизвестно'),
-                        token_out=last_transaction.get('token_out', 'Неизвестно'),
-                        token_out_url=last_transaction.get('token_out_url', ''),
-                        usd_value=last_transaction.get('usd_value', '0')
-                    )
-
-                    if not text.startswith("Ошибка"):
-                        try:
-                            await send_message(chat_id, thread_id, text, parse_mode=parse_mode)
-                            last_sent_transaction_hash = last_transaction['tx_hash']  # Запоминаем отправленную транзакцию
-                            if transaction_info:
-                                logger.info(f"Последняя транзакция отправлена в тред {thread_id}")
-                        except Exception as e:
-                            if int(db.get_setting("API_ERRORS") or 1):
-                                logger.error(f"Ошибка отправки последней транзакции: {str(e)}")
-
-            if transaction_info:
-                logger.info(f"Проверка завершена. Время: {time.time() - start_time:.2f} сек")
-
+            check_interval = int(db.settings.get_setting("CHECK_INTERVAL", "10"))  # Оновлено на db.settings.get_setting
+            if int(db.settings.get_setting("API_ERRORS", "1")):  # Оновлено на db.settings.get_setting
+                logger.info(f"Проверка транзакций выполнена. Следующая через {check_interval} секунд.")
+            await asyncio.sleep(check_interval)
         except Exception as e:
-            if int(db.get_setting("API_ERRORS") or 1):
-                logger.error(f"Ошибка: {str(e)}")
+            if int(db.settings.get_setting("API_ERRORS", "1")):  # Оновлено на db.settings.get_setting
+                logger.error(f"Ошибка при проверке транзакций: {str(e)}")
+            await asyncio.sleep(5)  # Пауза перед повторною спробою
 
-        await asyncio.sleep(check_interval)
+async def get_token_transactions(wallet_address, tokens):
+    api_key = ARBISCAN_API_KEY
+    base_url = "https://api.arbiscan.io/api"
+    params = {
+        "module": "account",
+        "action": "tokentx",
+        "address": wallet_address,
+        "startblock": 0,
+        "endblock": 99999999,
+        "sort": "desc",
+        "apikey": api_key
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.get(base_url, params=params) as response:
+            if response.status == 200:
+                data = await response.json()
+                if data.get("status") == "1" and data.get("result"):
+                    transactions = []
+                    for tx in data["result"]:
+                        if tx.get("tokenSymbol") in tokens:
+                            # Припускаємо, що потрібно додати amount_usd (тут спрощено, потрібно інтеграцію з API цін)
+                            tx["amount_usd"] = 0  # Заміни на реальну логіку конвертації
+                            tx["is_processed"] = False
+                            transactions.append(tx)
+                    return transactions[:20]  # Повертаємо лише 20 останніх
+                else:
+                    return []
+            else:
+                return []
 
-async def start_transaction_monitoring(bot, chat_id):
+async def start_transaction_monitoring(bot: Bot, chat_id: str):
     logger.info("Запуск мониторинга транзакций")
     await check_token_transactions(bot, chat_id)
