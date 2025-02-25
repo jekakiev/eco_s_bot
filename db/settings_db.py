@@ -10,7 +10,7 @@ class SettingsDB:
         try:
             self.cursor.execute("""
                 CREATE TABLE IF NOT EXISTS settings (
-                    key VARCHAR(255) NOT NULL PRIMARY KEY,  -- Додано NOT NULL
+                    key VARCHAR(255) NOT NULL PRIMARY KEY,
                     value VARCHAR(255)
                 )
             """)
