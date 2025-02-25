@@ -173,12 +173,14 @@ async def edit_tokens_start(callback: types.CallbackQuery, state: FSMContext):
     wallet_id = callback.data.replace("edit_tokens_", "")
     wallet = db.wallets.get_wallet_by_id(wallet_id)
     if not wallet:
+        if should_log("debug"):
+            logger.debug(f"Кошелек с ID {wallet_id} не найден в базе: {db.wallets.get_all_wallets()}")
         await callback.answer("❌ Кошелек не найден!", show_alert=True)
         return
     tokens = wallet[3].split(",") if wallet[3] else []  # Розділяємо рядок токенів, якщо вони є
     tracked_tokens = [token[2] for token in db.tracked_tokens.get_all_tracked_tokens()]  # Берем токены из базы (token[2] — token_name)
     if should_log("debug"):
-        logger.debug(f"Токены из базы для редактирования: {tracked_tokens}")
+        logger.debug(f"Токены из базы для редактирования: {tracked_tokens}, текущие токены кошелька: {tokens}")
     if not tracked_tokens:
         await callback.message.edit_text("🪙 Токены для отслеживания ещё не добавлены. Добавьте токены через меню 'Показать токены' -> 'Добавить токен'.", reply_markup=get_main_menu())
         await state.clear()
