@@ -10,7 +10,7 @@ class Database:
     def __init__(self):
         self.connection = None
         self.cursor = None
-        self.wallets = None  # Ініціалізація атрибутів як None
+        self.wallets = None
         self.tracked_tokens = None
         self.settings = None
         try:
@@ -22,7 +22,6 @@ class Database:
                 port=int(os.getenv("MYSQL_PORT", "3306"))
             )
             self.cursor = self.connection.cursor()
-            # Ініціалізація атрибутів до створення таблиць
             self.wallets = WalletsDB(self.cursor, self.connection)
             self.tracked_tokens = TrackedTokensDB(self.cursor, self.connection)
             self.settings = SettingsDB(self.cursor, self.connection)
@@ -44,7 +43,14 @@ class Database:
             raise
 
     def __del__(self):
-        if self.connection and self.connection.is_connected():
-            self.cursor.close()
-            self.connection.close()
+        if hasattr(self, 'cursor') and self.cursor:
+            try:
+                self.cursor.close()
+            except Exception as e:
+                logger.error(f"Ошибка при закрытии курсора: {str(e)}")
+        if hasattr(self, 'connection') and self.connection and self.connection.is_connected():
+            try:
+                self.connection.close()
+            except Exception as e:
+                logger.error(f"Ошибка при закрытии соединения: {str(e)}")
             logger.info("База данных отключена успешно.")

@@ -50,7 +50,7 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(thread_not_exists, F.data == "thread_not_exists")
     dp.message.register(process_thread_id, TokenStates.waiting_for_thread_id)
     dp.callback_query.register(edit_token_start, F.data.startswith("edit_token_"))
-    dp.callback_query.register(edit_token_thread, F.data.startswith("edit_token_"))
+    dp.callback_query.register(edit_token_thread, F.data.startswith("edit_token_thread_"))
     dp.message.register(process_edit_thread_id, TokenStates.waiting_for_edit_thread_id)
     dp.callback_query.register(delete_token, F.data.startswith("delete_token_"))
     
@@ -67,18 +67,20 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(show_test_api_by_hash, F.data == "test_api_by_hash")
     dp.message.register(request_transaction_hash, WalletStates.waiting_for_transaction_hash)
     
-    wallet_commands = [f"Edit_{wallet['address'][-4:]}" for wallet in db.get_all_wallets()]
+    wallet_commands = [f"Edit_{wallet['address'][-4:]}" for wallet in db.wallets.get_all_wallets()]  # Оновлено на db.wallets.get_all_wallets()
     if wallet_commands:
         dp.message.register(edit_wallet_command, Command(commands=wallet_commands))
+        logger.info(f"Зарегистрированы команды для кошельков: {wallet_commands}")
     else:
-        if int(db.get_setting("INTERFACE_INFO") or 0):
+        if int(db.settings.get_setting("INTERFACE_INFO", "0")):
             logger.warning("Нет кошельков для регистрации команд /Edit_XXXX")
     
-    token_commands = [f"edit_{token['contract_address'][-4:]}" for token in db.get_all_tracked_tokens()]
+    token_commands = [f"edit_{token['contract_address'][-4:]}" for token in db.tracked_tokens.get_all_tracked_tokens()]  # Оновлено на db.tracked_tokens.get_all_tracked_tokens()
     if token_commands:
         dp.message.register(edit_token_command, Command(commands=token_commands))
+        logger.info(f"Зарегистрированы команды для токенов: {token_commands}")
     else:
-        if int(db.get_setting("INTERFACE_INFO") or 0):
+        if int(db.settings.get_setting("INTERFACE_INFO", "0")):
             logger.warning("Нет токенов для регистрации команд /edit_XXXX")
 
     logger.info("Регистрация обработчиков callback-запросов завершена")
@@ -87,8 +89,8 @@ async def edit_wallet_command(message: types.Message):
     logger.info(f"Получена команда: {message.text}")
     try:
         short_address = message.text.split("_")[1]
-        wallets = db.get_all_wallets()
-        wallet = next((w for w in wallets if w["address"].endswith(short_address)), None)
+        wallets = db.wallets.get_all_wallets()  # Оновлено на db.wallets.get_all_wallets()
+        wallet = next((w for w in wallets if w['address'].endswith(short_address)), None)
         if not wallet:
             await message.answer("❌ Кошелек не найден.")
             return
@@ -96,7 +98,7 @@ async def edit_wallet_command(message: types.Message):
         text = f"Имя кошелька: {wallet['name']}\nАдрес кошелька: {wallet['address']}"
         await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet['id']))
     except Exception as e:
-        if int(db.get_setting("API_ERRORS") or 1):
+        if int(db.settings.get_setting("API_ERRORS", "1")):
             logger.error(f"Ошибка обработки команды /Edit: {str(e)}")
         await message.answer("❌ Ошибка при обработке команды.")
 
@@ -104,8 +106,8 @@ async def edit_token_command(message: types.Message):
     logger.info(f"Получена команда: {message.text}")
     try:
         short_address = message.text.split("_")[1]
-        tokens = db.get_all_tracked_tokens()
-        token = next((t for t in tokens if t["contract_address"].endswith(short_address)), None)
+        tokens = db.tracked_tokens.get_all_tracked_tokens()  # Оновлено на db.tracked_tokens.get_all_tracked_tokens()
+        token = next((t for t in tokens if t['contract_address'].endswith(short_address)), None)
         if not token:
             await message.answer("❌ Токен не найден.")
             return
@@ -113,6 +115,6 @@ async def edit_token_command(message: types.Message):
         text = f"Токен: {token['token_name']}\nАдрес: {token['contract_address']}\nТекущий тред: {token['thread_id']}"
         await message.answer(text, reply_markup=get_token_control_keyboard(token['id']))
     except Exception as e:
-        if int(db.get_setting("API_ERRORS") or 1):
+        if int(db.settings.get_setting("API_ERRORS", "1")):
             logger.error(f"Ошибка обработки команды /edit: {str(e)}")
         await message.answer("❌ Ошибка при обработке команды.")
