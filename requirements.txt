@@ -2,3 +2,4 @@ aiogram
 python-dotenv
 mysql-connector-python
 aiohttp
+requests  # Додано для роботи з CoinGecko

@@ -9,8 +9,10 @@ from utils.logger_config import logger, update_log_settings
 from transaction_manager import start_transaction_monitoring
 from database import Database
 
-dp = Dispatcher(storage=MemoryStorage())
+# Ініціалізація глобального екземпляра Database
 db = Database()
+
+dp = Dispatcher(storage=MemoryStorage())
 
 logger.info("Регистрация обработчиков")
 register_handlers(dp)
