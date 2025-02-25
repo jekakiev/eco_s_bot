@@ -36,6 +36,15 @@ class WalletsDB:
         try:
             if should_log("debug"):
                 logger.debug(f"Попытка получить кошелек с ID: {wallet_id}")
+            # Проверяем подключение к базе перед запросом
+            if not self.connection or not self.connection.is_connected():
+                if should_log("debug"):
+                    logger.debug(f"Подключение к базе разорвано для ID {wallet_id}, пытаемся переподключиться")
+                raise Error("Подключение к базе разорвано")
+            if not self.cursor or self.cursor.closed:
+                if should_log("debug"):
+                    logger.debug(f"Курсор закрыт для ID {wallet_id}, создаём новый")
+                self.cursor = self.connection.cursor()
             self.cursor.execute("SELECT id, address, name, tokens FROM wallets WHERE id = %s", (wallet_id,))
             result = self.cursor.fetchone()
             if should_log("debug"):

@@ -36,9 +36,9 @@ async def edit_wallet_command(message: types.Message):
                 logger.debug(f"Кошелек с ID {wallet_id} не найден в базе. Список кошельков: {db.wallets.get_all_wallets()}")
             await message.answer("❌ Кошелек не найден.")
             return
-        from .keyboards import get_wallet_control_keyboard
         if should_log("debug"):
             logger.debug(f"Кошелек найден: ID={wallet[0]}, Адрес={wallet[1]}, Имя={wallet[2]}, Токены={wallet[3]}")
+        from .keyboards import get_wallet_control_keyboard
         text = f"Имя кошелька: {wallet[2]}\nАдрес кошелька: {wallet[1]}"  # wallet[2] — name, wallet[1] — address
         sent_message = await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet[0]))  # wallet[0] — id
         # Удаляем сообщение пользователя с командой
@@ -46,6 +46,8 @@ async def edit_wallet_command(message: types.Message):
     except Exception as e:
         if should_log("api_errors"):
             logger.error(f"Ошибка обработки команды /Editw: {str(e)}", exc_info=True)  # Добавлено exc_info=True для полного стека вызовов
+        if should_log("debug"):
+            logger.debug(f"Состояние подключения к базе после ошибки: {db.connection.is_connected() if db.connection else 'Нет подключения'}")
         await message.answer("❌ Ошибка при обработке команды.")
 
 async def edit_token_command(message: types.Message):
