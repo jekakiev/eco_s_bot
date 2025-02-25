@@ -48,9 +48,10 @@ async def process_wallet_name(message: types.Message, state: FSMContext):
         await message.answer("❌ Такой кошелек уже существует!", reply_markup=get_back_button())
         await state.clear()
         return
-    db.wallets.add_wallet(address, name)
-    await message.answer(f"💰 Кошелек {name} ({address}) добавлен успешно!", reply_markup=get_main_menu())
-    await state.clear()
+    await state.update_data(wallet_name=name)
+    await state.set_state(WalletStates.waiting_for_tokens)
+    await state.update_data(selected_tokens=[])
+    await message.answer("🪙 Выберите монеты для отслеживания:", reply_markup=get_tokens_keyboard([], is_edit=False))
 
 async def toggle_token(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'toggle_token' получен от {callback.from_user.id}: {callback.data}")
@@ -58,62 +59,53 @@ async def toggle_token(callback: types.CallbackQuery, state: FSMContext):
         logger.info(f"Переключение токена: {callback.data}")
     token = callback.data.replace("toggle_token_", "")
     user_data = await state.get_data()
-    wallet_id = user_data.get("wallet_id")
-    if not wallet_id:
-        await callback.answer("❌ Ошибка: не выбран кошелек!", show_alert=True)
-        return
-    wallet = db.wallets.get_wallet_by_id(wallet_id)
-    if not wallet:
-        await callback.answer("❌ Кошелек не найден!", show_alert=True)
-        return
-    tokens = wallet[3] or []  # tokens — це четверте поле (індекс 3)
-    if token in tokens:
-        tokens.remove(token)
+    selected_tokens = user_data.get("selected_tokens", [])
+
+    if token in selected_tokens:
+        selected_tokens.remove(token)
     else:
-        tokens.append(token)
-    db.wallets.update_wallet_tokens(wallet_id, tokens)
-    text, reply_markup = get_tokens_keyboard(tokens, is_edit=True)
-    await callback.message.edit_text(f"Выберите токены для кошелька {wallet[2]}:\n\n{text}", reply_markup=reply_markup)
+        selected_tokens.append(token)
+
+    await state.update_data(selected_tokens=selected_tokens)
+    is_edit = "wallet_id" in user_data
+    await callback.message.edit_reply_markup(reply_markup=get_tokens_keyboard(selected_tokens, is_edit=is_edit))
     await callback.answer()
 
 async def confirm_tokens(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'confirm_tokens' получен от {callback.from_user.id}")
     if should_log("interface"):
         logger.info("Подтверждение токенов нажато")
-    user_data = await state.get_data()
-    wallet_id = user_data.get("wallet_id")
-    if not wallet_id:
-        await callback.answer("❌ Ошибка: не выбран кошелек!", show_alert=True)
+    data = await state.get_data()
+    wallet_address = data.get("wallet_address")
+    wallet_name = data.get("wallet_name")
+    selected_tokens = data.get("selected_tokens", [])
+
+    if not selected_tokens:
+        await callback.answer("⚠️ Вы не выбрали ни одной монеты!", show_alert=True)
         return
-    wallet = db.wallets.get_wallet_by_id(wallet_id)
-    if not wallet:
-        await callback.answer("❌ Кошелек не найден!", show_alert=True)
-        return
-    tokens = user_data.get("selected_tokens", [])
-    db.wallets.update_wallet_tokens(wallet_id, tokens)
-    text = f"💰 Токены для кошелька {wallet[2]} ({wallet[1]}) обновлены:\n\n" + "\n".join([f"✅ {t}" for t in tokens]) if tokens else "Нет выбранных токенов."
-    await callback.message.edit_text(text, reply_markup=get_wallet_control_keyboard(wallet_id))
+
+    db.wallets.add_wallet(wallet_address, wallet_name, ",".join(selected_tokens))
     await state.clear()
+    await callback.message.edit_text(f"✅ Кошелек {wallet_name} ({wallet_address[-4:]}) добавлен!", reply_markup=get_main_menu())
     await callback.answer()
 
 async def save_tokens(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'save_tokens' получен от {callback.from_user.id}")
     if should_log("interface"):
         logger.info("Сохранение токенов нажато")
-    user_data = await state.get_data()
-    wallet_id = user_data.get("wallet_id")
-    if not wallet_id:
-        await callback.answer("❌ Ошибка: не выбран кошелек!", show_alert=True)
+    data = await state.get_data()
+    wallet_id = data.get("wallet_id")
+    selected_tokens = data.get("selected_tokens", [])
+
+    if not selected_tokens:
+        await callback.answer("⚠️ Вы не выбрали ни одной монеты!", show_alert=True)
         return
+
+    db.wallets.update_wallet_tokens(wallet_id, ",".join(selected_tokens))
     wallet = db.wallets.get_wallet_by_id(wallet_id)
-    if not wallet:
-        await callback.answer("❌ Кошелек не найден!", show_alert=True)
-        return
-    tokens = user_data.get("selected_tokens", [])
-    db.wallets.update_wallet_tokens(wallet_id, tokens)
-    text = f"💰 Токены для кошелька {wallet[2]} ({wallet[1]}) сохранены:\n\n" + "\n".join([f"✅ {t}" for t in tokens]) if tokens else "Нет выбранных токенов."
-    await callback.message.edit_text(text, reply_markup=get_wallet_control_keyboard(wallet_id))
+    text = f"✅ Токены обновлены!\n_________\nИмя кошелька: {wallet[2]}\nАдрес кошелька: {wallet[1][-4:]}"  # wallet[2] — name, wallet[1] — address
     await state.clear()
+    await callback.message.edit_text(text, reply_markup=get_wallet_control_keyboard(wallet_id))
     await callback.answer()
 
 async def delete_wallet(callback: types.CallbackQuery, state: FSMContext):
@@ -172,7 +164,7 @@ async def edit_tokens_start(callback: types.CallbackQuery, state: FSMContext):
     if not wallet:
         await callback.answer("❌ Кошелек не найден!", show_alert=True)
         return
-    tokens = wallet[3] or []
+    tokens = wallet[3].split(",") if wallet[3] else []  # Розділяємо рядок токенів, якщо вони є
     await state.update_data(wallet_id=wallet_id, selected_tokens=tokens)
     text, reply_markup = get_tokens_keyboard(tokens, is_edit=True)
     await callback.message.edit_text(f"Выберите токены для кошелька {wallet[2]}:\n\n{text}", reply_markup=reply_markup)
