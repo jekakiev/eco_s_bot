@@ -91,9 +91,9 @@ async def confirm_tokens(callback: types.CallbackQuery, state: FSMContext):
     if not selected_tokens:
         await callback.answer("⚠️ Вы не выбрали ни одной монеты!", show_alert=True)
         return
-    db.wallets.add_wallet(wallet_address, wallet_name, ",".join(selected_tokens))
+    wallet_id = db.wallets.add_wallet(wallet_address, wallet_name, ",".join(selected_tokens))
     await state.clear()
-    await callback.message.edit_text(f"✅ Кошелек {wallet_name} ({wallet_address[-4:]}) добавлен! Для обновления команд (/Edit_XXXX) перезапустите бота.", reply_markup=get_main_menu())
+    await callback.message.edit_text(f"✅ Кошелек {wallet_name} ({wallet_address[-4:]}) добавлен! Используйте /Editw_{wallet_id} для редактирования.", reply_markup=get_main_menu())
     await callback.answer()
 
 async def save_tokens(callback: types.CallbackQuery, state: FSMContext):

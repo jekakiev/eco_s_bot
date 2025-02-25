@@ -9,18 +9,22 @@ db = Database()
 async def edit_wallet_command(message: types.Message):
     logger.info(f"Получена команда: {message.text}")
     if should_log("interface"):
-        logger.info(f"Обработка команды /Edit для пользователя {message.from_user.id}")
+        logger.info(f"Обработка команды /Editw для пользователя {message.from_user.id}")
     try:
-        short_address = message.text.split("_")[1]
+        if not message.text.startswith("/Editw_"):
+            await message.answer("❌ Неверный формат команды. Используйте /Editw_<ID_кошелька>.")
+            return
+        wallet_id = message.text.replace("/Editw_", "")
+        if not wallet_id.isdigit():
+            await message.answer("❌ ID кошелька должен быть числом.")
+            return
+        wallet_id = int(wallet_id)
         if should_log("debug"):
-            logger.debug(f"Попытка найти кошелек с последними 4 символами: {short_address}")
-        wallets = db.wallets.get_all_wallets()  # Отримуємо кортежі
-        if should_log("debug"):
-            logger.debug(f"Список кошельков из базы: {wallets}")
-        wallet = next((w for w in wallets if w[1].endswith(short_address)), None)  # w[1] — address
+            logger.debug(f"Попытка найти кошелек с ID: {wallet_id}")
+        wallet = db.wallets.get_wallet_by_id(wallet_id)
         if not wallet:
             if should_log("debug"):
-                logger.debug(f"Кошелек с последними 4 символами {short_address} не найден в базе: {wallets}")
+                logger.debug(f"Кошелек с ID {wallet_id} не найден в базе: {db.wallets.get_all_wallets()}")
             await message.answer("❌ Кошелек не найден.")
             return
         from .keyboards import get_wallet_control_keyboard
@@ -28,7 +32,7 @@ async def edit_wallet_command(message: types.Message):
         await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet[0]))  # wallet[0] — id
     except Exception as e:
         if should_log("api_errors"):
-            logger.error(f"Ошибка обработки команды /Edit: {str(e)}")
+            logger.error(f"Ошибка обработки команды /Editw: {str(e)}")
         await message.answer("❌ Ошибка при обработке команды.")
 
 async def edit_token_command(message: types.Message):

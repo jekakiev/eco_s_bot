@@ -66,7 +66,7 @@ def get_wallets_list():
         return "📜 Нет добавленных кошельков.", InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="➕ Добавить кошелек", callback_data="add_wallet"), InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]])
     text = "📜 Список кошельков:\n\n"
     for wallet in wallets:
-        text += f"💰 {wallet[2]} ({wallet[1][-4:]}) — /Edit_{wallet[1][-4:]}\n"  # wallet[2] — name, wallet[1] — address
+        text += f"💰 {wallet[2]} ({wallet[1][-4:]}) — /Editw_{wallet[0]}\n"  # wallet[2] — name, wallet[1] — address, wallet[0] — id
     keyboard = [[InlineKeyboardButton(text="➕ Добавить кошелек", callback_data="add_wallet"), InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]]
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
@@ -122,7 +122,7 @@ def get_commands_list():
         "*/start* — Запустить бота\n"
         "*/get_thread_id* — Узнать ID текущего треда\n"
         "*/get_last_transaction* — Показать последнюю транзакцию\n"
-        "*/Edit_XXXX* — Редактировать кошелек (XXXX — последние 4 символа адреса)\n"
+        "*/Editw_<ID>* — Редактировать кошелек (ID — номер из таблицы кошельков)\n"
         "*/edit_XXXX* — Редактировать токен (XXXX — последние 4 символа адреса контракта)"
     )
     keyboard = [[
