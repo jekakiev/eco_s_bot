@@ -66,6 +66,8 @@ class Database:
         self.tracked_tokens = TrackedTokensDB(self.cursor, self.connection)
         self.settings = SettingsDB(self.cursor, self.connection)
         self.transactions = TransactionsDB(self.cursor, self.connection)
+        if should_log("debug"):
+            logger.debug("Переподключение к базе данных выполнено успешно.")
 
     def __del__(self):
         if hasattr(self, 'cursor') and self.cursor:

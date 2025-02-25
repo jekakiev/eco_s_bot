@@ -21,7 +21,7 @@ async def edit_wallet_command(message: types.Message):
         wallet_id = int(wallet_id)
         if should_log("debug"):
             logger.debug(f"Попытка найти кошелек с ID: {wallet_id}, полный текст команды: {message.text}")
-        # Форсируем повторное подключение к базе, чтобы исключить кэширование
+        # Форсируем повторное подключение к базе, чтобы исключить кэширование или сбой
         db.reconnect()
         wallet = db.wallets.get_wallet_by_id(wallet_id)
         if should_log("debug"):
@@ -47,6 +47,7 @@ async def edit_token_command(message: types.Message):
         logger.info(f"Обработка команды /edit для пользователя {message.from_user.id}")
     try:
         short_address = message.text.split("_")[1]
+        db.reconnect()
         tokens = db.tracked_tokens.get_all_tracked_tokens()  # Отримуємо кортежі
         if should_log("debug"):
             logger.debug(f"Список токенов из базы: {tokens}")
