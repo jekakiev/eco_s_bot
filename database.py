@@ -5,6 +5,7 @@ from utils.logger_config import logger
 from db.wallets_db import WalletsDB
 from db.tracked_tokens_db import TrackedTokensDB
 from db.settings_db import SettingsDB
+from db.transactions_db import TransactionsDB
 
 class Database:
     def __init__(self):
@@ -13,6 +14,7 @@ class Database:
         self.wallets = None
         self.tracked_tokens = None
         self.settings = None
+        self.transactions = None  # Додано ініціалізацію
         try:
             self.connection = mysql.connector.connect(
                 host=os.getenv("MYSQL_HOST", "mysql.railway.internal"),
@@ -25,6 +27,7 @@ class Database:
             self.wallets = WalletsDB(self.cursor, self.connection)
             self.tracked_tokens = TrackedTokensDB(self.cursor, self.connection)
             self.settings = SettingsDB(self.cursor, self.connection)
+            self.transactions = TransactionsDB(self.cursor, self.connection)  # Ініціалізація
             self.create_tables()
             logger.info("База данных подключена успешно.")
         except Error as e:
@@ -36,6 +39,7 @@ class Database:
             self.wallets.create_table()
             self.tracked_tokens.create_table()
             self.settings.create_table()
+            self.transactions.create_table()  # Додано виклик для створення таблиці transactions
             self.connection.commit()
             logger.info("Таблицы созданы или проверены.")
         except Error as e:
