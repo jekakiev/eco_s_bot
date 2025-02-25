@@ -2,6 +2,7 @@ import mysql.connector
 from mysql.connector import Error
 import os
 from utils.logger_config import logger, should_log
+
 from db.wallets_db import WalletsDB
 from db.tracked_tokens_db import TrackedTokensDB
 from db.settings_db import SettingsDB
@@ -29,10 +30,10 @@ class Database:
             self.settings = SettingsDB(self.cursor, self.connection)
             self.transactions = TransactionsDB(self.cursor, self.connection)  # Ініціалізація
             self.create_tables()
-            if should_log("transaction"):
+            if should_log("transaction", self):
                 logger.info("База данных подключена успешно.")
         except Error as e:
-            if should_log("api_errors"):
+            if should_log("api_errors", self):
                 logger.error(f"Ошибка подключения к базе данных: {str(e)}")
             raise
 
@@ -43,10 +44,10 @@ class Database:
             self.settings.create_table()
             self.transactions.create_table()  # Додано виклик для створення таблиці transactions
             self.connection.commit()
-            if should_log("transaction"):
+            if should_log("transaction", self):
                 logger.info("Таблицы созданы или проверены.")
         except Error as e:
-            if should_log("api_errors"):
+            if should_log("api_errors", self):
                 logger.error(f"Ошибка создания таблиц: {str(e)}")
             raise
 
@@ -59,13 +60,13 @@ class Database:
                 except AttributeError:
                     pass  # Ігноруємо, якщо атрибут closed відсутній
             except Exception as e:
-                if should_log("api_errors"):
+                if should_log("api_errors", self):
                     logger.error(f"Ошибка при закрытии курсора: {str(e)}")
         if hasattr(self, 'connection') and self.connection and self.connection.is_connected():
             try:
                 self.connection.close()
             except Exception as e:
-                if should_log("api_errors"):
+                if should_log("api_errors", self):
                     logger.error(f"Ошибка при закрытии соединения: {str(e)}")
-            if should_log("transaction"):
+            if should_log("transaction", self):
                 logger.info("База данных отключена успешно.")

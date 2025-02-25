@@ -4,10 +4,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def get_database():
-    from database import Database
-    return Database()
-
 # Налаштування логера
 logger = logging.getLogger("ecoS_Parcer")
 logger.setLevel(logging.INFO if os.getenv("DEBUG", "0") == "0" else logging.DEBUG)
@@ -31,8 +27,7 @@ file_handler = logging.FileHandler(log_file)
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
-def update_log_settings():
-    db = get_database()
+def update_log_settings(db):
     debug = db.settings.get_setting("DEBUG", "0") == "1"
     logger.setLevel(logging.DEBUG if debug else logging.INFO)
     interface_info = db.settings.get_setting("INTERFACE_INFO", "0") == "1"
@@ -48,8 +43,12 @@ def update_log_settings():
     logger.info(f"Логи обновлены. Режим отладки: {'включен' if debug else 'выключен'}")
 
 # Функція для перевірки, чи потрібно логувати на основі налаштувань
-def should_log(log_type):
-    db = get_database()
+def should_log(log_type, db=None):
+    if db is None:
+        try:
+            from app_config import db  # Імпортуємо db з app_config, якщо не передано
+        except ImportError:
+            return False  # Повертаємо False, якщо db недоступний (наприклад, при ініціалізації)
     if log_type == "interface":
         return db.settings.get_setting("INTERFACE_INFO", "0") == "1"
     elif log_type == "api_errors":
@@ -59,3 +58,7 @@ def should_log(log_type):
     elif log_type == "debug":
         return db.settings.get_setting("DEBUG", "0") == "1"
     return False
+
+def get_database():
+    from database import Database
+    return Database()
