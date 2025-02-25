@@ -15,8 +15,8 @@ logger.info("Регистрация обработчиков")
 register_handlers(dp)
 logger.info("Обработчики зарегистрированы")
 
-# Оновлення логів через виклик update_log_settings
-update_log_settings()
+# Оновлення логів через виклик update_log_settings з передачею db
+update_log_settings(db)
 
 @dp.message(Command("start"))
 async def start_command(message):

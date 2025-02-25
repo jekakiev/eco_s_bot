@@ -34,13 +34,14 @@ def update_log_settings(db):
     api_errors = db.settings.get_setting("API_ERRORS", "0") == "1"
     transaction_info = db.settings.get_setting("TRANSACTION_INFO", "0") == "1"
     
-    if interface_info:
+    if interface_info and logger.isEnabledFor(logging.INFO):
         logger.info("Интерфейсная информация включена")
-    if api_errors:
+    if api_errors and logger.isEnabledFor(logging.INFO):
         logger.info("Логи ошибок API включены")
-    if transaction_info:
+    if transaction_info and logger.isEnabledFor(logging.INFO):
         logger.info("Логи транзакций включены")
-    logger.info(f"Логи обновлены. Режим отладки: {'включен' if debug else 'выключен'}")
+    if logger.isEnabledFor(logging.INFO):
+        logger.info(f"Логи обновлены. Режим отладки: {'включен' if debug else 'выключен'}")
 
 # Функція для перевірки, чи потрібно логувати на основі налаштувань
 def should_log(log_type, db=None):

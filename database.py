@@ -2,7 +2,6 @@ import mysql.connector
 from mysql.connector import Error
 import os
 from utils.logger_config import logger, should_log
-
 from db.wallets_db import WalletsDB
 from db.tracked_tokens_db import TrackedTokensDB
 from db.settings_db import SettingsDB
@@ -17,12 +16,14 @@ class Database:
         self.settings = None
         self.transactions = None  # Додано ініціалізацію
         try:
+            # Додаємо timeout для підключення, щоб уникнути "Too many connections"
             self.connection = mysql.connector.connect(
                 host=os.getenv("MYSQL_HOST", "mysql.railway.internal"),
                 user=os.getenv("MYSQL_USER", "root"),
                 password=os.getenv("MYSQL_PASSWORD", "bHRedJRrWIqFmFpXAVFLYfdpqfPwNGjf"),
                 database=os.getenv("MYSQL_DATABASE", "railway"),
-                port=int(os.getenv("MYSQL_PORT", "3306"))
+                port=int(os.getenv("MYSQL_PORT", "3306")),
+                connection_timeout=10  # Додано тайм-аут для підключення
             )
             self.cursor = self.connection.cursor()
             self.wallets = WalletsDB(self.cursor, self.connection)
