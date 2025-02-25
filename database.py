@@ -49,8 +49,11 @@ class Database:
     def __del__(self):
         if hasattr(self, 'cursor') and self.cursor:
             try:
-                if not self.cursor.closed:  # Додано перевірку, чи курсор ще відкритий
+                # Перевірка, чи курсор відкритий, через спробу закрити його
+                try:
                     self.cursor.close()
+                except AttributeError:
+                    pass  # Ігноруємо, якщо атрибут closed відсутній
             except Exception as e:
                 logger.error(f"Ошибка при закрытии курсора: {str(e)}")
         if hasattr(self, 'connection') and self.connection and self.connection.is_connected():

@@ -7,10 +7,7 @@ from config.settings import BOT_TOKEN, CHAT_ID
 from config.bot_instance import bot
 from utils.logger_config import logger, update_log_settings
 from transaction_manager import start_transaction_monitoring
-from database import Database
-
-# Ініціалізація глобального екземпляра Database
-db = Database()
+from app_config import db  # Імпортуємо db з app_config
 
 dp = Dispatcher(storage=MemoryStorage())
 

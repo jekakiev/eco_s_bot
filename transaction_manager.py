@@ -1,14 +1,11 @@
 import asyncio
 import aiohttp
 from aiogram import Bot
-from database import Database  # Імпортуємо сам клас, а не екземпляр
+from app_config import db  # Імпортуємо db з app_config
 from utils.logger_config import logger
 from config.settings import ARBISCAN_API_KEY, CHAT_ID
 import json
 import requests  # Для отримання цін через CoinGecko
-
-# Використовуємо глобальний db з bot.py
-from bot import db  # Імпортуємо глобальний екземпляр db
 
 async def check_token_transactions(bot: Bot, chat_id: str):
     while True:
