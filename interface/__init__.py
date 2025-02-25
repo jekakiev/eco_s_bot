@@ -29,7 +29,9 @@ async def edit_wallet_command(message: types.Message):
             return
         from .keyboards import get_wallet_control_keyboard
         text = f"Имя кошелька: {wallet[2]}\nАдрес кошелька: {wallet[1]}"  # wallet[2] — name, wallet[1] — address
-        await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet[0]))  # wallet[0] — id
+        sent_message = await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet[0]))  # wallet[0] — id
+        # Удаляем сообщение пользователя с командой
+        await message.delete()
     except Exception as e:
         if should_log("api_errors"):
             logger.error(f"Ошибка обработки команды /Editw: {str(e)}")
@@ -52,7 +54,9 @@ async def edit_token_command(message: types.Message):
             return
         from .keyboards import get_token_control_keyboard
         text = f"Токен: {token[2]}\nАдрес: {token[1]}\nТекущий тред: {token[3]}"  # token[2] — token_name, token[1] — contract_address, token[3] — thread_id
-        await message.answer(text, reply_markup=get_token_control_keyboard(token[0]))  # token[0] — id
+        sent_message = await message.answer(text, reply_markup=get_token_control_keyboard(token[0]))  # token[0] — id
+        # Удаляем сообщение пользователя с командой
+        await message.delete()
     except Exception as e:
         if should_log("api_errors"):
             logger.error(f"Ошибка обработки команды /edit: {str(e)}")
