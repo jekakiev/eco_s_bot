@@ -11,7 +11,7 @@ db = Database()
 
 async def show_commands(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'show_commands' получен от {callback.from_user.id}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
         logger.info("Кнопка 'Показать команды' нажата")
     text, reply_markup = get_commands_list()
     await callback.message.answer(text, parse_mode="Markdown", reply_markup=reply_markup)
@@ -19,9 +19,8 @@ async def show_commands(callback: types.CallbackQuery, state: FSMContext):
 
 async def show_settings(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'show_settings' получен от {callback.from_user.id}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
         logger.info("Кнопка 'Настройки' нажата")
-    settings = db.settings.get_setting
     check_interval = db.settings.get_setting("CHECK_INTERVAL", "150")
     send_last = "✅ВКЛ" if int(db.settings.get_setting("SEND_LAST_TRANSACTION", "0")) else "❌ВЫКЛ"
     api_errors = "✅ВКЛ" if int(db.settings.get_setting("API_ERRORS", "0")) else "❌ВЫКЛ"
@@ -35,20 +34,21 @@ async def show_settings(callback: types.CallbackQuery, state: FSMContext):
 
 async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'edit_setting' получен от {callback.from_user.id}: {callback.data}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
         logger.info(f"Нажата кнопка настройки: {callback.data}")
     setting_name = callback.data.replace("edit_setting_", "")
     data = await state.get_data()
-    current_value = data.get("check_interval", db.settings.get_setting(setting_name) or "150")
+    current_value = data.get("check_interval", db.settings.get_setting(setting_name, "150"))
     if setting_name == "CHECK_INTERVAL":
         text = f"⚙️ Интервал проверки\nТекущее значение: {current_value} секунд\nВведите интервал обновления в секундах (мин. 1):"
         msg = await callback.message.edit_text(text, reply_markup=get_interval_edit_keyboard())
         await state.update_data(settings_message_id=msg.message_id, setting_name=setting_name)
+    await state.set_state(SettingStates.waiting_for_setting_value)  # Додано встановлення стану
     await callback.answer()
 
 async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'toggle_setting' получен от {callback.from_user.id}: {callback.data}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
         logger.info(f"Нажата кнопка переключения настройки: {callback.data}")
     setting_name = callback.data.replace("toggle_", "")
     data = await state.get_data()
@@ -104,7 +104,7 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
 
 async def process_setting_value(message: types.Message, state: FSMContext):
     logger.info(f"Сообщение с новым значением настройки от {message.from_user.id}: {message.text}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
         logger.info(f"Введено значение настройки: {message.text}")
     try:
         new_value = message.text
@@ -150,13 +150,13 @@ async def process_setting_value(message: types.Message, state: FSMContext):
     except ValueError as e:
         await message.answer(f"❌ Ошибка: {str(e)}. Попробуйте ещё раз:", reply_markup=get_interval_edit_keyboard())
     except Exception as e:
-        if int(db.settings.get_setting("API_ERRORS") or 1):
+        if int(db.settings.get_setting("API_ERRORS", "1")):  # Оновлено на db.settings.get_setting
             logger.error(f"Ошибка при обновлении настройки: {str(e)}")
         await message.answer("❌ Произошла ошибка при обновлении настройки.", reply_markup=get_main_menu())
 
 async def go_home(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'go_home' получен от {callback.from_user.id}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
         logger.info("Возврат в главное меню")
     await state.clear()
     await callback.message.edit_text("🏠 Главное меню:", reply_markup=get_main_menu())

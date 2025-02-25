@@ -9,7 +9,7 @@ db = Database()
 
 async def show_wallets(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'show_wallets' получен от {callback.from_user.id}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
         logger.info("Кнопка 'Показать кошельки' нажата")
     text, reply_markup = get_wallets_list()
     await callback.message.edit_text(text, reply_markup=reply_markup, disable_web_page_preview=True)
@@ -17,7 +17,7 @@ async def show_wallets(callback: types.CallbackQuery, state: FSMContext):
 
 async def add_wallet_start(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'add_wallet' получен от {callback.from_user.id}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
         logger.info("Кнопка 'Добавить кошелек' нажата")
     await callback.message.edit_text("📝 Введите адрес кошелька (например, 0x...):", reply_markup=get_back_button())
     await state.set_state(WalletStates.waiting_for_address)
@@ -25,7 +25,7 @@ async def add_wallet_start(callback: types.CallbackQuery, state: FSMContext):
 
 async def process_wallet_address(message: types.Message, state: FSMContext):
     logger.info(f"Сообщение с адресом кошелька от {message.from_user.id}: {message.text}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
         logger.info(f"Введен адрес кошелька: {message.text}")
     address = message.text.strip()
     if not address.startswith("0x") or len(address) != 42:
@@ -37,7 +37,7 @@ async def process_wallet_address(message: types.Message, state: FSMContext):
 
 async def process_wallet_name(message: types.Message, state: FSMContext):
     logger.info(f"Сообщение с именем кошелька от {message.from_user.id}: {message.text}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
         logger.info(f"Введено имя кошелька: {message.text}")
     name = message.text.strip()
     if not name:
@@ -56,7 +56,7 @@ async def process_wallet_name(message: types.Message, state: FSMContext):
 
 async def toggle_token(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'toggle_token' получен от {callback.from_user.id}: {callback.data}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
         logger.info(f"Переключение токена: {callback.data}")
     token = callback.data.replace("toggle_token_", "")
     user_data = await state.get_data()
@@ -80,7 +80,7 @@ async def toggle_token(callback: types.CallbackQuery, state: FSMContext):
 
 async def confirm_tokens(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'confirm_tokens' получен от {callback.from_user.id}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
         logger.info("Подтверждение токенов нажато")
     user_data = await state.get_data()
     wallet_id = user_data.get("wallet_id")
@@ -100,7 +100,7 @@ async def confirm_tokens(callback: types.CallbackQuery, state: FSMContext):
 
 async def save_tokens(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'save_tokens' получен от {callback.from_user.id}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
         logger.info("Сохранение токенов нажато")
     user_data = await state.get_data()
     wallet_id = user_data.get("wallet_id")
@@ -120,7 +120,7 @@ async def save_tokens(callback: types.CallbackQuery, state: FSMContext):
 
 async def delete_wallet(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'delete_wallet' получен от {callback.from_user.id}: {callback.data}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
         logger.info(f"Удаление кошелька: {callback.data}")
     wallet_id = callback.data.replace("delete_wallet_", "")
     wallet = db.wallets.get_wallet_by_id(wallet_id)
@@ -134,7 +134,7 @@ async def delete_wallet(callback: types.CallbackQuery, state: FSMContext):
 
 async def rename_wallet_start(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'rename_wallet' получен от {callback.from_user.id}: {callback.data}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
         logger.info(f"Переименование кошелька: {callback.data}")
     wallet_id = callback.data.replace("rename_wallet_", "")
     wallet = db.wallets.get_wallet_by_id(wallet_id)
@@ -148,7 +148,7 @@ async def rename_wallet_start(callback: types.CallbackQuery, state: FSMContext):
 
 async def process_new_wallet_name(message: types.Message, state: FSMContext):
     logger.info(f"Сообщение с новым именем кошелька от {message.from_user.id}: {message.text}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
         logger.info(f"Введено новое имя кошелька: {message.text}")
     new_name = message.text.strip()
     if not new_name:
@@ -167,7 +167,7 @@ async def process_new_wallet_name(message: types.Message, state: FSMContext):
 
 async def edit_tokens_start(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'edit_tokens' получен от {callback.from_user.id}: {callback.data}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
         logger.info(f"Редактирование токенов для кошелька: {callback.data}")
     wallet_id = callback.data.replace("edit_tokens_", "")
     wallet = db.wallets.get_wallet_by_id(wallet_id)

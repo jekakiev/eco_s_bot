@@ -12,7 +12,7 @@ db = Database()
 
 async def show_test_api_by_hash(callback: types.CallbackQuery, state: FSMContext):
     logger.info(f"Callback 'test_api_by_hash' получен от {callback.from_user.id}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
         logger.info("Кнопка 'Тест апи (по хешу транзы)' нажата")
     await callback.message.edit_text(
         "📝 Введите хеш транзакции (например, 0x...):",
@@ -23,7 +23,7 @@ async def show_test_api_by_hash(callback: types.CallbackQuery, state: FSMContext
 
 async def request_transaction_hash(message: types.Message, state: FSMContext):
     logger.info(f"Сообщение с хешем транзакции от {message.from_user.id}: {message.text}")
-    if int(db.settings.get_setting("INTERFACE_INFO") or 0):
+    if int(db.settings.get_setting("INTERFACE_INFO", "0")):  # Оновлено на db.settings.get_setting
         logger.info(f"Введен хеш транзакции: {message.text}")
     transaction_hash = message.text.strip()
     if not transaction_hash.startswith("0x") or len(transaction_hash) != 66:  # Перевірка формату хеша (0x + 64 символи)
@@ -72,8 +72,8 @@ async def request_transaction_hash(message: types.Message, state: FSMContext):
                         amount_hex = data[2:]  # Видаляємо "0x"
                         try:
                             amount = int(amount_hex, 16)  # Конвертуємо в десятковий
-                            # Припускаємо, що токен має 18 знаків (наприклад, ETH або DAI), але це потрібно уточнити
-                            decimals = 18  # Заміни на реальну десяткову частину токена
+                            token_info = await get_token_info(address)  # Отримання decimals через API
+                            decimals = int(token_info.get("tokenDecimal", 18))
                             human_readable_amount = amount / (10 ** decimals)
                             response_text += f"Transfer: Адрес токена: {address}\n"
                             response_text += f"Отправитель: {sender}\n"
@@ -95,15 +95,17 @@ async def request_transaction_hash(message: types.Message, state: FSMContext):
                             try:
                                 amount0 = int(amount0_hex, 16)
                                 amount1 = int(amount1_hex, 16)
-                                # Припускаємо, що токени мають 18 знаків (заміни на реальну десяткову частину)
-                                decimals = 18
-                                human_readable_amount0 = amount0 / (10 ** decimals)
-                                human_readable_amount1 = amount1 / (10 ** decimals)
+                                token0_info = await get_token_info(token0)
+                                token1_info = await get_token_info(token1)
+                                decimals0 = int(token0_info.get("tokenDecimal", 18))
+                                decimals1 = int(token1_info.get("tokenDecimal", 18))
+                                human_readable_amount0 = amount0 / (10 ** decimals0)
+                                human_readable_amount1 = amount1 / (10 ** decimals1)
                                 response_text += f"Swap: Пул Uniswap: {address}\n"
                                 response_text += f"Токен 1: {token0}\n"
                                 response_text += f"Токен 2: {token1}\n"
-                                response_text += f"Сумма токена 1: {human_readable_amount0} (предполагается {decimals} знаков)\n"
-                                response_text += f"Сумма токена 2: {human_readable_amount1} (предполагается {decimals} знаков)\n\n"
+                                response_text += f"Сумма токена 1: {human_readable_amount0} (предполагается {decimals0} знаков)\n"
+                                response_text += f"Сумма токена 2: {human_readable_amount1} (предполагается {decimals1} знаков)\n\n"
                             except ValueError as e:
                                 logger.error(f"Ошибка декодирования суммы свопа: {str(e)}")
                                 response_text += f"Ошибка декодирования суммы свопа для {address}\n\n"
