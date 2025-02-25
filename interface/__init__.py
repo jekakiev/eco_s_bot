@@ -20,7 +20,7 @@ async def edit_wallet_command(message: types.Message):
             return
         wallet_id = int(wallet_id)
         if should_log("debug"):
-            logger.debug(f"Попытка найти кошелек с ID: {wallet_id}")
+            logger.debug(f"Попытка найти кошелек с ID: {wallet_id}, полный текст команды: {message.text}")
         wallet = db.wallets.get_wallet_by_id(wallet_id)
         if not wallet:
             if should_log("debug"):
