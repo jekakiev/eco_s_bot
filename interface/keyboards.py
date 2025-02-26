@@ -51,6 +51,22 @@ def get_wallet_control_keyboard(wallet_id):
     try:
         if should_log("debug"):
             logger.debug(f"Формирование клавиатуры для кошелька с ID: {wallet_id}")
+        # Проверяем, что wallet_id — это число
+        if not isinstance(wallet_id, int) or wallet_id <= 0:
+            if should_log("debug"):
+                logger.debug(f"Некорректный wallet_id: {wallet_id}")
+            raise ValueError(f"Некорректный ID кошелька: {wallet_id}")
+        
+        # Проверяем, существует ли кошелёк в базе
+        wallet = db.wallets.get_wallet_by_id(wallet_id)
+        if not wallet:
+            if should_log("debug"):
+                logger.debug(f"Кошелек с ID {wallet_id} не найден в базе: {db.wallets.get_all_wallets()}")
+            raise ValueError(f"Кошелек с ID {wallet_id} не найден")
+        
+        if should_log("debug"):
+            logger.debug(f"Кошелек найден для формирования клавиатуры: ID={wallet[0]}, Адрес={wallet[1]}, Имя={wallet[2]}, Токены={wallet[3]}")
+        
         keyboard = [
             [
                 InlineKeyboardButton(text="✏️ Переименовать", callback_data=f"rename_wallet_{wallet_id}"),
