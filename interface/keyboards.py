@@ -48,17 +48,26 @@ def get_tokens_keyboard(selected_tokens, is_edit=False):
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_wallet_control_keyboard(wallet_id):
-    keyboard = [
-        [
-            InlineKeyboardButton(text="✏️ Переименовать", callback_data=f"rename_wallet_{wallet_id}"),
-            InlineKeyboardButton(text="🪙 Изменить токены", callback_data=f"edit_tokens_{wallet_id}")
-        ],
-        [
-            InlineKeyboardButton(text="🗑 Удалить", callback_data=f"delete_wallet_{wallet_id}"),
-            InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")
+    try:
+        if should_log("debug"):
+            logger.debug(f"Формирование клавиатуры для кошелька с ID: {wallet_id}")
+        keyboard = [
+            [
+                InlineKeyboardButton(text="✏️ Переименовать", callback_data=f"rename_wallet_{wallet_id}"),
+                InlineKeyboardButton(text="🪙 Изменить токены", callback_data=f"edit_tokens_{wallet_id}")
+            ],
+            [
+                InlineKeyboardButton(text="🗑 Удалить", callback_data=f"delete_wallet_{wallet_id}"),
+                InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")
+            ]
         ]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+        if should_log("debug"):
+            logger.debug(f"Сформирована клавиатура для кошелька ID {wallet_id}: {keyboard}")
+        return InlineKeyboardMarkup(inline_keyboard=keyboard)
+    except Exception as e:
+        if should_log("api_errors"):
+            logger.error(f"Ошибка при формировании клавиатуры для кошелька ID {wallet_id}: {str(e)}", exc_info=True)
+        raise  # Пробрасываем исключение для дальнейшей обработки
 
 def get_wallets_list():
     wallets = db.wallets.get_all_wallets()

@@ -64,7 +64,10 @@ async def edit_wallet_command(message: types.Message):
         from .keyboards import get_wallet_control_keyboard
         try:
             text = f"Имя кошелька: {wallet[2]}\nАдрес кошелька: {wallet[1]}"  # wallet[2] — name, wallet[1] — address
-            sent_message = await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet[0]))  # wallet[0] — id
+            keyboard = get_wallet_control_keyboard(wallet[0])  # wallet[0] — id
+            if should_log("debug"):
+                logger.debug(f"Сформирована клавиатура для кошелька ID {wallet_id}: {keyboard.inline_keyboard}")
+            sent_message = await message.answer(text, reply_markup=keyboard)
         except Exception as e:
             if should_log("api_errors"):
                 logger.error(f"Ошибка при отправке сообщения для кошелька ID {wallet_id}: {str(e)}", exc_info=True)
