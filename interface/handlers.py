@@ -111,19 +111,46 @@ async def edit_wallet_command(message: types.Message):
                 logger.debug(f"Кошелек с последними 4 символами {short_address} не найден в базе: {wallets}")
             await message.answer("❌ Кошелек не найден.")
             return
+        
+        # Проверка данных на скрытые символы и кодировку, идентично токенам
+        try:
+            name_cleaned = wallet[2].strip()
+            address_cleaned = wallet[1].strip()
+            if not name_cleaned or not address_cleaned:
+                if should_log("debug"):
+                    logger.debug(f"Очищенные данные пустые: name={name_cleaned}, address={address_cleaned}")
+                await message.answer("❌ Кошелек содержит некорректные данные.")
+                return
+            name_cleaned.encode('utf-8')  # Проверяем кодировку
+            address_cleaned.encode('utf-8')
+        except UnicodeEncodeError as e:
+            if should_log("debug"):
+                logger.debug(f"Ошибка кодировки для данных кошелька: name={wallet[2]}, address={wallet[1]}, ошибка={str(e)}")
+            await message.answer("❌ Ошибка кодировки данных кошелька.")
+            return
+        
         if should_log("debug"):
             logger.debug(f"Кошелек найден: ID={wallet[0]}, Адрес={wallet[1]}, Имя={wallet[2]}, Токены={wallet[3]}")
+        
         from .keyboards import get_wallet_control_keyboard
-        text = f"Имя кошелька: {wallet[2]}\nАдрес кошелька: {wallet[1]}"  # wallet[2] — name, wallet[1] — address
         try:
-            sent_message = await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet[0]))  # wallet[0] — id
+            # Упрощённый текст, идентичный токенам
+            text = f"Кошелек: {name_cleaned} ({address_cleaned[-4:]})"
+            if should_log("debug"):
+                logger.debug(f"Сформирован текст: {text}")
+            
+            keyboard = get_wallet_control_keyboard(wallet[0])  # wallet[0] — id
+            if should_log("debug"):
+                logger.debug(f"Сформирована клавиатура: {keyboard.inline_keyboard}")
+            
+            sent_message = await message.answer(text, reply_markup=keyboard)
+            await message.delete()
         except Exception as e:
             if int(db.settings.get_setting("API_ERRORS", "1")):
-                logger.error(f"Ошибка при отправке сообщения для кошелька с адресом {wallet[1][-4:]}: {str(e)}", exc_info=True)
+                logger.error(f"Ошибка при отправке сообщения для кошелька с адресом {address_cleaned[-4:]}: {str(e)}", exc_info=True)
             await message.answer("❌ Ошибка при отправке данных кошелька.")
             return
-        # Удаляем сообщение пользователя с командой
-        await message.delete()
+    
     except Exception as e:
         if int(db.settings.get_setting("API_ERRORS", "1")):
             logger.error(f"Ошибка обработки команды /Editw: {str(e)}", exc_info=True)  # Логируем полный стек вызовов
@@ -137,21 +164,48 @@ async def edit_token_command(message: types.Message):
     try:
         short_address = message.text.split("_")[1]
         db.reconnect()
-        tokens = db.tracked_tokens.get_all_tracked_tokens()  # Отримуємо кортежі
+        tokens = db.tracked_tokens.get_all_tracked_tokens()
         if should_log("debug"):
             logger.debug(f"Список токенов из базы: {tokens}")
-        token = next((t for t in tokens if t[1].endswith(short_address)), None)  # t[1] — contract_address
+        token = next((t for t in tokens if t[1].endswith(short_address)), None)
         if not token:
             if should_log("debug"):
-                logger.debug(f"Токен с последними 4 символами {short_address} не найден в базе: {tokens}")
+                logger.debug(f"Токен с последними 4 символами {short_address} не найден в базе")
             await message.answer("❌ Токен не найден.")
             return
+        
+        # Проверка данных на скрытые символы и кодировку
+        try:
+            token_name_cleaned = token[2].strip()
+            token_address_cleaned = token[1].strip()
+            if not token_name_cleaned or not token_address_cleaned:
+                if should_log("debug"):
+                    logger.debug(f"Очищенные данные токена пустые: name={token_name_cleaned}, address={token_address_cleaned}")
+                await message.answer("❌ Токен содержит некорректные данные.")
+                return
+            token_name_cleaned.encode('utf-8')
+            token_address_cleaned.encode('utf-8')
+        except UnicodeEncodeError as e:
+            if should_log("debug"):
+                logger.debug(f"Ошибка кодировки для данных токена: name={token[2]}, address={token[1]}, ошибка={str(e)}")
+            await message.answer("❌ Ошибка кодировки данных токена.")
+            return
+        
+        if should_log("debug"):
+            logger.debug(f"Найден токен: ID={token[0]}, Адрес={token[1]}, Имя={token[2]}, Тред={token[3]}")
+        
         from .keyboards import get_token_control_keyboard
-        text = f"Токен: {token[2]}\nАдрес: {token[1]}\nТекущий тред: {token[3]}"  # token[2] — token_name, token[1] — contract_address, token[3] — thread_id
-        sent_message = await message.answer(text, reply_markup=get_token_control_keyboard(token[0]))  # token[0] — id
-        # Удаляем сообщение пользователя с командой
+        text = f"Токен: {token_name_cleaned} ({token_address_cleaned[-4:]})"
+        if should_log("debug"):
+            logger.debug(f"Сформирован текст: {text}")
+        
+        keyboard = get_token_control_keyboard(token[0])
+        if should_log("debug"):
+            logger.debug(f"Сформирана клавиатура: {keyboard.inline_keyboard}")
+        
+        sent_message = await message.answer(text, reply_markup=keyboard)
         await message.delete()
     except Exception as e:
         if int(db.settings.get_setting("API_ERRORS", "1")):
-            logger.error(f"Ошибка обработки команды /edit: {str(e)}", exc_info=True)  # Логируем полный стек вызовов
+            logger.error(f"Ошибка обработки команды /edit: {str(e)}", exc_info=True)
         await message.answer("❌ Ошибка при обработке команды.")

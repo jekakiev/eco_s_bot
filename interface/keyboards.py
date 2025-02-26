@@ -1,211 +1,183 @@
-from aiogram import Dispatcher, F, types
-from .callbacks.wallets import (
-    show_wallets, add_wallet_start, process_wallet_address, process_wallet_name,
-    toggle_token, confirm_tokens, save_tokens, delete_wallet, rename_wallet_start,
-    process_new_wallet_name, edit_tokens_start
-)
-from .callbacks.tokens import (
-    show_tokens, add_token_start, process_contract_address, confirm_token_name,
-    reject_token_name, thread_exists, thread_not_exists, process_thread_id,
-    edit_token_start, edit_token_thread, process_edit_thread_id, delete_token
-)
-from .callbacks.settings_callbacks import (
-    show_commands, show_settings, edit_setting_start, process_setting_value,
-    toggle_setting, go_home
-)
-from .callbacks.test_api_last_transaction import (
-    show_test_api, select_wallet
-)
-from .callbacks.test_api_by_hash import (
-    show_test_api_by_hash, request_transaction_hash
-)
-from aiogram.filters import Command
-from .states import WalletStates, TokenStates, SettingStates
-from database import Database
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from app_config import db
 from utils.logger_config import logger, should_log
 
-db = Database()
+def get_main_menu():
+    keyboard = [
+        [
+            InlineKeyboardButton(text="📋 Показать кошельки", callback_data="show_wallets"),
+            InlineKeyboardButton(text="🪙 Показать токены", callback_data="show_tokens")
+        ],
+        [
+            InlineKeyboardButton(text="ℴ️ Команды", callback_data="show_commands"),
+            InlineKeyboardButton(text="⚙️ Настройки", callback_data="show_settings")
+        ],
+        [
+            InlineKeyboardButton(text="Тест апи (последняя транза)", callback_data="test_api_last_transaction")
+        ],
+        [
+            InlineKeyboardButton(text="Тест апи (по хешу транзы)", callback_data="test_api_by_hash")
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def register_handlers(dp: Dispatcher):
-    logger.info("Регистрация обработчиков callback-запросов началась")
-    
-    dp.callback_query.register(show_wallets, F.data == "show_wallets")
-    dp.callback_query.register(add_wallet_start, F.data == "add_wallet")
-    dp.message.register(process_wallet_address, WalletStates.waiting_for_address)
-    dp.message.register(process_wallet_name, WalletStates.waiting_for_name)
-    dp.callback_query.register(toggle_token, F.data.startswith("toggle_token_"))
-    dp.callback_query.register(confirm_tokens, F.data == "confirm_tokens")
-    dp.callback_query.register(save_tokens, F.data == "save_tokens")
-    dp.callback_query.register(delete_wallet, F.data.startswith("delete_wallet_"))
-    dp.callback_query.register(rename_wallet_start, F.data.startswith("rename_wallet_"))
-    dp.message.register(process_new_wallet_name, WalletStates.waiting_for_new_name)
-    dp.callback_query.register(edit_tokens_start, F.data.startswith("edit_tokens_"))
-    
-    dp.callback_query.register(show_tokens, F.data == "show_tokens")
-    dp.callback_query.register(add_token_start, F.data == "add_token")
-    dp.message.register(process_contract_address, TokenStates.waiting_for_contract_address)
-    dp.callback_query.register(confirm_token_name, F.data == "confirm_token_name")
-    dp.callback_query.register(reject_token_name, F.data == "reject_token_name")
-    dp.callback_query.register(thread_exists, F.data == "thread_exists")
-    dp.callback_query.register(thread_not_exists, F.data == "thread_not_exists")
-    dp.message.register(process_thread_id, TokenStates.waiting_for_thread_id)
-    dp.callback_query.register(edit_token_start, F.data.startswith("edit_token_"))
-    dp.callback_query.register(edit_token_thread, F.data.startswith("edit_token_thread_"))
-    dp.message.register(process_edit_thread_id, TokenStates.waiting_for_edit_thread_id)
-    dp.callback_query.register(delete_token, F.data.startswith("delete_token_"))
-    
-    dp.callback_query.register(show_commands, F.data == "show_commands")
-    dp.callback_query.register(show_settings, F.data == "show_settings")
-    dp.callback_query.register(edit_setting_start, F.data.startswith("edit_setting_"))
-    dp.callback_query.register(toggle_setting, F.data.startswith("toggle_"))
-    dp.message.register(process_setting_value, SettingStates.waiting_for_setting_value)
-    dp.callback_query.register(go_home, F.data == "home")
-    
-    dp.callback_query.register(show_test_api, F.data == "test_api_last_transaction")
-    dp.callback_query.register(select_wallet, F.data.startswith("select_wallet_"))
-    
-    dp.callback_query.register(show_test_api_by_hash, F.data == "test_api_by_hash")
-    dp.message.register(request_transaction_hash, WalletStates.waiting_for_transaction_hash)
-    
-    # Оновлено для работы с последними 4 символами адреса
-    wallets = db.wallets.get_all_wallets()
-    wallet_commands = [f"Editw_{wallet[1][-4:]}" for wallet in wallets]  # wallet[1] — address (последние 4 символа)
-    if wallet_commands:
-        dp.message.register(edit_wallet_command, Command(commands=wallet_commands))
-        logger.info(f"Зарегистрированы команды для кошельков: {wallet_commands}")
+def get_back_button():
+    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]])
+
+def get_tokens_keyboard(selected_tokens, is_edit=False):
+    tokens = [token[2] for token in db.tracked_tokens.get_all_tracked_tokens()]
+    if should_log("debug"):
+        logger.debug(f"Полученные токены из базы: {tokens}")
+    keyboard = []
+    for i, token in enumerate(tokens):
+        callback_data = f"toggle_token_{token}"
+        text = f"✅ {token}" if token in selected_tokens else f"❌ {token}"
+        if i % 2 == 0 and i + 1 < len(tokens):
+            keyboard.append([
+                InlineKeyboardButton(text=text, callback_data=callback_data),
+                InlineKeyboardButton(text=f"✅ {tokens[i+1]}" if tokens[i+1] in selected_tokens else f"❌ {tokens[i+1]}", callback_data=f"toggle_token_{tokens[i+1]}")
+            ])
+        elif i % 2 == 0:
+            keyboard.append([InlineKeyboardButton(text=text, callback_data=callback_data)])
+    if is_edit:
+        keyboard.append([InlineKeyboardButton(text="💾 Сохранить", callback_data="save_tokens")])
     else:
-        if should_log("interface"):
-            logger.warning("Нет кошельков для регистрации команд /Editw_XXXX")
-    
-    # Оновлено для работы с кортежами
-    tokens = db.tracked_tokens.get_all_tracked_tokens()
-    token_commands = [f"edit_{token[1][-4:]}" for token in tokens]  # token[1] — contract_address (последние 4 символа)
-    if token_commands:
-        dp.message.register(edit_token_command, Command(commands=token_commands))
-        logger.info(f"Зарегистрированы команды для токенов: {token_commands}")
-    else:
-        if should_log("interface"):
-            logger.warning("Нет токенов для регистрации команд /edit_XXXX")
+        keyboard.append([InlineKeyboardButton(text="✅ Подтвердить", callback_data="confirm_tokens")])
+    keyboard.append([InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")])
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-    logger.info("Регистрация обработчиков callback-запросов завершена")
-
-async def edit_wallet_command(message: types.Message):
-    logger.info(f"Получена команда: {message.text}")
+def get_wallet_control_keyboard(wallet_id):
     try:
-        if not message.text.startswith("/Editw_"):
-            await message.answer("❌ Неверный формат команды. Используйте /Editw_XXXX (последние 4 символа адреса кошелька).")
-            return
-        short_address = message.text.replace("/Editw_", "")
-        if len(short_address) != 4:
-            await message.answer("❌ Последние 4 символа адреса должны быть указаны (например, /Editw_68B8).")
-            return
         if should_log("debug"):
-            logger.debug(f"Попытка найти кошелек с последними 4 символами адреса: {short_address}, полный текст команды: {message.text}")
-        db.reconnect()
-        wallets = db.wallets.get_all_wallets()  # Отримуємо кортежі
-        if should_log("debug"):
-            logger.debug(f"Список кошельков из базы: {wallets}")
-        wallet = next((w for w in wallets if w[1].endswith(short_address)), None)  # w[1] — address
+            logger.debug(f"Формирование клавиатуры для кошелька с ID: {wallet_id}")
+        if not isinstance(wallet_id, int) or wallet_id <= 0:
+            if should_log("debug"):
+                logger.debug(f"Некорректный wallet_id: {wallet_id}")
+            raise ValueError(f"Некорректный ID кошелька: {wallet_id}")
+        
+        wallet = db.wallets.get_wallet_by_id(wallet_id)
         if not wallet:
             if should_log("debug"):
-                logger.debug(f"Кошелек с последними 4 символами {short_address} не найден в базе: {wallets}")
-            await message.answer("❌ Кошелек не найден.")
-            return
-        
-        # Проверка данных на скрытые символы и кодировку, идентично токенам
-        try:
-            name_cleaned = wallet[2].strip()
-            address_cleaned = wallet[1].strip()
-            if not name_cleaned or not address_cleaned:
-                if should_log("debug"):
-                    logger.debug(f"Очищенные данные пустые: name={name_cleaned}, address={address_cleaned}")
-                await message.answer("❌ Кошелек содержит некорректные данные.")
-                return
-            name_cleaned.encode('utf-8')  # Проверяем кодировку
-            address_cleaned.encode('utf-8')
-        except UnicodeEncodeError as e:
-            if should_log("debug"):
-                logger.debug(f"Ошибка кодировки для данных кошелька: name={wallet[2]}, address={wallet[1]}, ошибка={str(e)}")
-            await message.answer("❌ Ошибка кодировки данных кошелька.")
-            return
+                logger.debug(f"Кошелек с ID {wallet_id} не найден: {db.wallets.get_all_wallets()}")
+            raise ValueError(f"Кошелек с ID {wallet_id} не найден")
         
         if should_log("debug"):
-            logger.debug(f"Кошелек найден: ID={wallet[0]}, Адрес={wallet[1]}, Имя={wallet[2]}, Токены={wallet[3]}")
+            logger.debug(f"Клавиатура для кошелька: ID={wallet[0]}, Адрес={wallet[1][-4:]}")
         
-        from .keyboards import get_wallet_control_keyboard
-        try:
-            # Упрощённый текст, идентичный токенам
-            text = f"Кошелек: {name_cleaned} ({address_cleaned[-4:]})"
-            if should_log("debug"):
-                logger.debug(f"Сформирован текст: {text}")
-            
-            keyboard = get_wallet_control_keyboard(wallet[0])  # wallet[0] — id
-            if should_log("debug"):
-                logger.debug(f"Сформирована клавиатура: {keyboard.inline_keyboard}")
-            
-            sent_message = await message.answer(text, reply_markup=keyboard)
-            await message.delete()
-        except Exception as e:
-            if int(db.settings.get_setting("API_ERRORS", "1")):
-                logger.error(f"Ошибка при отправке сообщения для кошелька с адресом {address_cleaned[-4:]}: {str(e)}", exc_info=True)
-            await message.answer("❌ Ошибка при отправке данных кошелька.")
-            return
-    
+        keyboard = [
+            [
+                InlineKeyboardButton(text="🧵 Изменить токены", callback_data=f"edit_tokens_{wallet_id}"),
+                InlineKeyboardButton(text="🗑 Удалить", callback_data=f"delete_wallet_{wallet_id}")
+            ],
+            [
+                InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")
+            ]
+        ]
+        if should_log("debug"):
+            logger.debug(f"Сформирована клавиатура: {keyboard}")
+        return InlineKeyboardMarkup(inline_keyboard=keyboard)
     except Exception as e:
-        if int(db.settings.get_setting("API_ERRORS", "1")):
-            logger.error(f"Ошибка обработки команды /Editw: {str(e)}", exc_info=True)  # Логируем полный стек вызовов
-        if should_log("debug"):
-            logger.debug(f"Состояние подключения к базе после ошибки: {db.connection.is_connected() if db.connection else 'Нет подключения'}")
-            logger.debug(f"Список кошельков после ошибки: {db.wallets.get_all_wallets()}")
-        await message.answer("❌ Ошибка при обработке команды.")
+        if should_log("api_errors"):
+            logger.error(f"Ошибка при формировании клавиатуры для кошелька ID {wallet_id}: {str(e)}", exc_info=True)
+        raise
 
-async def edit_token_command(message: types.Message):
-    logger.info(f"Получена команда: {message.text}")
-    try:
-        short_address = message.text.split("_")[1]
-        db.reconnect()
-        tokens = db.tracked_tokens.get_all_tracked_tokens()  # Отримуємо кортежі
-        if should_log("debug"):
-            logger.debug(f"Список токенов из базы: {tokens}")
-        token = next((t for t in tokens if t[1].endswith(short_address)), None)  # t[1] — contract_address
-        if not token:
-            if should_log("debug"):
-                logger.debug(f"Токен с последними 4 символами {short_address} не найден в базе: {tokens}")
-            await message.answer("❌ Токен не найден.")
-            return
-        
-        # Проверка данных на скрытые символы и кодировку, идентично кошелькам
-        try:
-            token_name_cleaned = token[2].strip()
-            token_address_cleaned = token[1].strip()
-            if not token_name_cleaned or not token_address_cleaned:
-                if should_log("debug"):
-                    logger.debug(f"Очищенные данные токена пустые: name={token_name_cleaned}, address={token_address_cleaned}")
-                await message.answer("❌ Токен содержит некорректные данные.")
-                return
-            token_name_cleaned.encode('utf-8')  # Проверяем кодировку
-            token_address_cleaned.encode('utf-8')
-        except UnicodeEncodeError as e:
-            if should_log("debug"):
-                logger.debug(f"Ошибка кодировки для данных токена: name={token[2]}, address={token[1]}, ошибка={str(e)}")
-            await message.answer("❌ Ошибка кодировки данных токена.")
-            return
-        
-        if should_log("debug"):
-            logger.debug(f"Токен найден: ID={token[0]}, Адрес={token[1]}, Имя={token[2]}, Тред={token[3]}")
-        
-        from .keyboards import get_token_control_keyboard
-        text = f"Токен: {token_name_cleaned} ({token_address_cleaned[-4:]})"
-        if should_log("debug"):
-            logger.debug(f"Сформирован текст: {text}")
-        
-        keyboard = get_token_control_keyboard(token[0])
-        if should_log("debug"):
-            logger.debug(f"Сформирана клавиатура: {keyboard.inline_keyboard}")
-        
-        sent_message = await message.answer(text, reply_markup=keyboard)
-        await message.delete()
-    except Exception as e:
-        if int(db.settings.get_setting("API_ERRORS", "1")):
-            logger.error(f"Ошибка обработки команды /edit: {str(e)}", exc_info=True)  # Логируем полный стек вызовов
-        await message.answer("❌ Ошибка при обработке команды.")
+def get_wallets_list():
+    wallets = db.wallets.get_all_wallets()
+    if not wallets:
+        return "📜 Нет добавленных кошельков.", InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="➕ Добавить кошелек", callback_data="add_wallet"), InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]])
+    text = "📜 Список кошельков:\n\n"
+    for wallet in wallets:
+        last_4 = wallet[1][-4:]
+        text += f"💰 {wallet[2]} ({last_4}) — /Editw_{last_4}\n"
+    keyboard = [[InlineKeyboardButton(text="➕ Добавить кошелек", callback_data="add_wallet"), InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]]
+    return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_tracked_tokens_list():
+    tokens = db.tracked_tokens.get_all_tracked_tokens()
+    if not tokens:
+        return "🪙 Нет отслеживаемых токенов.", InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="➕ Добавить токен", callback_data="add_token"), InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]])
+    text = "🪙 Список отслеживаемых токенов:\n\n"
+    for token in tokens:
+        text += f"💎 {token[2]} ({token[1][-4:]}) — /edit_{token[1][-4:]}\n"
+    keyboard = [[InlineKeyboardButton(text="➕ Добавить токен", callback_data="add_token"), InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]]
+    return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_token_control_keyboard(token_id):
+    keyboard = [
+        [
+            InlineKeyboardButton(text="🧵 Изменить тред", callback_data=f"edit_token_thread_{token_id}"),
+            InlineKeyboardButton(text="🗑 Удалить", callback_data=f"delete_token_{token_id}")
+        ],
+        [
+            InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_token_name_confirmation_keyboard():
+    keyboard = [
+        [
+            InlineKeyboardButton(text="✅ Да", callback_data="confirm_token_name"),
+            InlineKeyboardButton(text="❌ Нет", callback_data="reject_token_name")
+        ],
+        [
+            InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_thread_confirmation_keyboard():
+    keyboard = [
+        [
+            InlineKeyboardButton(text="✅ Да", callback_data="thread_exists"),
+            InlineKeyboardButton(text="❌ Нет", callback_data="thread_not_exists")
+        ],
+        [
+            InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_commands_list():
+    text = (
+        "ℴ️ Список команд:\n\n"
+        "*/start* — Запустить бота\n"
+        "*/get_thread_id* — Узнать ID текущего треда\n"
+        "*/get_last_transaction* — Показать последнюю транзакцию\n"
+        "*/Editw_XXXX* — Редактировать кошелек (XXXX — последние 4 символа адреса)\n"
+        "*/edit_XXXX* — Редактировать токен (XXXX — последние 4 символа адреса контракта)"
+    )
+    keyboard = [[InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]]
+    return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_settings_list(check_interval="150", send_last="❌ВЫКЛ", api_errors="❌ВЫКЛ", transaction_info="✅ВКЛ", interface_info="❌ВЫКЛ", debug="❌ВЫКЛ"):
+    text = (
+        "⚙️ Настройки бота\n\n"
+        "⏱ Интервал проверки — как часто бот проверяет новые транзакции\n"
+        "📨 Последняя транзакция — отправка последней транзакции\n"
+        "🚨 Ошибки API — логи ошибок внешних API\n"
+        "📝 Транзакций — логирование проверки и отправки\n"
+        "🖱 Интерфейса — логи действий в меню\n"
+        "🔍 Отладка — подробные отладочные сообщения\n"
+    )
+    keyboard = [
+        [
+            InlineKeyboardButton(text=f"⏱ Интервал ({check_interval})", callback_data="edit_setting_CHECK_INTERVAL"),
+            InlineKeyboardButton(text=f"📨 Последняя транзакция ({send_last})", callback_data="toggle_SEND_LAST_TRANSACTION")
+        ],
+        [InlineKeyboardButton(text="ЛОГИ", callback_data="noop")],
+        [
+            InlineKeyboardButton(text=f"🚨 Ошибки API ({api_errors})", callback_data="toggle_API_ERRORS"),
+            InlineKeyboardButton(text=f"📝 Транзакции ({transaction_info})", callback_data="toggle_TRANSACTION_INFO")
+        ],
+        [
+            InlineKeyboardButton(text=f"🖱 Интерфейс ({interface_info})", callback_data="toggle_INTERFACE_INFO"),
+            InlineKeyboardButton(text=f"🔍 Отладка ({debug})", callback_data="toggle_DEBUG")
+        ],
+        [InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]
+    ]
+    return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+def get_interval_edit_keyboard():
+    keyboard = [[InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)

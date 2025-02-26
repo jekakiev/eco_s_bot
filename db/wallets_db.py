@@ -29,6 +29,17 @@ class WalletsDB:
             results = self.cursor.fetchall()
             if should_log("debug"):
                 logger.debug(f"Получены все кошельки (очищенные): {results}")
+            # Проверка кодировки данных
+            for result in results:
+                try:
+                    result[1].encode('utf-8')  # address
+                    result[2].encode('utf-8')  # name
+                    if result[3]:  # tokens, если существует
+                        result[3].encode('utf-8')
+                except UnicodeEncodeError as e:
+                    if should_log("debug"):
+                        logger.debug(f"Ошибка кодировки для кошелька ID={result[0]}: {str(e)}")
+                    return []  # Возвращаем пустой список, если данные некорректны
             return results
         except Error as e:
             if should_log("api_errors"):
@@ -59,6 +70,16 @@ class WalletsDB:
                 if should_log("debug"):
                     logger.debug(f"Некорректные данные для кошелька с ID {wallet_id}: {result}")
                 return None
+            # Проверка кодировки данных
+            try:
+                result[1].encode('utf-8')  # address
+                result[2].encode('utf-8')  # name
+                if result[3]:  # tokens, если существует
+                    result[3].encode('utf-8')
+            except UnicodeEncodeError as e:
+                if should_log("debug"):
+                    logger.debug(f"Ошибка кодировки для кошелька ID={wallet_id}: {str(e)}")
+                return None
             if should_log("debug"):
                 logger.debug(f"Кошелек найден: ID={result[0]}, Адрес={result[1]}, Имя={result[2]}, Токены={result[3]}")
             return result
@@ -73,6 +94,16 @@ class WalletsDB:
             result = self.cursor.fetchone()
             if should_log("debug"):
                 logger.debug(f"Результат поиска кошелька по адресу {address} (очищенные): {result}")
+            if result:
+                try:
+                    result[1].encode('utf-8')  # address
+                    result[2].encode('utf-8')  # name
+                    if result[3]:  # tokens, если существует
+                        result[3].encode('utf-8')
+                except UnicodeEncodeError as e:
+                    if should_log("debug"):
+                        logger.debug(f"Ошибка кодировки для кошелька с адресом {address}: {str(e)}")
+                    return None
             return result
         except Error as e:
             if should_log("api_errors"):
@@ -84,6 +115,14 @@ class WalletsDB:
             # Очищаем данные перед добавлением
             name_cleaned = name.strip() if name else name
             tokens_cleaned = tokens.strip() if tokens else None
+            try:
+                name_cleaned.encode('utf-8')
+                if tokens_cleaned:
+                    tokens_cleaned.encode('utf-8')
+            except UnicodeEncodeError as e:
+                if should_log("debug"):
+                    logger.debug(f"Ошибка кодировки при добавлении кошелька: name={name_cleaned}, tokens={tokens_cleaned}, ошибка={str(e)}")
+                raise ValueError("Некорректная кодировка данных")
             self.cursor.execute(
                 "INSERT INTO wallets (address, name, tokens) VALUES (%s, %s, %s)",
                 (address, name_cleaned, tokens_cleaned)
@@ -99,6 +138,13 @@ class WalletsDB:
     def update_wallet_tokens(self, wallet_id, tokens):
         try:
             tokens_cleaned = tokens.strip() if tokens else None
+            try:
+                if tokens_cleaned:
+                    tokens_cleaned.encode('utf-8')
+            except UnicodeEncodeError as e:
+                if should_log("debug"):
+                    logger.debug(f"Ошибка кодировки при обновлении токенов для кошелька ID {wallet_id}: tokens={tokens_cleaned}, ошибка={str(e)}")
+                raise ValueError("Некорректная кодировка данных")
             self.cursor.execute(
                 "UPDATE wallets SET tokens = %s WHERE id = %s",
                 (tokens_cleaned, wallet_id)
@@ -114,6 +160,12 @@ class WalletsDB:
     def rename_wallet(self, wallet_id, new_name):
         try:
             new_name_cleaned = new_name.strip()
+            try:
+                new_name_cleaned.encode('utf-8')
+            except UnicodeEncodeError as e:
+                if should_log("debug"):
+                    logger.debug(f"Ошибка кодировки при переименовании кошелька ID {wallet_id}: name={new_name_cleaned}, ошибка={str(e)}")
+                raise ValueError("Некорректная кодировка данных")
             self.cursor.execute(
                 "UPDATE wallets SET name = %s WHERE id = %s",
                 (new_name_cleaned, wallet_id)
