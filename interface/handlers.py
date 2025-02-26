@@ -21,7 +21,7 @@ from .callbacks.test_api_by_hash import (
 )
 from aiogram.filters import Command
 from .states import WalletStates, TokenStates, SettingStates
-from database import Database
+from db import Database
 from utils.logger_config import logger, should_log
 
 db = Database()

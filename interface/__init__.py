@@ -1,5 +1,5 @@
 from aiogram import types
-from database import Database
+from db import Database
 from .keyboards import get_main_menu, get_back_button, get_wallets_list, get_wallet_control_keyboard, get_tokens_keyboard, get_tracked_tokens_list, get_token_control_keyboard, get_token_name_confirmation_keyboard, get_thread_confirmation_keyboard, get_commands_list, get_settings_list, get_interval_edit_keyboard
 from .handlers import register_handlers
 from utils.logger_config import logger, should_log
