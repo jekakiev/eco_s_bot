@@ -88,7 +88,7 @@ def get_wallet_control_keyboard(wallet_id):
         ]
         if should_log("debug"):
             logger.debug(f"Сформирована клавиатура для кошелька ID {wallet_id}: {keyboard}")
-            logger.debug(f"Типы данных клавиатуры: {type(keyboard)}, кнопки={type(keyboard[0][0])}")
+            logger.debug(f"Типы данных клавиатуры: кнопки={type(keyboard[0][0])}, callback_data={type(keyboard[0][0].callback_data)}")
         return InlineKeyboardMarkup(inline_keyboard=keyboard)
     except Exception as e:
         if should_log("api_errors"):

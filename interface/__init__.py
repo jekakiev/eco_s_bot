@@ -48,6 +48,12 @@ async def edit_wallet_command(message: types.Message):
             await message.answer("❌ Кошелек содержит некорректные данные.")
             return
         
+        if not isinstance(wallet[1], str) or not isinstance(wallet[2], str):  # Проверяем, что address и name — строки
+            if should_log("debug"):
+                logger.debug(f"Некорректные типы данных для кошелька с адресом {wallet[1][-4:]}: address={type(wallet[1])}, name={type(wallet[2])}")
+            await message.answer("❌ Кошелек содержит некорректные типы данных.")
+            return
+        
         if should_log("debug"):
             logger.debug(f"Типы данных кошелька: ID={type(wallet[0])}, Адрес={type(wallet[1])}, Имя={type(wallet[2])}, Токены={type(wallet[3])}")
         
