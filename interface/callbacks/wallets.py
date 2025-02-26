@@ -100,10 +100,11 @@ async def confirm_tokens(callback: types.CallbackQuery, state: FSMContext):
     # Форсируем повторное подключение к базе, чтобы исключить кэширование
     db.reconnect()
     wallet_id = db.wallets.add_wallet(wallet_address, wallet_name, ",".join(selected_tokens))
+    last_4 = wallet_address[-4:]  # Последние 4 символа адреса для команды
     if should_log("debug"):
-        logger.debug(f"Добавлен кошелек с ID: {wallet_id}, список кошельков после добавления: {db.wallets.get_all_wallets()}")
+        logger.debug(f"Добавлен кошелек с адресом {wallet_address}, команда: /Editw_{last_4}, список кошельков после добавления: {db.wallets.get_all_wallets()}")
     await state.clear()
-    sent_message = await callback.message.edit_text(f"✅ Кошелек {wallet_name} ({wallet_address[-4:]}) добавлен! Используйте /Editw_{wallet_id} для редактирования.", reply_markup=get_main_menu())
+    sent_message = await callback.message.edit_text(f"✅ Кошелек {wallet_name} ({last_4}) добавлен! Используйте /Editw_{last_4} для редактирования.", reply_markup=get_main_menu())
     await callback.answer()
 
 async def save_tokens(callback: types.CallbackQuery, state: FSMContext):
@@ -120,7 +121,8 @@ async def save_tokens(callback: types.CallbackQuery, state: FSMContext):
         return
     db.wallets.update_wallet_tokens(wallet_id, ",".join(selected_tokens))
     wallet = db.wallets.get_wallet_by_id(wallet_id)
-    text = f"✅ Токены обновлены!\n_________\nИмя кошелька: {wallet[2]}\nАдрес кошелька: {wallet[1][-4:]}"  # wallet[2] — name, wallet[1] — address
+    last_4 = wallet[1][-4:]  # Последние 4 символа адреса
+    text = f"✅ Токены обновлены!\n_________\nИмя кошелька: {wallet[2]}\nАдрес кошелька: {last_4}"  # wallet[2] — name, wallet[1] — address
     await state.clear()
     sent_message = await callback.message.edit_text(text, reply_markup=get_wallet_control_keyboard(wallet_id))
     await callback.answer()
@@ -194,7 +196,7 @@ async def edit_tokens_start(callback: types.CallbackQuery, state: FSMContext):
             logger.debug(f"Кошелек с ID {wallet_id} не найден в базе: {db.wallets.get_all_wallets()}")
         await callback.answer("❌ Кошелек не найден!", show_alert=True)
         return
-    tokens = wallet[3].split(",") if wallet[3] else []  # Розділяємо рядок токенів, якщо вони є
+    tokens = wallet[3].split(",") if wallet[3] else []  # Разделяем строку токенов, если они есть
     tracked_tokens = [token[2] for token in db.tracked_tokens.get_all_tracked_tokens()]  # Берем токены из базы (token[2] — token_name)
     if should_log("debug"):
         logger.debug(f"Токены из базы для редактирования: {tracked_tokens}, текущие токены кошелька: {tokens}")

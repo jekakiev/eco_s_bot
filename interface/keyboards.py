@@ -67,15 +67,6 @@ def get_wallet_control_keyboard(wallet_id):
         if should_log("debug"):
             logger.debug(f"Кошелек найден для формирования клавиатуры: ID={wallet[0]}, Адрес={wallet[1]}, Имя={wallet[2]}, Токены={wallet[3]}")
         
-        # Проверяем типы данных callback_data
-        callback_prefixes = ["rename_wallet_", "edit_tokens_", "delete_wallet_"]
-        for prefix in callback_prefixes:
-            callback_data = f"{prefix}{wallet_id}"
-            if not isinstance(callback_data, str):
-                if should_log("debug"):
-                    logger.debug(f"Некорректный тип callback_data для {prefix}: {type(callback_data)}")
-                raise TypeError(f"Некорректный тип данных для callback_data: {callback_data}")
-        
         keyboard = [
             [
                 InlineKeyboardButton(text="✏️ Переименовать", callback_data=f"rename_wallet_{wallet_id}"),
@@ -88,7 +79,6 @@ def get_wallet_control_keyboard(wallet_id):
         ]
         if should_log("debug"):
             logger.debug(f"Сформирована клавиатура для кошелька ID {wallet_id}: {keyboard}")
-            logger.debug(f"Типы данных клавиатуры: {type(keyboard)}, кнопки={type(keyboard[0][0])}")
         return InlineKeyboardMarkup(inline_keyboard=keyboard)
     except Exception as e:
         if should_log("api_errors"):
@@ -101,7 +91,8 @@ def get_wallets_list():
         return "📜 Нет добавленных кошельков.", InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="➕ Добавить кошелек", callback_data="add_wallet"), InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]])
     text = "📜 Список кошельков:\n\n"
     for wallet in wallets:
-        text += f"💰 {wallet[2]} ({wallet[1][-4:]}) — /Editw_{wallet[0]}\n"  # wallet[2] — name, wallet[1] — address, wallet[0] — id
+        last_4 = wallet[1][-4:]  # Последние 4 символа адреса
+        text += f"💰 {wallet[2]} ({last_4}) — /Editw_{last_4}\n"  # wallet[2] — name, wallet[1] — address
     keyboard = [[InlineKeyboardButton(text="➕ Добавить кошелек", callback_data="add_wallet"), InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]]
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
@@ -157,7 +148,7 @@ def get_commands_list():
         "*/start* — Запустить бота\n"
         "*/get_thread_id* — Узнать ID текущего треда\n"
         "*/get_last_transaction* — Показать последнюю транзакцию\n"
-        "*/Editw_<ID>* — Редактировать кошелек (ID — номер из таблицы кошельков)\n"
+        "*/Editw_XXXX* — Редактировать кошелек (XXXX — последние 4 символа адреса)\n"
         "*/edit_XXXX* — Редактировать токен (XXXX — последние 4 символа адреса контракта)"
     )
     keyboard = [[
