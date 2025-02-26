@@ -13,14 +13,14 @@ class WalletsDB:
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     address VARCHAR(42) NOT NULL UNIQUE,
                     name VARCHAR(255) NOT NULL,
-                    tokens JSON
+                    tokens JSON DEFAULT NULL  -- Явно указываем DEFAULT NULL для JSON
                 )
             """)
             if should_log("transaction"):
                 logger.info("Таблица wallets создана или проверена.")
         except Error as e:
             if should_log("api_errors"):
-                logger.error(f"Ошибка создания таблицы wallets: {str(e)}")
+                logger.error(f"Ошибка создания таблицы wallets: {str(e)}", exc_info=True)
             raise
 
     def get_all_wallets(self):
@@ -49,9 +49,16 @@ class WalletsDB:
             result = self.cursor.fetchone()
             if should_log("debug"):
                 logger.debug(f"Результат запроса для ID {wallet_id} (rowcount: {self.cursor.rowcount}): {result}")
-            if result is None and should_log("debug"):
-                logger.debug(f"Проверка всех записей в таблице wallets: {self.get_all_wallets()}")
-            return result  # Повертаємо None, якщо гаманець не знайдено
+            if result is None:
+                if should_log("debug"):
+                    logger.debug(f"Кошелек с ID {wallet_id} не найден, проверка всех записей: {self.get_all_wallets()}")
+                return None
+            # Проверка на корректность данных
+            if not all(result):
+                if should_log("debug"):
+                    logger.debug(f"Некорректные данные для кошелька с ID {wallet_id}: {result}")
+                return None
+            return result  # Повертаємо None, якщо гаманець не знайдено или данные некорректны
         except Error as e:
             if should_log("api_errors"):
                 logger.error(f"Ошибка получения кошелька по ID: {str(e)}", exc_info=True)

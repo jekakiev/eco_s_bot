@@ -38,7 +38,7 @@ class Database:
                 logger.info("База данных подключена успешно.")
         except Error as e:
             if should_log("api_errors", self):
-                logger.error(f"Ошибка подключения к базе данных: {str(e)}")
+                logger.error(f"Ошибка подключения к базе данных: {str(e)}", exc_info=True)
             raise
 
     def create_tables(self):
@@ -52,7 +52,7 @@ class Database:
                 logger.info("Таблицы созданы или проверены.")
         except Error as e:
             if should_log("api_errors", self):
-                logger.error(f"Ошибка создания таблиц: {str(e)}")
+                logger.error(f"Ошибка создания таблиц: {str(e)}", exc_info=True)
             raise
 
     def reconnect(self):
