@@ -38,9 +38,21 @@ async def edit_wallet_command(message: types.Message):
             return
         if should_log("debug"):
             logger.debug(f"Кошелек найден: ID={wallet[0]}, Адрес={wallet[1]}, Имя={wallet[2]}, Токены={wallet[3]}")
+        # Проверка на корректность данных
+        if not all(wallet) or not wallet[1] or not wallet[2]:  # Проверяем, что address и name не пустые
+            if should_log("debug"):
+                logger.debug(f"Некорректные данные для кошелька с ID {wallet_id}: {wallet}")
+            await message.answer("❌ Кошелек содержит некорректные данные.")
+            return
         from .keyboards import get_wallet_control_keyboard
-        text = f"Имя кошелька: {wallet[2]}\nАдрес кошелька: {wallet[1]}"  # wallet[2] — name, wallet[1] — address
-        sent_message = await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet[0]))  # wallet[0] — id
+        try:
+            text = f"Имя кошелька: {wallet[2]}\nАдрес кошелька: {wallet[1]}"  # wallet[2] — name, wallet[1] — address
+            sent_message = await message.answer(text, reply_markup=get_wallet_control_keyboard(wallet[0]))  # wallet[0] — id
+        except Exception as e:
+            if should_log("api_errors"):
+                logger.error(f"Ошибка при отправке сообщения для кошелька ID {wallet_id}: {str(e)}", exc_info=True)
+            await message.answer("❌ Ошибка при отправке данных кошелька.")
+            return
         # Удаляем сообщение пользователя с командой
         await message.delete()
     except Exception as e:

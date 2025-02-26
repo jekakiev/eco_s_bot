@@ -54,10 +54,12 @@ class WalletsDB:
                     logger.debug(f"Кошелек с ID {wallet_id} не найден, проверка всех записей: {self.get_all_wallets()}")
                 return None
             # Проверка на корректность данных
-            if not all(result):
+            if not all(result) or not result[1] or not result[2]:  # Проверяем, что address и name не пустые
                 if should_log("debug"):
                     logger.debug(f"Некорректные данные для кошелька с ID {wallet_id}: {result}")
                 return None
+            if should_log("debug"):
+                logger.debug(f"Кошелек найден: ID={result[0]}, Адрес={result[1]}, Имя={result[2]}, Токены={result[3]}")
             return result  # Повертаємо None, якщо гаманець не знайдено или данные некорректны
         except Error as e:
             if should_log("api_errors"):
