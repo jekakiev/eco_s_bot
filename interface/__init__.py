@@ -20,12 +20,9 @@ async def edit_wallet_command(message: types.Message):
             return
         if should_log("debug"):
             logger.debug(f"Попытка найти кошелек с последними 4 символами адреса: {short_address}")
-        # Форсируем повторное подключение к базе
+        
+        # Простое подключение к базе
         db.reconnect()
-        if not db.connection or not db.connection.is_connected():
-            if should_log("debug"):
-                logger.debug("Подключение к базе разорвано, пытаемся переподключиться")
-            db.reconnect()
         
         # Поиск по последним 4 символам адреса
         wallets = db.wallets.get_all_wallets()
@@ -38,46 +35,44 @@ async def edit_wallet_command(message: types.Message):
             await message.answer("❌ Кошелек не найден.")
             return
         
-        # Проверка данных
-        if not wallet[1] or not wallet[2]:  # Убедимся, что address и name не пустые
+        # Проверка данных на скрытые символы и кодировку
+        try:
+            name_cleaned = wallet[2].strip()  # Удаляем пробелы и табуляции
+            address_cleaned = wallet[1].strip()
+            if not name_cleaned or not address_cleaned:
+                if should_log("debug"):
+                    logger.debug(f"Очищенные данные пустые: name={name_cleaned}, address={address_cleaned}")
+                await message.answer("❌ Кошелек содержит некорректные данные.")
+                return
+            name_cleaned.encode('utf-8')  # Проверяем кодировку
+            address_cleaned.encode('utf-8')
+        except UnicodeEncodeError as e:
             if should_log("debug"):
-                logger.debug(f"Некорректные данные для кошелька: {wallet}")
-            await message.answer("❌ Кошелек содержит некорректные данные.")
-            return
-        
-        # Проверка типов данных
-        if not isinstance(wallet[1], str) or not isinstance(wallet[2], str):
-            if should_log("debug"):
-                logger.debug(f"Некорректные типы данных для кошелька: address={type(wallet[1])}, name={type(wallet[2])}")
-            await message.answer("❌ Кошелек содержит некорректные типы данных.")
+                logger.debug(f"Ошибка кодировки для данных кошелька: name={wallet[2]}, address={wallet[1]}, ошибка={str(e)}")
+            await message.answer("❌ Ошибка кодировки данных кошелька.")
             return
         
         if should_log("debug"):
             logger.debug(f"Найден кошелек: ID={wallet[0]}, Адрес={wallet[1]}, Имя={wallet[2]}, Токены={wallet[3]}")
-            logger.debug(f"Типы данных: ID={type(wallet[0])}, Адрес={type(wallet[1])}, Имя={type(wallet[2])}, Токены={type(wallet[3])}")
         
         from .keyboards import get_wallet_control_keyboard
         try:
-            # Упрощаем текст, чтобы исключить проблемы с форматированием
-            text = f"Имя: {wallet[2]}\nАдрес: {wallet[1][:10]}...{wallet[1][-4:]}"  # Обрезаем адрес для безопасности
+            # Упрощённый текст, идентичный токенам
+            text = f"Кошелек: {name_cleaned} ({address_cleaned[-4:]})"
             if should_log("debug"):
                 logger.debug(f"Сформирован текст: {text}")
-                logger.debug(f"Типы данных текста: name={type(wallet[2])}, address={type(wallet[1])}")
             
             keyboard = get_wallet_control_keyboard(wallet[0])  # wallet[0] — id
             if should_log("debug"):
                 logger.debug(f"Сформирована клавиатура: {keyboard.inline_keyboard}")
-                logger.debug(f"Тип данных клавиатуры: {type(keyboard)}")
             
             sent_message = await message.answer(text, reply_markup=keyboard)
+            await message.delete()
         except Exception as e:
             if should_log("api_errors"):
-                logger.error(f"Ошибка при отправке сообщения для кошелька с адресом {wallet[1][-4:]}: {str(e)}", exc_info=True)
+                logger.error(f"Ошибка при отправке сообщения для кошелька с адресом {address_cleaned[-4:]}: {str(e)}", exc_info=True)
             await message.answer("❌ Ошибка при отправке данных кошелька.")
             return
-        
-        # Удаляем сообщение пользователя с командой
-        await message.delete()
     
     except Exception as e:
         if should_log("api_errors"):
@@ -101,9 +96,37 @@ async def edit_token_command(message: types.Message):
                 logger.debug(f"Токен с последними 4 символами {short_address} не найден в базе")
             await message.answer("❌ Токен не найден.")
             return
+        
+        # Проверка данных на скрытые символы и кодировку
+        try:
+            token_name_cleaned = token[2].strip()
+            token_address_cleaned = token[1].strip()
+            if not token_name_cleaned or not token_address_cleaned:
+                if should_log("debug"):
+                    logger.debug(f"Очищенные данные токена пустые: name={token_name_cleaned}, address={token_address_cleaned}")
+                await message.answer("❌ Токен содержит некорректные данные.")
+                return
+            token_name_cleaned.encode('utf-8')
+            token_address_cleaned.encode('utf-8')
+        except UnicodeEncodeError as e:
+            if should_log("debug"):
+                logger.debug(f"Ошибка кодировки для данных токена: name={token[2]}, address={token[1]}, ошибка={str(e)}")
+            await message.answer("❌ Ошибка кодировки данных токена.")
+            return
+        
+        if should_log("debug"):
+            logger.debug(f"Найден токен: ID={token[0]}, Адрес={token[1]}, Имя={token[2]}, Тред={token[3]}")
+        
         from .keyboards import get_token_control_keyboard
-        text = f"Токен: {token[2]}\nАдрес: {token[1]}\nТред: {token[3] or 'Не указан'}"
-        sent_message = await message.answer(text, reply_markup=get_token_control_keyboard(token[0]))
+        text = f"Токен: {token_name_cleaned} ({token_address_cleaned[-4:]})"
+        if should_log("debug"):
+            logger.debug(f"Сформирован текст: {text}")
+        
+        keyboard = get_token_control_keyboard(token[0])
+        if should_log("debug"):
+            logger.debug(f"Сформирована клавиатура: {keyboard.inline_keyboard}")
+        
+        sent_message = await message.answer(text, reply_markup=keyboard)
         await message.delete()
     except Exception as e:
         if should_log("api_errors"):
