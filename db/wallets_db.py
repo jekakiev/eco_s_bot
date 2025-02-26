@@ -26,7 +26,10 @@ class WalletsDB:
     def get_all_wallets(self):
         try:
             self.cursor.execute("SELECT id, address, name, tokens FROM wallets")
-            return self.cursor.fetchall()
+            results = self.cursor.fetchall()
+            if should_log("debug"):
+                logger.debug(f"Получены все кошельки: {results}")
+            return results
         except Error as e:
             if should_log("api_errors"):
                 logger.error(f"Ошибка получения кошельков: {str(e)}")
@@ -69,7 +72,10 @@ class WalletsDB:
     def get_wallet_by_address(self, address):
         try:
             self.cursor.execute("SELECT id, address, name, tokens FROM wallets WHERE address = %s", (address,))
-            return self.cursor.fetchone()
+            result = self.cursor.fetchone()
+            if should_log("debug"):
+                logger.debug(f"Результат поиска кошелька по адресу {address}: {result}")
+            return result
         except Error as e:
             if should_log("api_errors"):
                 logger.error(f"Ошибка получения кошелька по адресу: {str(e)}")

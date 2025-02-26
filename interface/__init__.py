@@ -14,11 +14,11 @@ async def edit_wallet_command(message: types.Message):
         if not message.text.startswith("/Editw_"):
             await message.answer("❌ Неверный формат команды. Используйте /Editw_<ID_кошелька>.")
             return
-        wallet_id = message.text.replace("/Editw_", "")
-        if not wallet_id.isdigit():
+        wallet_id_str = message.text.replace("/Editw_", "")
+        if not wallet_id_str.isdigit():
             await message.answer("❌ ID кошелька должен быть числом.")
             return
-        wallet_id = int(wallet_id)
+        wallet_id = int(wallet_id_str)
         if should_log("debug"):
             logger.debug(f"Попытка найти кошелек с ID: {wallet_id}, полный текст команды: {message.text}")
         # Форсируем повторное подключение к базе, чтобы исключить кэширование или сбой
@@ -27,23 +27,40 @@ async def edit_wallet_command(message: types.Message):
             if should_log("debug"):
                 logger.debug("Подключение к базе разорвано, пытаемся переподключиться")
             db.reconnect()
+        
+        # Поиск по ID
         wallet = db.wallets.get_wallet_by_id(wallet_id)
+        if not wallet:
+            if should_log("debug"):
+                logger.debug(f"Кошелек с ID {wallet_id} не найден. Проверка всех записей: {db.wallets.get_all_wallets()}")
+            # Альтернативный поиск по последним 4 символам адреса, как для токенов
+            wallets = db.wallets.get_all_wallets()
+            wallet_by_short = next((w for w in wallets if w[1].endswith(wallet_id_str)), None)  # w[1] — address
+            if wallet_by_short:
+                wallet = wallet_by_short
+                wallet_id = wallet[0]  # Обновляем wallet_id на найденный
+                if should_log("debug"):
+                    logger.debug(f"Кошелек найден по последним 4 символам адреса: ID={wallet[0]}, Адрес={wallet[1]}")
+            else:
+                if should_log("debug"):
+                    logger.debug(f"Кошелек с ID или последними 4 символами {wallet_id_str} не найден в базе.")
+                await message.answer("❌ Кошелек не найден.")
+                return
+        
         if should_log("debug"):
             logger.debug(f"Результат get_wallet_by_id для ID {wallet_id}: {wallet}")
             logger.debug(f"Список кошельков из базы для проверки (после reconnect): {db.wallets.get_all_wallets()}")
-        if not wallet:
-            if should_log("debug"):
-                logger.debug(f"Кошелек с ID {wallet_id} не найден в базе. Список кошельков: {db.wallets.get_all_wallets()}")
-            await message.answer("❌ Кошелек не найден.")
-            return
-        if should_log("debug"):
-            logger.debug(f"Кошелек найден: ID={wallet[0]}, Адрес={wallet[1]}, Имя={wallet[2]}, Токены={wallet[3]}")
+        
         # Проверка на корректность данных
         if not all(wallet) or not wallet[1] or not wallet[2]:  # Проверяем, что address и name не пустые
             if should_log("debug"):
                 logger.debug(f"Некорректные данные для кошелька с ID {wallet_id}: {wallet}")
             await message.answer("❌ Кошелек содержит некорректные данные.")
             return
+        
+        if should_log("debug"):
+            logger.debug(f"Кошелек найден: ID={wallet[0]}, Адрес={wallet[1]}, Имя={wallet[2]}, Токены={wallet[3]}")
+        
         from .keyboards import get_wallet_control_keyboard
         try:
             text = f"Имя кошелька: {wallet[2]}\nАдрес кошелька: {wallet[1]}"  # wallet[2] — name, wallet[1] — address
@@ -53,8 +70,10 @@ async def edit_wallet_command(message: types.Message):
                 logger.error(f"Ошибка при отправке сообщения для кошелька ID {wallet_id}: {str(e)}", exc_info=True)
             await message.answer("❌ Ошибка при отправке данных кошелька.")
             return
+        
         # Удаляем сообщение пользователя с командой
         await message.delete()
+    
     except Exception as e:
         if should_log("api_errors"):
             logger.error(f"Ошибка обработки команды /Editw: {str(e)}", exc_info=True)  # Добавлено exc_info=True для полного стека вызовов
@@ -64,8 +83,6 @@ async def edit_wallet_command(message: types.Message):
 
 async def edit_token_command(message: types.Message):
     logger.info(f"Получена команда: {message.text}")
-    if should_log("interface"):
-        logger.info(f"Обработка команды /edit для пользователя {message.from_user.id}")
     try:
         short_address = message.text.split("_")[1]
         db.reconnect()
