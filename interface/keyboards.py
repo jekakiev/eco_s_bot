@@ -1,5 +1,5 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from app_config import db  # Імпортуємо db з app_config
+from app_config import db
 from utils.logger_config import logger, should_log
 
 def get_main_menu():
@@ -25,8 +25,7 @@ def get_back_button():
     return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]])
 
 def get_tokens_keyboard(selected_tokens, is_edit=False):
-    # Получаем все отслеживаемые токены из базы данных
-    tokens = [token[2] for token in db.tracked_tokens.get_all_tracked_tokens()]  # token[2] — token_name
+    tokens = [token[2] for token in db.tracked_tokens.get_all_tracked_tokens()]
     if should_log("debug"):
         logger.debug(f"Полученные токены из базы: {tokens}")
     keyboard = []
@@ -51,30 +50,19 @@ def get_wallet_control_keyboard(wallet_id):
     try:
         if should_log("debug"):
             logger.debug(f"Формирование клавиатуры для кошелька с ID: {wallet_id}")
-        # Проверяем, что wallet_id — это число
         if not isinstance(wallet_id, int) or wallet_id <= 0:
             if should_log("debug"):
                 logger.debug(f"Некорректный wallet_id: {wallet_id}")
             raise ValueError(f"Некорректный ID кошелька: {wallet_id}")
         
-        # Проверяем, существует ли кошелёк в базе
         wallet = db.wallets.get_wallet_by_id(wallet_id)
         if not wallet:
             if should_log("debug"):
-                logger.debug(f"Кошелек с ID {wallet_id} не найден в базе: {db.wallets.get_all_wallets()}")
+                logger.debug(f"Кошелек с ID {wallet_id} не найден: {db.wallets.get_all_wallets()}")
             raise ValueError(f"Кошелек с ID {wallet_id} не найден")
         
         if should_log("debug"):
-            logger.debug(f"Кошелек найден для формирования клавиатуры: ID={wallet[0]}, Адрес={wallet[1]}, Имя={wallet[2]}, Токены={wallet[3]}")
-        
-        # Проверяем типы данных callback_data
-        callback_prefixes = ["rename_wallet_", "edit_tokens_", "delete_wallet_"]
-        for prefix in callback_prefixes:
-            callback_data = f"{prefix}{wallet_id}"
-            if not isinstance(callback_data, str):
-                if should_log("debug"):
-                    logger.debug(f"Некорректный тип callback_data для {prefix}: {type(callback_data)}")
-                raise TypeError(f"Некорректный тип данных для callback_data: {callback_data}")
+            logger.debug(f"Клавиатура для кошелька: ID={wallet[0]}, Адрес={wallet[1][-4:]}")
         
         keyboard = [
             [
@@ -87,13 +75,12 @@ def get_wallet_control_keyboard(wallet_id):
             ]
         ]
         if should_log("debug"):
-            logger.debug(f"Сформирована клавиатура для кошелька ID {wallet_id}: {keyboard}")
-            logger.debug(f"Типы данных клавиатуры: кнопки={type(keyboard[0][0])}, callback_data={type(keyboard[0][0].callback_data)}")
+            logger.debug(f"Сформирована клавиатура: {keyboard}")
         return InlineKeyboardMarkup(inline_keyboard=keyboard)
     except Exception as e:
         if should_log("api_errors"):
             logger.error(f"Ошибка при формировании клавиатуры для кошелька ID {wallet_id}: {str(e)}", exc_info=True)
-        raise  # Пробрасываем исключение для дальнейшей обработки
+        raise
 
 def get_wallets_list():
     wallets = db.wallets.get_all_wallets()
@@ -101,8 +88,8 @@ def get_wallets_list():
         return "📜 Нет добавленных кошельков.", InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="➕ Добавить кошелек", callback_data="add_wallet"), InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]])
     text = "📜 Список кошельков:\n\n"
     for wallet in wallets:
-        last_4 = wallet[1][-4:]  # Последние 4 символа адреса
-        text += f"💰 {wallet[2]} ({last_4}) — /Editw_{last_4}\n"  # wallet[2] — name, wallet[1] — address
+        last_4 = wallet[1][-4:]
+        text += f"💰 {wallet[2]} ({last_4}) — /Editw_{last_4}\n"
     keyboard = [[InlineKeyboardButton(text="➕ Добавить кошелек", callback_data="add_wallet"), InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]]
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
@@ -112,7 +99,7 @@ def get_tracked_tokens_list():
         return "🪙 Нет отслеживаемых токенов.", InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="➕ Добавить токен", callback_data="add_token"), InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]])
     text = "🪙 Список отслеживаемых токенов:\n\n"
     for token in tokens:
-        text += f"💎 {token[2]} ({token[1][-4:]}) — /edit_{token[1][-4:]}\n"  # token[2] — token_name, token[1] — contract_address
+        text += f"💎 {token[2]} ({token[1][-4:]}) — /edit_{token[1][-4:]}\n"
     keyboard = [[InlineKeyboardButton(text="➕ Добавить токен", callback_data="add_token"), InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]]
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
@@ -161,9 +148,7 @@ def get_commands_list():
         "*/Editw_XXXX* — Редактировать кошелек (XXXX — последние 4 символа адреса)\n"
         "*/edit_XXXX* — Редактировать токен (XXXX — последние 4 символа адреса контракта)"
     )
-    keyboard = [[
-        InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")
-    ]]
+    keyboard = [[InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]]
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_settings_list(check_interval="150", send_last="❌ВЫКЛ", api_errors="❌ВЫКЛ", transaction_info="✅ВКЛ", interface_info="❌ВЫКЛ", debug="❌ВЫКЛ"):
@@ -195,9 +180,5 @@ def get_settings_list(check_interval="150", send_last="❌ВЫКЛ", api_errors=
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_interval_edit_keyboard():
-    keyboard = [
-        [
-            InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")
-        ]
-    ]
+    keyboard = [[InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
