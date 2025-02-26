@@ -67,6 +67,15 @@ def get_wallet_control_keyboard(wallet_id):
         if should_log("debug"):
             logger.debug(f"Кошелек найден для формирования клавиатуры: ID={wallet[0]}, Адрес={wallet[1]}, Имя={wallet[2]}, Токены={wallet[3]}")
         
+        # Проверяем типы данных callback_data
+        callback_prefixes = ["rename_wallet_", "edit_tokens_", "delete_wallet_"]
+        for prefix in callback_prefixes:
+            callback_data = f"{prefix}{wallet_id}"
+            if not isinstance(callback_data, str):
+                if should_log("debug"):
+                    logger.debug(f"Некорректный тип callback_data для {prefix}: {type(callback_data)}")
+                raise TypeError(f"Некорректный тип данных для callback_data: {callback_data}")
+        
         keyboard = [
             [
                 InlineKeyboardButton(text="✏️ Переименовать", callback_data=f"rename_wallet_{wallet_id}"),
@@ -79,6 +88,7 @@ def get_wallet_control_keyboard(wallet_id):
         ]
         if should_log("debug"):
             logger.debug(f"Сформирована клавиатура для кошелька ID {wallet_id}: {keyboard}")
+            logger.debug(f"Типы данных клавиатуры: {type(keyboard)}, кнопки={type(keyboard[0][0])}")
         return InlineKeyboardMarkup(inline_keyboard=keyboard)
     except Exception as e:
         if should_log("api_errors"):

@@ -41,12 +41,15 @@ async def edit_wallet_command(message: types.Message):
         if should_log("debug"):
             logger.debug(f"Кошелек найден: ID={wallet[0]}, Адрес={wallet[1]}, Имя={wallet[2]}, Токены={wallet[3]}")
         
-        # Проверка на корректность данных
+        # Проверка на корректность данных и типов
         if not all(wallet) or not wallet[1] or not wallet[2]:  # Проверяем, что address и name не пустые
             if should_log("debug"):
                 logger.debug(f"Некорректные данные для кошелька с адресом {wallet[1][-4:]}: {wallet}")
             await message.answer("❌ Кошелек содержит некорректные данные.")
             return
+        
+        if should_log("debug"):
+            logger.debug(f"Типы данных кошелька: ID={type(wallet[0])}, Адрес={type(wallet[1])}, Имя={type(wallet[2])}, Токены={type(wallet[3])}")
         
         from .keyboards import get_wallet_control_keyboard
         try:
