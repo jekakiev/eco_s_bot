@@ -40,7 +40,7 @@ async def edit_wallet_command(message: types.Message):
                 wallet = wallet_by_short
                 wallet_id = wallet[0]  # Обновляем wallet_id на найденный
                 if should_log("debug"):
-                    logger.debug(f"Кошелек найден по последним 4 символам адреса: ID={wallet[0]}, Адрес={wallet[1]}")
+                    logger.debug(f"Кошелек найден по последним 4 символами адреса: ID={wallet[0]}, Адрес={wallet[1]}")
             else:
                 if should_log("debug"):
                     logger.debug(f"Кошелек с ID или последними 4 символами {wallet_id_str} не найден в базе.")
@@ -76,9 +76,10 @@ async def edit_wallet_command(message: types.Message):
     
     except Exception as e:
         if should_log("api_errors"):
-            logger.error(f"Ошибка обработки команды /Editw: {str(e)}", exc_info=True)  # Добавлено exc_info=True для полного стека вызовов
+            logger.error(f"Ошибка обработки команды /Editw: {str(e)}", exc_info=True)  # Убедимся, что логируем полный стек вызовов
         if should_log("debug"):
             logger.debug(f"Состояние подключения к базе после ошибки: {db.connection.is_connected() if db.connection else 'Нет подключения'}")
+            logger.debug(f"Список кошельков после ошибки: {db.wallets.get_all_wallets()}")
         await message.answer("❌ Ошибка при обработке команды.")
 
 async def edit_token_command(message: types.Message):

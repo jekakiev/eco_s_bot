@@ -32,7 +32,7 @@ class WalletsDB:
             return results
         except Error as e:
             if should_log("api_errors"):
-                logger.error(f"Ошибка получения кошельков: {str(e)}")
+                logger.error(f"Ошибка получения кошельков: {str(e)}", exc_info=True)
             return []
 
     def get_wallet_by_id(self, wallet_id):
@@ -78,7 +78,7 @@ class WalletsDB:
             return result
         except Error as e:
             if should_log("api_errors"):
-                logger.error(f"Ошибка получения кошелька по адресу: {str(e)}")
+                logger.error(f"Ошибка получения кошелька по адресу: {str(e)}", exc_info=True)
             return None
 
     def add_wallet(self, address, name, tokens=None):
@@ -92,7 +92,7 @@ class WalletsDB:
                 logger.info(f"Кошелек добавлен: {name} ({address})")
         except Error as e:
             if should_log("api_errors"):
-                logger.error(f"Ошибка добавления кошелька: {str(e)}")
+                logger.error(f"Ошибка добавления кошелька: {str(e)}", exc_info=True)
             self.connection.rollback()
 
     def update_wallet_tokens(self, wallet_id, tokens):
@@ -106,7 +106,7 @@ class WalletsDB:
                 logger.info(f"Токены кошелька {wallet_id} обновлены")
         except Error as e:
             if should_log("api_errors"):
-                logger.error(f"Ошибка обновления токенов кошелька: {str(e)}")
+                logger.error(f"Ошибка обновления токенов кошелька: {str(e)}", exc_info=True)
             self.connection.rollback()
 
     def rename_wallet(self, wallet_id, new_name):
@@ -120,7 +120,7 @@ class WalletsDB:
                 logger.info(f"Кошелек {wallet_id} переименован в {new_name}")
         except Error as e:
             if should_log("api_errors"):
-                logger.error(f"Ошибка переименования кошелька: {str(e)}")
+                logger.error(f"Ошибка переименования кошелька: {str(e)}", exc_info=True)
             self.connection.rollback()
 
     def delete_wallet(self, wallet_id):
@@ -131,5 +131,5 @@ class WalletsDB:
                 logger.info(f"Кошелек {wallet_id} удален")
         except Error as e:
             if should_log("api_errors"):
-                logger.error(f"Ошибка удаления кошелька: {str(e)}")
+                logger.error(f"Ошибка удаления кошелька: {str(e)}", exc_info=True)
             self.connection.rollback()
