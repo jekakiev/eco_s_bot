@@ -1,13 +1,15 @@
+# /app/bot.py
 import asyncio
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.fsm.storage.memory import MemoryStorage
-from interface import register_handlers, get_main_menu, edit_wallet_command
+from interface.handlers import register_handlers, edit_wallet_command
+from interface.keyboards import get_main_menu
 from config.settings import BOT_TOKEN, CHAT_ID
 from config.bot_instance import bot
 from utils.logger_config import logger, update_log_settings, should_log
 from transaction_manager import start_transaction_monitoring
-from app_config import db  # Імпортуємо db з app_config
+from app_config import db
 
 dp = Dispatcher(storage=MemoryStorage())
 
@@ -22,9 +24,6 @@ async def dynamic_edit_wallet_command(message: types.Message):
     if should_log("interface"):
         logger.info(f"Обработка динамической команды /Editw_ для пользователя {message.from_user.id}")
     await edit_wallet_command(message)
-
-# Оновлення логів через виклик update_log_settings з передачею db
-update_log_settings(db)
 
 @dp.message(Command("start"))
 async def start_command(message):
