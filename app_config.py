@@ -1,4 +1,10 @@
-from database import Database
+# /app_config.py
+from db import Database
+from utils.logger_config import logger
 
-# Глобальний екземпляр Database
-db = Database()
+try:
+    db = Database()
+    logger.info("Экземпляр Database успешно создан в app_config")
+except Exception as e:
+    logger.error(f"Не удалось создать экземпляр Database в app_config: {str(e)}", exc_info=True)
+    raise
