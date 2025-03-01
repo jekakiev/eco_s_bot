@@ -29,6 +29,10 @@ async def select_wallet(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer("❌ Кошелек не найден!", show_alert=True)
         return
     
+    # Получение данных из состояния
+    state_data = await state.get_data()
+    message_id = state_data.get("test_api_message_id")
+    
     # Отримання найновішої транзакції для хеша та посилання
     latest_tx = await get_latest_transaction(wallet[1])
     swap_tx_data = await get_latest_swap_transaction(wallet[1])
@@ -57,7 +61,13 @@ async def select_wallet(callback: types.CallbackQuery, state: FSMContext):
             disable_web_page_preview=True
         )
     
-    await callback.message.edit_reply_markup(reply_markup=get_main_menu())
+    # Обновляем исходное сообщение с кнопками главного меню
+    if message_id:
+        await callback.message.bot.edit_message_reply_markup(
+            chat_id=callback.message.chat.id,
+            message_id=message_id,
+            reply_markup=get_main_menu()
+        )
     await state.clear()
     await callback.answer()
 
