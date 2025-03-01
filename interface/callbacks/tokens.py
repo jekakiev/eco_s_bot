@@ -8,7 +8,7 @@ from utils.logger_config import logger, should_log
 from utils.arbiscan import get_token_info
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-logger.info("Загружена версия /interface/callbacks/tokens.py с исправлением edit_token_thread (v2.4)")
+logger.info("Загружена версия /interface/callbacks/tokens.py с исправлением edit_token_thread (v2.5)")
 
 async def show_tokens(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
@@ -198,7 +198,15 @@ async def edit_token_thread_new(callback: types.CallbackQuery, state: FSMContext
     if should_log("interface"):
         logger.info(f"Callback 'edit_token_thread_new' получен от {callback.from_user.id}: {callback.data}")
         logger.info(f"Редактирование треда токена: {callback.data}")
-    token_id = int(callback.data.replace("edit_token_thread_", ""))
+    data = await state.get_data()
+    token_id = data.get("token_id") or callback.data.replace("edit_token_thread_", "")
+    try:
+        token_id = int(token_id)
+    except ValueError:
+        if should_log("debug"):
+            logger.debug(f"Некорректный token_id: {token_id}")
+        await callback.answer("❌ Ошибка: неверный ID токена!", show_alert=True)
+        return
     db.reconnect()
     token = db.tracked_tokens.get_token_by_id(token_id)
     if not token:

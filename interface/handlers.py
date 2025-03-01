@@ -9,7 +9,6 @@ from .callbacks.wallets import (
 import importlib
 import sys
 
-# Удаляем модуль из кэша и перезагружаем
 tokens_module_name = 'interface.callbacks.tokens'
 if tokens_module_name in sys.modules:
     del sys.modules[tokens_module_name]
@@ -167,7 +166,7 @@ async def edit_wallet_command(message: types.Message):
             logger.debug(f"Список кошельков после ошибки: {db.wallets.get_all_wallets()}")
         await message.answer("❌ Ошибка при обработке команды.")
 
-async def edit_token_command(message: types.Message):
+async def edit_token_command(message: types.Message, state: FSMContext):
     if should_log("interface"):
         logger.info(f"Получена команда: {message.text}")
     try:
@@ -219,6 +218,7 @@ async def edit_token_command(message: types.Message):
         if should_log("debug"):
             logger.debug(f"Сформирована клавиатура: {keyboard.inline_keyboard}")
         
+        await state.update_data(token_id=str(token[0]))  # Сохраняем token_id в состояние
         sent_message = await message.answer(text, reply_markup=keyboard)
         await message.delete()
     except Exception as e:
