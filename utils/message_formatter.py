@@ -1,4 +1,6 @@
+# /utils/message_formatter.py
 from aiogram.enums import ParseMode
+from utils.logger_config import logger, should_log
 
 def format_number(value):
     if value == "Неизвестно" or not value:
@@ -23,6 +25,8 @@ def format_number(value):
         else:  # Триллионы и больше
             return f"{num / 1_000_000_000_000:.2f}T"
     except (ValueError, TypeError, AttributeError):
+        if should_log("api_errors"):
+            logger.warning(f"Ошибка форматирования числа: {value}")
         return "Неизвестно"
 
 def format_swap_message(tx_hash, sender, sender_url, amount_in, token_in, token_in_url, amount_out, token_out, token_out_url, usd_value):
@@ -50,4 +54,6 @@ def format_swap_message(tx_hash, sender, sender_url, amount_in, token_in, token_
         )
         return message, ParseMode.MARKDOWN
     except Exception as e:
+        if should_log("api_errors"):
+            logger.error(f"Ошибка форматирования сообщения о своп-транзакции для хеша {tx_hash}: {str(e)}", exc_info=True)
         return f"Ошибка форматирования сообщения: {str(e)}", None

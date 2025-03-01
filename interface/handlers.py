@@ -1,3 +1,4 @@
+# /interface/handlers.py
 from aiogram import Dispatcher, F, types
 from .callbacks.wallets import (
     show_wallets, add_wallet_start, process_wallet_address, process_wallet_name,
@@ -27,7 +28,8 @@ from utils.logger_config import logger, should_log
 db = Database()
 
 def register_handlers(dp: Dispatcher):
-    logger.info("Регистрация обработчиков callback-запросов началась")
+    if should_log("interface"):
+        logger.info("Регистрация обработчиков callback-запросов началась")
     
     dp.callback_query.register(show_wallets, F.data == "show_wallets")
     dp.callback_query.register(add_wallet_start, F.data == "add_wallet")
@@ -67,30 +69,32 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(show_test_api_by_hash, F.data == "test_api_by_hash")
     dp.message.register(request_transaction_hash, WalletStates.waiting_for_transaction_hash)
     
-    # Оновлено для работы с последними 4 символами адреса
     wallets = db.wallets.get_all_wallets()
-    wallet_commands = [f"Editw_{wallet[1][-4:]}" for wallet in wallets]  # wallet[1] — address (последние 4 символа)
+    wallet_commands = [f"Editw_{wallet[1][-4:]}" for wallet in wallets]
     if wallet_commands:
         dp.message.register(edit_wallet_command, Command(commands=wallet_commands))
-        logger.info(f"Зарегистрированы команды для кошельков: {wallet_commands}")
+        if should_log("interface"):
+            logger.info(f"Зарегистрированы команды для кошельков: {wallet_commands}")
     else:
         if should_log("interface"):
             logger.warning("Нет кошельков для регистрации команд /Editw_XXXX")
     
-    # Оновлено для работы с кортежами
     tokens = db.tracked_tokens.get_all_tracked_tokens()
-    token_commands = [f"edit_{token[1][-4:]}" for token in tokens]  # token[1] — contract_address (последние 4 символа)
+    token_commands = [f"edit_{token[1][-4:]}" for token in tokens]
     if token_commands:
         dp.message.register(edit_token_command, Command(commands=token_commands))
-        logger.info(f"Зарегистрированы команды для токенов: {token_commands}")
+        if should_log("interface"):
+            logger.info(f"Зарегистрированы команды для токенов: {token_commands}")
     else:
         if should_log("interface"):
             logger.warning("Нет токенов для регистрации команд /edit_XXXX")
 
-    logger.info("Регистрация обработчиков callback-запросов завершена")
+    if should_log("interface"):
+        logger.info("Регистрация обработчиков callback-запросов завершена")
 
 async def edit_wallet_command(message: types.Message):
-    logger.info(f"Получена команда: {message.text}")
+    if should_log("interface"):
+        logger.info(f"Получена команда: {message.text}")
     try:
         if not message.text.startswith("/Editw_"):
             await message.answer("❌ Неверный формат команды. Используйте /Editw_XXXX (последние 4 символа адреса кошелька).")
@@ -102,17 +106,16 @@ async def edit_wallet_command(message: types.Message):
         if should_log("debug"):
             logger.debug(f"Попытка найти кошелек с последними 4 символами адреса: {short_address}, полный текст команды: {message.text}")
         db.reconnect()
-        wallets = db.wallets.get_all_wallets()  # Отримуємо кортежі
+        wallets = db.wallets.get_all_wallets()
         if should_log("debug"):
             logger.debug(f"Список кошельков из базы: {wallets}")
-        wallet = next((w for w in wallets if w[1].endswith(short_address)), None)  # w[1] — address
+        wallet = next((w for w in wallets if w[1].endswith(short_address)), None)
         if not wallet:
             if should_log("debug"):
                 logger.debug(f"Кошелек с последними 4 символами {short_address} не найден в базе: {wallets}")
             await message.answer("❌ Кошелек не найден.")
             return
         
-        # Проверка данных на скрытые символы и кодировку, идентично токенам
         try:
             name_cleaned = wallet[2].strip()
             address_cleaned = wallet[1].strip()
@@ -121,7 +124,7 @@ async def edit_wallet_command(message: types.Message):
                     logger.debug(f"Очищенные данные пустые: name={name_cleaned}, address={address_cleaned}")
                 await message.answer("❌ Кошелек содержит некорректные данные.")
                 return
-            name_cleaned.encode('utf-8')  # Проверяем кодировку
+            name_cleaned.encode('utf-8')
             address_cleaned.encode('utf-8')
         except UnicodeEncodeError as e:
             if should_log("debug"):
@@ -134,33 +137,33 @@ async def edit_wallet_command(message: types.Message):
         
         from .keyboards import get_wallet_control_keyboard
         try:
-            # Упрощённый текст, идентичный токенам
             text = f"Кошелек: {name_cleaned} ({address_cleaned[-4:]})"
             if should_log("debug"):
                 logger.debug(f"Сформирован текст: {text}")
             
-            keyboard = get_wallet_control_keyboard(wallet[0])  # wallet[0] — id
+            keyboard = get_wallet_control_keyboard(wallet[0])
             if should_log("debug"):
                 logger.debug(f"Сформирована клавиатура: {keyboard.inline_keyboard}")
             
             sent_message = await message.answer(text, reply_markup=keyboard)
             await message.delete()
         except Exception as e:
-            if int(db.settings.get_setting("API_ERRORS", "1")):
+            if should_log("api_errors"):
                 logger.error(f"Ошибка при отправке сообщения для кошелька с адресом {address_cleaned[-4:]}: {str(e)}", exc_info=True)
             await message.answer("❌ Ошибка при отправке данных кошелька.")
             return
     
     except Exception as e:
-        if int(db.settings.get_setting("API_ERRORS", "1")):
-            logger.error(f"Ошибка обработки команды /Editw: {str(e)}", exc_info=True)  # Логируем полный стек вызовов
+        if should_log("api_errors"):
+            logger.error(f"Ошибка обработки команды /Editw: {str(e)}", exc_info=True)
         if should_log("debug"):
             logger.debug(f"Состояние подключения к базе после ошибки: {db.connection.is_connected() if db.connection else 'Нет подключения'}")
             logger.debug(f"Список кошельков после ошибки: {db.wallets.get_all_wallets()}")
         await message.answer("❌ Ошибка при обработке команды.")
 
 async def edit_token_command(message: types.Message):
-    logger.info(f"Получена команда: {message.text}")
+    if should_log("interface"):
+        logger.info(f"Получена команда: {message.text}")
     try:
         short_address = message.text.split("_")[1]
         db.reconnect()
@@ -174,7 +177,6 @@ async def edit_token_command(message: types.Message):
             await message.answer("❌ Токен не найден.")
             return
         
-        # Проверка данных на скрытые символы и кодировку
         try:
             token_name_cleaned = token[2].strip()
             token_address_cleaned = token[1].strip()
@@ -201,11 +203,11 @@ async def edit_token_command(message: types.Message):
         
         keyboard = get_token_control_keyboard(token[0])
         if should_log("debug"):
-            logger.debug(f"Сформирана клавиатура: {keyboard.inline_keyboard}")
+            logger.debug(f"Сформирована клавиатура: {keyboard.inline_keyboard}")
         
         sent_message = await message.answer(text, reply_markup=keyboard)
         await message.delete()
     except Exception as e:
-        if int(db.settings.get_setting("API_ERRORS", "1")):
+        if should_log("api_errors"):
             logger.error(f"Ошибка обработки команды /edit: {str(e)}", exc_info=True)
         await message.answer("❌ Ошибка при обработке команды.")

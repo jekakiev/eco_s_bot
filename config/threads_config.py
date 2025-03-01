@@ -1,4 +1,8 @@
-# threads_config.py
+# /config/threads_config.py
+from utils.logger_config import logger, should_log
+
+if should_log("debug"):
+    logger.debug("Загрузка конфигурации тредов из threads_config.py")
 
 # Мапінг токенів у відповідні треди
 TOKEN_CONFIG = {
@@ -23,3 +27,6 @@ TOKEN_CONFIG = {
 # Значення за замовчуванням, якщо токену немає в списку
 DEFAULT_THREAD_ID = 60
 DEFAULT_CONTRACT_ADDRESS = None
+
+if should_log("debug"):
+    logger.debug(f"Конфигурация тредов загружена: {TOKEN_CONFIG}")

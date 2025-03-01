@@ -1,11 +1,12 @@
+# /transaction_manager.py
 import asyncio
 import aiohttp
 from aiogram import Bot
-from app_config import db  # Імпортуємо db з app_config
+from app_config import db
 from utils.logger_config import logger, should_log
 from config.settings import ARBISCAN_API_KEY, CHAT_ID
 import json
-import requests  # Для отримання цін через CoinGecko
+import requests
 
 async def check_token_transactions(bot: Bot, chat_id: str):
     while True:
@@ -21,9 +22,9 @@ async def check_token_transactions(bot: Bot, chat_id: str):
                 transactions = await get_token_transactions(wallet_address, tokens)
                 for tx in transactions:
                     if not tx.get('is_processed', False):
-                        tx_hash = tx.get('hash', 'Неизвестно')  # Используем tx_hash вместо transaction_hash
+                        tx_hash = tx.get('hash', 'Неизвестно')
                         try:
-                            amount_usd = await convert_to_usd(tx)  # Конвертація суми в долари
+                            amount_usd = await convert_to_usd(tx)
                             if amount_usd > 50:  # Фільтрація за сумою
                                 await bot.send_message(chat_id, f"Новая транзакция для {wallet_address[-4:]}:\nХеш: {tx_hash}\nСумма: ${amount_usd:.2f}", parse_mode="HTML")
                             tx['is_processed'] = True
@@ -33,7 +34,7 @@ async def check_token_transactions(bot: Bot, chat_id: str):
                                 logger.error(f"Ошибка обработки транзакции {tx_hash}: {str(e)}")
                             continue
 
-                # Очищення старих транзакцій (залишаємо лише 20)
+                # Очищення старих транзакцій
                 try:
                     db.transactions.clean_old_transactions(wallet_address, limit=20)
                 except Exception as e:
@@ -70,11 +71,9 @@ async def get_token_transactions(wallet_address, tokens):
                     for tx in data["result"]:
                         if tx.get("tokenSymbol") in tokens:
                             tx["is_processed"] = False
-                            tx["hash"] = tx.get("hash", "Неизвестно")  # Используем hash как tx_hash
-                            # Отримання decimals для токена
+                            tx["hash"] = tx.get("hash", "Неизвестно")
                             token_info = await get_token_info(tx.get("contractAddress", ""))
                             decimals = int(token_info.get("tokenDecimal", 18))
-                            # Нормалізація суми
                             value = tx.get("value", "0")
                             try:
                                 value_float = float(value) / (10 ** decimals)
@@ -82,10 +81,12 @@ async def get_token_transactions(wallet_address, tokens):
                             except (ValueError, TypeError):
                                 tx["amount_usd"] = 0
                             transactions.append(tx)
-                    return transactions[:20]  # Повертаємо лише 20 останніх
+                    return transactions[:20]
                 else:
                     return []
             else:
+                if should_log("api_errors"):
+                    logger.error(f"Ошибка API Arbiscan: HTTP {response.status}")
                 return []
 
 async def get_token_info(contract_address):
@@ -107,23 +108,24 @@ async def get_token_info(contract_address):
                     "tokenSymbol": data['result'][0].get('symbol', 'Неизвестно'),
                     "tokenDecimal": data['result'][0].get('decimals', '18')
                 }
-    return {"tokenSymbol": "Неизвестно", "tokenDecimal": "18"}
+            if should_log("api_errors"):
+                logger.warning(f"Не удалось получить информацию о токене {contract_address}")
+            return {"tokenSymbol": "Неизвестно", "tokenDecimal": "18"}
 
 async def convert_to_usd(tx):
     try:
         contract_address = tx.get("contractAddress", "")
         value = tx.get("value", "0")
-        tx_hash = tx.get("hash", "Неизвестно")  # Используем tx_hash вместо transaction_hash
+        tx_hash = tx.get("hash", "Неизвестно")
         token_info = await get_token_info(contract_address)
         decimals = int(token_info.get("tokenDecimal", 18))
         value_float = float(value) / (10 ** decimals) if value and value != "0" else 0
         
-        # Отримання ціни через DexScreener
         price_usd, price_status = await get_token_price("arbitrum", contract_address)
         if price_usd == "0" or not price_usd:
             if should_log("api_errors"):
                 logger.warning(f"Цена для токена {contract_address} не определена, хеш: {tx_hash}")
-            return 0  # Якщо ціна не отримана, повертаємо 0
+            return 0
         usd_value = value_float * float(price_usd)
         return usd_value if usd_value > 0 else 0
     except Exception as e:
@@ -159,7 +161,7 @@ async def get_token_price(chain, contract_address):
         return "0", "Цена не определена"
 
 async def start_transaction_monitoring(bot: Bot, chat_id: str):
-    logger.info("Запуск мониторинга транзакций")
     if should_log("transaction"):
+        logger.info("Запуск мониторинга транзакций")
         logger.info("Мониторинг транзакций начат")
     await check_token_transactions(bot, chat_id)

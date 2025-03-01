@@ -1,3 +1,4 @@
+# /interface/keyboards.py
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from app_config import db
 from utils.logger_config import logger, should_log
@@ -90,6 +91,8 @@ def get_wallets_list():
         last_4 = wallet[1][-4:]
         text += f"💰 {wallet[2]} ({last_4}) — /Editw_{last_4}\n"
     keyboard = [[InlineKeyboardButton(text="➕ Добавить кошелек", callback_data="add_wallet"), InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]]
+    if should_log("interface"):
+        logger.info(f"Сформирован список кошельков: {text}")
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_tracked_tokens_list():
@@ -100,6 +103,8 @@ def get_tracked_tokens_list():
     for token in tokens:
         text += f"💎 {token[2]} ({token[1][-4:]}) — /edit_{token[1][-4:]}\n"
     keyboard = [[InlineKeyboardButton(text="➕ Добавить токен", callback_data="add_token"), InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]]
+    if should_log("interface"):
+        logger.info(f"Сформирован список токенов: {text}")
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_token_control_keyboard(token_id):
@@ -150,7 +155,7 @@ def get_commands_list():
     keyboard = [[InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]]
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def get_settings_list(check_interval="150", send_last="❌ВЫКЛ", api_errors="❌ВЫКЛ", transaction_info="✅ВКЛ", interface_info="❌ВЫКЛ", debug="❌ВЫКЛ"):
+def get_settings_list(check_interval="150", send_last="❌ВЫКЛ", api_errors="❌ВЫКЛ", transaction_info="✅ВКЛ", interface_info="❌ВЫКЛ", debug="❌ВЫКЛ", db_info="❌ВЫКЛ"):
     text = (
         "⚙️ Настройки бота\n\n"
         "⏱ Интервал проверки — как часто бот проверяет новые транзакции\n"
@@ -159,6 +164,7 @@ def get_settings_list(check_interval="150", send_last="❌ВЫКЛ", api_errors=
         "📝 Транзакций — логирование проверки и отправки\n"
         "🖱 Интерфейса — логи действий в меню\n"
         "🔍 Отладка — подробные отладочные сообщения\n"
+        "📚 База данных — логи операций с базой\n"
     )
     keyboard = [
         [
@@ -174,8 +180,13 @@ def get_settings_list(check_interval="150", send_last="❌ВЫКЛ", api_errors=
             InlineKeyboardButton(text=f"🖱 Интерфейс ({interface_info})", callback_data="toggle_INTERFACE_INFO"),
             InlineKeyboardButton(text=f"🔍 Отладка ({debug})", callback_data="toggle_DEBUG")
         ],
+        [
+            InlineKeyboardButton(text=f"📚 База данных ({db_info})", callback_data="toggle_DB_INFO")
+        ],
         [InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]
     ]
+    if should_log("interface"):
+        logger.info("Сформирован список настроек")
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 def get_interval_edit_keyboard():
