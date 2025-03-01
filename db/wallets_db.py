@@ -1,3 +1,4 @@
+# /db/wallets_db.py
 from mysql.connector import Error
 from utils.logger_config import logger, should_log
 
@@ -5,6 +6,7 @@ class WalletsDB:
     def __init__(self, cursor, connection):
         self.cursor = cursor
         self.connection = connection
+        self.create_table()
 
     def create_table(self):
         try:
@@ -16,16 +18,24 @@ class WalletsDB:
                     tokens JSON DEFAULT NULL
                 )
             """)
-            if should_log("transaction"):
+            if should_log("db"):  # Обновлено на "db" вместо "transaction"
                 logger.info("Таблица wallets создана или проверена.")
         except Error as e:
-            if should_log("api_errors"):
+            if should_log("db"):  # Обновлено на "db" вместо "api_errors"
                 logger.error(f"Ошибка создания таблицы wallets: {str(e)}", exc_info=True)
             raise
 
     def get_all_wallets(self):
         try:
-            self.cursor.execute("SELECT id, address, TRIM(name), TRIM(tokens) FROM wallets")  # TRIM для очистки данных
+            if not self.connection.is_connected():
+                if should_log("db"):
+                    logger.debug("Подключение к базе разорвано, требуется переподключение")
+                raise Error("Нет активного подключения к базе данных")
+            if not self.cursor:
+                if should_log("db"):
+                    logger.debug("Курсор не инициализирован")
+                raise Error("Курсор не инициализирован")
+            self.cursor.execute("SELECT id, address, TRIM(name), TRIM(tokens) FROM wallets")
             results = self.cursor.fetchall()
             if should_log("debug"):
                 logger.debug(f"Получены все кошельки (очищенные): {results}")
@@ -42,7 +52,7 @@ class WalletsDB:
                     return []  # Возвращаем пустой список, если данные некорректны
             return results
         except Error as e:
-            if should_log("api_errors"):
+            if should_log("db"):  # Обновлено на "db" вместо "api_errors"
                 logger.error(f"Ошибка получения кошельков: {str(e)}", exc_info=True)
             return []
 
@@ -50,14 +60,14 @@ class WalletsDB:
         try:
             if should_log("debug"):
                 logger.debug(f"Попытка получить кошелек с ID: {wallet_id}")
-            if not self.connection or not self.connection.is_connected():
-                if should_log("debug"):
-                    logger.debug(f"Подключение к базе разорвано для ID {wallet_id}, пытаемся переподключиться")
-                raise Error("Подключение к базе разорвано")
-            if not self.cursor or self.cursor.closed:
-                if should_log("debug"):
-                    logger.debug(f"Курсор закрыт для ID {wallet_id}, создаём новый")
-                self.cursor = self.connection.cursor()
+            if not self.connection.is_connected():
+                if should_log("db"):
+                    logger.debug(f"Подключение к базе разорвано для ID {wallet_id}, требуется переподключение")
+                raise Error("Нет активного подключения к базе данных")
+            if not self.cursor:
+                if should_log("db"):
+                    logger.debug(f"Курсор не инициализирован для ID {wallet_id}")
+                raise Error("Курсор не инициализирован")
             self.cursor.execute("SELECT id, address, TRIM(name), TRIM(tokens) FROM wallets WHERE id = %s", (wallet_id,))
             result = self.cursor.fetchone()
             if should_log("debug"):
@@ -84,12 +94,20 @@ class WalletsDB:
                 logger.debug(f"Кошелек найден: ID={result[0]}, Адрес={result[1]}, Имя={result[2]}, Токены={result[3]}")
             return result
         except Error as e:
-            if should_log("api_errors"):
+            if should_log("db"):  # Обновлено на "db" вместо "api_errors"
                 logger.error(f"Ошибка получения кошелька по ID: {str(e)}", exc_info=True)
             return None
 
     def get_wallet_by_address(self, address):
         try:
+            if not self.connection.is_connected():
+                if should_log("db"):
+                    logger.debug(f"Подключение к базе разорвано для адреса {address}, требуется переподключение")
+                raise Error("Нет активного подключения к базе данных")
+            if not self.cursor:
+                if should_log("db"):
+                    logger.debug(f"Курсор не инициализирован для адреса {address}")
+                raise Error("Курсор не инициализирован")
             self.cursor.execute("SELECT id, address, TRIM(name), TRIM(tokens) FROM wallets WHERE address = %s", (address,))
             result = self.cursor.fetchone()
             if should_log("debug"):
@@ -106,13 +124,12 @@ class WalletsDB:
                     return None
             return result
         except Error as e:
-            if should_log("api_errors"):
+            if should_log("db"):  # Обновлено на "db" вместо "api_errors"
                 logger.error(f"Ошибка получения кошелька по адресу: {str(e)}", exc_info=True)
             return None
 
     def add_wallet(self, address, name, tokens=None):
         try:
-            # Очищаем данные перед добавлением
             name_cleaned = name.strip() if name else name
             tokens_cleaned = tokens.strip() if tokens else None
             try:
@@ -128,10 +145,10 @@ class WalletsDB:
                 (address, name_cleaned, tokens_cleaned)
             )
             self.connection.commit()
-            if should_log("transaction"):
+            if should_log("db"):  # Обновлено на "db" вместо "transaction"
                 logger.info(f"Кошелек добавлен: {name_cleaned} ({address})")
         except Error as e:
-            if should_log("api_errors"):
+            if should_log("db"):  # Обновлено на "db" вместо "api_errors"
                 logger.error(f"Ошибка добавления кошелька: {str(e)}", exc_info=True)
             self.connection.rollback()
 
@@ -150,10 +167,10 @@ class WalletsDB:
                 (tokens_cleaned, wallet_id)
             )
             self.connection.commit()
-            if should_log("transaction"):
+            if should_log("db"):  # Обновлено на "db" вместо "transaction"
                 logger.info(f"Токены кошелька {wallet_id} обновлены")
         except Error as e:
-            if should_log("api_errors"):
+            if should_log("db"):  # Обновлено на "db" вместо "api_errors"
                 logger.error(f"Ошибка обновления токенов кошелька: {str(e)}", exc_info=True)
             self.connection.rollback()
 
@@ -171,10 +188,10 @@ class WalletsDB:
                 (new_name_cleaned, wallet_id)
             )
             self.connection.commit()
-            if should_log("transaction"):
+            if should_log("db"):  # Обновлено на "db" вместо "transaction"
                 logger.info(f"Кошелек {wallet_id} переименован в {new_name_cleaned}")
         except Error as e:
-            if should_log("api_errors"):
+            if should_log("db"):  # Обновлено на "db" вместо "api_errors"
                 logger.error(f"Ошибка переименования кошелька: {str(e)}", exc_info=True)
             self.connection.rollback()
 
@@ -182,9 +199,9 @@ class WalletsDB:
         try:
             self.cursor.execute("DELETE FROM wallets WHERE id = %s", (wallet_id,))
             self.connection.commit()
-            if should_log("transaction"):
+            if should_log("db"):  # Обновлено на "db" вместо "transaction"
                 logger.info(f"Кошелек {wallet_id} удален")
         except Error as e:
-            if should_log("api_errors"):
+            if should_log("db"):  # Обновлено на "db" вместо "api_errors"
                 logger.error(f"Ошибка удаления кошелька: {str(e)}", exc_info=True)
             self.connection.rollback()
