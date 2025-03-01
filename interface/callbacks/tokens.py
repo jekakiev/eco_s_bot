@@ -197,4 +197,40 @@ async def edit_token_thread(callback: types.CallbackQuery, state: FSMContext):
         reply_markup=get_back_button()
     )
     await state.update_data(token_id=token_id)
-    await state.set_state(TokenStates.waiting_for_edit_thread_id
+    await state.set_state(TokenStates.waiting_for_edit_thread_id)
+    await callback.answer()
+
+async def process_edit_thread_id(message: types.Message, state: FSMContext):
+    if should_log("interface"):
+        logger.info(f"Сообщение с новым ID треда токена от {message.from_user.id}: {message.text}")
+        logger.info(f"Введен новый ID треда токена: {message.text}")
+    thread_id = message.text.strip()
+    user_data = await state.get_data()
+    token_id = user_data["token_id"]
+    token = db.tracked_tokens.get_token_by_id(token_id)
+    if not token:
+        await message.answer("❌ Токен не найден!", reply_markup=get_back_button())
+        await state.clear()
+        return
+    new_thread_id = thread_id if thread_id.isdigit() else None
+    db.tracked_tokens.update_token_thread(token_id, new_thread_id)
+    token_name = token[2]
+    await message.answer(
+        f"💎 Тред для токена {token_name} обновлен на {new_thread_id or 'Не указан'}!",
+        reply_markup=get_token_control_keyboard(token_id)
+    )
+    await state.clear()
+
+async def delete_token(callback: types.CallbackQuery, state: FSMContext):
+    if should_log("interface"):
+        logger.info(f"Callback 'delete_token' получен от {callback.from_user.id}: {callback.data}")
+        logger.info(f"Удаление токена: {callback.data}")
+    token_id = callback.data.replace("delete_token_", "")
+    token = db.tracked_tokens.get_token_by_id(token_id)
+    if not token:
+        await callback.answer("❌ Токен не найден!", show_alert=True)
+        return
+    db.tracked_tokens.delete_tracked_token(token_id)
+    text, reply_markup = get_tracked_tokens_list()
+    await callback.message.edit_text(text, reply_markup=reply_markup, disable_web_page_preview=True)
+    await callback.answer(f"🗑 Токен {token[2]} удален!")
