@@ -196,9 +196,13 @@ async def edit_token_thread(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
         logger.info(f"Callback 'edit_token_thread' получен от {callback.from_user.id}: {callback.data}")
         logger.info(f"Редактирование треда токена: {callback.data}")
-    token_id = callback.data.replace("edit_token_thread_", "")
+    token_id = int(callback.data.replace("edit_token_thread_", ""))  # Приводим к int
+    if should_log("debug"):
+        logger.debug(f"Получен token_id для редактирования треда: {token_id} (тип: {type(token_id)})")
     token = db.tracked_tokens.get_token_by_id(token_id)
     if not token:
+        if should_log("debug"):
+            logger.debug(f"Токен с ID {token_id} не найден в базе: {db.tracked_tokens.get_all_tracked_tokens()}")
         await callback.answer("❌ Токен не найден!", show_alert=True)
         return
     await callback.message.edit_text(
@@ -239,9 +243,8 @@ async def delete_token(callback: types.CallbackQuery, state: FSMContext):
     if not token:
         await callback.answer("❌ Токен не найден!", show_alert=True)
         return
-    token_name = token[2]  # Сохраняем имя токена для очистки из кошельков
+    token_name = token[2]
     db.tracked_tokens.delete_tracked_token(token_id)
-    # Очищаем токен из всех кошельков
     db.reconnect()
     wallets = db.wallets.get_all_wallets()
     for wallet in wallets:
