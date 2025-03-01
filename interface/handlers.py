@@ -148,14 +148,13 @@ async def edit_wallet_command(message: types.Message):
             sent_message = await message.answer(text, reply_markup=keyboard)
             await message.delete()
         except Exception as e:
-            if should_log("api_errors"):
-                logger.error(f"Ошибка при отправке сообщения для кошелька с адресом {address_cleaned[-4:]}: {str(e)}", exc_info=True)
+            # Временно убираем условие should_log для точной диагностики
+            logger.error(f"Ошибка при отправке сообщения для кошелька с адресом {address_cleaned[-4:]}: {str(e)}", exc_info=True)
             await message.answer("❌ Ошибка при отправке данных кошелька.")
             return
     
     except Exception as e:
-        if should_log("api_errors"):
-            logger.error(f"Ошибка обработки команды /Editw: {str(e)}", exc_info=True)
+        logger.error(f"Ошибка обработки команды /Editw: {str(e)}", exc_info=True)  # Временно убираем условие should_log
         if should_log("debug"):
             logger.debug(f"Состояние подключения к базе после ошибки: {db.connection.is_connected() if db.connection else 'Нет подключения'}")
             logger.debug(f"Список кошельков после ошибки: {db.wallets.get_all_wallets()}")
