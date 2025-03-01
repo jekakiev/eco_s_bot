@@ -9,9 +9,12 @@ from .callbacks.wallets import (
 import importlib
 import sys
 
-# Принудительно перезагружаем модуль tokens
-if 'interface.callbacks.tokens' in sys.modules:
-    importlib.reload(sys.modules['interface.callbacks.tokens'])
+# Удаляем модуль из кэша и перезагружаем
+tokens_module_name = 'interface.callbacks.tokens'
+if tokens_module_name in sys.modules:
+    del sys.modules[tokens_module_name]
+from .callbacks import tokens
+importlib.reload(tokens)
 
 from .callbacks.tokens import (
     show_tokens, add_token_start, process_contract_address, confirm_token_name,

@@ -9,7 +9,7 @@ from utils.arbiscan import get_token_info
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 # Индикатор версии для проверки загрузки
-logger.info("Загружена версия /interface/callbacks/tokens.py с исправлением edit_token_thread (v2.2)")
+logger.info("Загружена версия /interface/callbacks/tokens.py с исправлением edit_token_thread (v2.3)")
 
 async def show_tokens(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
