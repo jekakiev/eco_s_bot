@@ -219,7 +219,11 @@ async def edit_token_command(message: types.Message, state: FSMContext):
         if should_log("debug"):
             logger.debug(f"Сформирована клавиатура: {keyboard.inline_keyboard}")
         
-        await state.update_data(token_id=int(token[0]))  # Сохраняем как int
+        # Сбрасываем состояние перед сохранением нового
+        await state.clear()
+        await state.update_data(token_id=token[0])  # Сохраняем как int
+        if should_log("debug"):
+            logger.debug(f"Состояние обновлено с token_id={token[0]}")
         sent_message = await message.answer(text, reply_markup=keyboard)
         await message.delete()
     except Exception as e:
