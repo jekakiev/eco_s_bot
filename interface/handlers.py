@@ -6,6 +6,13 @@ from .callbacks.wallets import (
     toggle_token, confirm_tokens, save_tokens, delete_wallet, rename_wallet_start,
     process_new_wallet_name, edit_tokens_start
 )
+import importlib
+import sys
+
+# Принудительно перезагружаем модуль tokens
+if 'interface.callbacks.tokens' in sys.modules:
+    importlib.reload(sys.modules['interface.callbacks.tokens'])
+
 from .callbacks.tokens import (
     show_tokens, add_token_start, process_contract_address, confirm_token_name,
     reject_token_name, thread_exists, thread_not_exists, process_thread_id,
