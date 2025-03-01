@@ -8,6 +8,9 @@ from utils.logger_config import logger, should_log
 from utils.arbiscan import get_token_info
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+# Индикатор версии для проверки загрузки
+logger.info("Загружена версия /interface/callbacks/tokens.py с исправлением edit_token_thread (v2)")
+
 async def show_tokens(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
         logger.info(f"Callback 'show_tokens' получен от {callback.from_user.id}")
