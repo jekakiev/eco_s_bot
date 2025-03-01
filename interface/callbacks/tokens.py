@@ -144,7 +144,7 @@ async def add_to_all_yes(callback: types.CallbackQuery, state: FSMContext):
             for wallet in wallets:
                 wallet_id = wallet[0]
                 current_tokens = wallet[3].split(",") if wallet[3] else []
-                if token_name and token_name not in current_tokens:  # Проверка на None
+                if token_name and token_name not in current_tokens:
                     current_tokens.append(token_name)
                     db.wallets.update_wallet_tokens(wallet_id, ",".join(current_tokens))
                     if should_log("db"):
@@ -239,7 +239,20 @@ async def delete_token(callback: types.CallbackQuery, state: FSMContext):
     if not token:
         await callback.answer("❌ Токен не найден!", show_alert=True)
         return
+    token_name = token[2]  # Сохраняем имя токена для очистки из кошельков
     db.tracked_tokens.delete_tracked_token(token_id)
+    # Очищаем токен из всех кошельков
+    db.reconnect()
+    wallets = db.wallets.get_all_wallets()
+    for wallet in wallets:
+        wallet_id = wallet[0]
+        current_tokens = wallet[3].split(",") if wallet[3] else []
+        if token_name in current_tokens:
+            current_tokens.remove(token_name)
+            new_tokens = ",".join(current_tokens) if current_tokens else ""
+            db.wallets.update_wallet_tokens(wallet_id, new_tokens)
+            if should_log("db"):
+                logger.info(f"Токен {token_name} удалён из кошелька ID {wallet_id}")
     text, reply_markup = get_tracked_tokens_list()
     await callback.message.edit_text(text, reply_markup=reply_markup, disable_web_page_preview=True)
-    await callback.answer(f"🗑 Токен {token[2]} удален!")
+    await callback.answer(f"🗑 Токен {token_name} удалён!")
