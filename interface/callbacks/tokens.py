@@ -6,6 +6,7 @@ from ..states import TokenStates
 from app_config import db
 from utils.logger_config import logger, should_log
 from utils.arbiscan import get_token_info
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 async def show_tokens(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
