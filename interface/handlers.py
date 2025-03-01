@@ -1,7 +1,7 @@
 # /interface/handlers.py
 from aiogram import Dispatcher, F, types
 from aiogram.filters import Command
-from aiogram.fsm.context import FSMContext  # Оставляем импорт, так как используется в других местах
+from aiogram.fsm.context import FSMContext
 from .callbacks.wallets import (
     show_wallets, add_wallet_start, process_wallet_address, process_wallet_name,
     toggle_token, confirm_tokens, save_tokens, delete_wallet, rename_wallet_start,
@@ -63,8 +63,9 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(thread_exists, F.data == "thread_exists")
     dp.callback_query.register(thread_not_exists, F.data == "thread_not_exists")
     dp.message.register(process_thread_id, TokenStates.waiting_for_thread_id)
-    dp.callback_query.register(edit_token_start, F.data.startswith("edit_token_"))
+    # Сначала регистрируем edit_token_thread_new, чтобы он имел приоритет
     dp.callback_query.register(edit_token_thread_new, F.data.startswith("edit_token_thread_"))
+    dp.callback_query.register(edit_token_start, F.data.startswith("edit_token_"))  # После thread_new
     dp.message.register(process_edit_thread_id, TokenStates.waiting_for_edit_thread_id)
     dp.callback_query.register(delete_token, F.data.startswith("delete_token_"))
     dp.callback_query.register(add_to_all_yes, F.data == "add_to_all_yes")
