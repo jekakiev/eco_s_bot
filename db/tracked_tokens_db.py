@@ -1,3 +1,4 @@
+# /db/tracked_tokens_db.py
 from mysql.connector import Error
 from utils.logger_config import logger
 
@@ -8,7 +9,6 @@ class TrackedTokensDB:
 
     def create_table(self):
         try:
-            # Спочатку створюємо таблицю без decimals, якщо її ще немає
             self.cursor.execute("""
                 CREATE TABLE IF NOT EXISTS tracked_tokens (
                     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -17,7 +17,6 @@ class TrackedTokensDB:
                     thread_id VARCHAR(255)
                 )
             """)
-            # Перевіряємо, чи є стовпець decimals, і додаємо, якщо його немає
             self.cursor.execute("""
                 SHOW COLUMNS FROM tracked_tokens LIKE 'decimals'
             """)
@@ -41,10 +40,14 @@ class TrackedTokensDB:
 
     def get_token_by_id(self, token_id):
         try:
-            self.cursor.execute("SELECT id, contract_address, token_name, thread_id, decimals FROM tracked_tokens WHERE id = %s", (token_id,))
-            return self.cursor.fetchone()
+            query = "SELECT id, contract_address, token_name, thread_id, decimals FROM tracked_tokens WHERE id = %s"
+            logger.info(f"Выполняется запрос: {query} с token_id={token_id} (тип: {type(token_id)})")
+            self.cursor.execute(query, (token_id,))
+            result = self.cursor.fetchone()
+            logger.info(f"Результат запроса get_token_by_id для token_id={token_id}: {result}")
+            return result
         except Error as e:
-            logger.error(f"Ошибка получения токена по ID: {str(e)}")
+            logger.error(f"Ошибка получения токена по ID {token_id}: {str(e)}")
             return None
 
     def add_tracked_token(self, contract_address, token_name, thread_id=None, decimals=18):

@@ -25,7 +25,7 @@ from .callbacks.test_api_by_hash import (
 from .states import WalletStates, TokenStates, SettingStates
 from db import Database
 from utils.logger_config import logger, should_log
-import re  # Добавляем для проверки регулярного выражения
+import re
 
 db = Database()
 
@@ -83,10 +83,11 @@ def register_handlers(dp: Dispatcher):
         if should_log("interface"):
             logger.warning("Нет кошельков для регистрации команд /Editw_XXXX")
     
-    # Регистрируем edit_token_command с фильтром F.text и проверкой через regex
     dp.message.register(edit_token_command, F.text.regexp(r"^/edit_\w{4}$"))
-
     dp.message.register(get_thread_id_command, Command(commands=["get_thread_id"]))
+
+    # Добавляем явную отладку регистрации
+    logger.info("Зарегистрирован обработчик edit_token_thread для callback_data 'edit_token_thread_'")
 
     if should_log("interface"):
         logger.info("Регистрация обработчиков callback-запросов завершена")
