@@ -39,8 +39,8 @@ async def process_contract_address(message: types.Message, state: FSMContext):
         return
     await state.update_data(contract_address=contract_address)
     token_info = await get_token_info(contract_address)
-    if should_log("debug"):
-        logger.debug(f"Данные токена от Arbiscan для {contract_address}: {token_info}")
+    # Временное принудительное логирование для диагностики
+    logger.debug(f"Данные токена от Arbiscan для {contract_address}: {token_info}")
     token_name = token_info["tokenSymbol"] if token_info["tokenSymbol"] and token_info["tokenSymbol"] != "Неизвестно" else f"Токен_{contract_address[-4:]}"
     await state.update_data(token_name=token_name)
     await message.answer(f"📝 Подтвердите имя токена: *{token_name}*. Всё верно?", parse_mode="Markdown", reply_markup=get_token_name_confirmation_keyboard())
