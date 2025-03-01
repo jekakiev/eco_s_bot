@@ -56,6 +56,7 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(edit_token_thread, F.data.startswith("edit_token_thread_"))
     dp.message.register(process_edit_thread_id, TokenStates.waiting_for_edit_thread_id)
     dp.callback_query.register(delete_token, F.data.startswith("delete_token_"))
+    # Регистрация для финального подтверждения добавления ко всем кошелькам
     dp.callback_query.register(add_to_all_yes, F.data == "add_to_all_yes")
     dp.callback_query.register(add_to_all_no, F.data == "add_to_all_no")
     
@@ -92,7 +93,6 @@ def register_handlers(dp: Dispatcher):
         if should_log("interface"):
             logger.warning("Нет токенов для регистрации команд /edit_XXXX")
 
-    # Добавляем обработчик для /get_thread_id
     dp.message.register(get_thread_id_command, Command(commands=["get_thread_id"]))
 
     if should_log("interface"):

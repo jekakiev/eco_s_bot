@@ -11,10 +11,10 @@ class WalletStates(StatesGroup):
 class TokenStates(StatesGroup):
     waiting_for_contract_address = State()
     waiting_for_name_confirmation = State()
-    waiting_for_add_to_all_confirmation = State()  # Новое состояние
     waiting_for_thread_confirmation = State()
     waiting_for_thread_id = State()
     waiting_for_edit_thread_id = State()
+    waiting_for_add_to_all_final_confirmation = State()  # Новое состояние
 
 class SettingStates(StatesGroup):
     waiting_for_setting_value = State()

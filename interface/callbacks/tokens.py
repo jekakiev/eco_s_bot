@@ -52,13 +52,11 @@ async def confirm_token_name(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     token_name = data["token_name"]
     contract_address = data["contract_address"]
-    await state.set_state(TokenStates.waiting_for_add_to_all_confirmation)
+    # Переходим сразу к вопросу о ветке
+    await state.set_state(TokenStates.waiting_for_thread_confirmation)
     await callback.message.edit_text(
-        f"📝 Добавить токен {token_name} ({contract_address[-4:]}) ко всем отслеживаемым кошелькам?",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="✅ Да", callback_data="add_to_all_yes"), InlineKeyboardButton(text="❌ Нет", callback_data="add_to_all_no")],
-            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]
-        ]),
+        f"📝 Ветка для токена {token_name} ({contract_address[-4:]}) уже создана?\nЕсли да, скопируйте команду: ```/get_thread_id``` и вставьте её в нужную ветку.",
+        reply_markup=get_thread_confirmation_keyboard(),
         parse_mode="Markdown"
     )
     await callback.answer()
@@ -70,6 +68,64 @@ async def reject_token_name(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text("📝 Введите адрес контракта токена (например, 0x...):", reply_markup=get_back_button())
     await state.set_state(TokenStates.waiting_for_contract_address)
     await callback.answer()
+
+async def thread_exists(callback: types.CallbackQuery, state: FSMContext):
+    if should_log("interface"):
+        logger.info(f"Callback 'thread_exists' получен от {callback.from_user.id}")
+        logger.info("Тред существует нажато")
+    await callback.message.edit_text(
+        "📝 Введите ID треда (например, 123456789):\n💡 Чтобы узнать ID ветки, скопируйте команду: ```/get_thread_id``` и вставьте её в нужную ветку.",
+        reply_markup=get_back_button(),
+        parse_mode="Markdown"
+    )
+    await state.set_state(TokenStates.waiting_for_thread_id)
+    await callback.answer()
+
+async def thread_not_exists(callback: types.CallbackQuery, state: FSMContext):
+    if should_log("interface"):
+        logger.info(f"Callback 'thread_not_exists' получен от {callback.from_user.id}")
+        logger.info("Тред не существует нажато")
+    user_data = await state.get_data()
+    contract_address = user_data["contract_address"]
+    token_name = user_data["token_name"]
+    decimals = await get_token_info(contract_address)["tokenDecimal"]
+    db.tracked_tokens.add_tracked_token(contract_address, token_name, decimals=int(decimals) if decimals.isdigit() else 18)
+    # Переходим к вопросу о добавлении ко всем кошелькам
+    await state.set_state(TokenStates.waiting_for_add_to_all_final_confirmation)
+    await callback.message.edit_text(
+        f"💎 Токен {token_name} ({contract_address[-4:]}) добавлен успешно!\nДобавить токен ко всем отслеживаемым кошелькам?",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Да", callback_data="add_to_all_yes"), InlineKeyboardButton(text="❌ Нет", callback_data="add_to_all_no")],
+            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]
+        ]),
+        parse_mode="Markdown"
+    )
+    await callback.answer()
+
+async def process_thread_id(message: types.Message, state: FSMContext):
+    if should_log("interface"):
+        logger.info(f"Сообщение с ID треда от {message.from_user.id}: {message.text}")
+        logger.info(f"Введен ID треда: {message.text}")
+    thread_id = message.text.strip()
+    if not thread_id.isdigit():
+        await message.answer("❌ ID треда должен быть числом.", reply_markup=get_back_button())
+        return
+    user_data = await state.get_data()
+    contract_address = user_data["contract_address"]
+    token_name = user_data["token_name"]
+    decimals = await get_token_info(contract_address)["tokenDecimal"]
+    db.tracked_tokens.add_tracked_token(contract_address, token_name, thread_id=thread_id, decimals=int(decimals) if decimals.isdigit() else 18)
+    # Переходим к вопросу о добавлении ко всем кошелькам
+    await state.set_state(TokenStates.waiting_for_add_to_all_final_confirmation)
+    await message.answer(
+        f"💎 Токен {token_name} ({contract_address[-4:]}) добавлен успешно в тред {thread_id}!\nДобавить токен ко всем отслеживаемым кошелькам?",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Да", callback_data="add_to_all_yes"), InlineKeyboardButton(text="❌ Нет", callback_data="add_to_all_no")],
+            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]
+        ]),
+        parse_mode="Markdown"
+    )
+    await state.clear()  # Очищаем состояние перед новым шагом
 
 async def add_to_all_yes(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
@@ -97,12 +153,12 @@ async def add_to_all_yes(callback: types.CallbackQuery, state: FSMContext):
     except Exception as e:
         logger.error(f"Ошибка при добавлении токена {token_name} ко всем кошелькам: {str(e)}", exc_info=True)
         await callback.answer("❌ Ошибка при добавлении токена ко всем кошелькам!", show_alert=True)
-    await state.set_state(TokenStates.waiting_for_thread_confirmation)
     await callback.message.edit_text(
-        f"📝 Ветка для токена {token_name} ({contract_address[-4:]}) уже создана?\nЕсли да, скопируйте команду: ```/get_thread_id``` и вставьте её в нужную ветку.",
-        reply_markup=get_thread_confirmation_keyboard(),
+        f"💎 Токен {token_name} ({contract_address[-4:]}) успешно настроен!",
+        reply_markup=get_main_menu(),
         parse_mode="Markdown"
     )
+    await state.clear()
 
 async def add_to_all_no(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
@@ -111,60 +167,13 @@ async def add_to_all_no(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     token_name = data["token_name"]
     contract_address = data["contract_address"]
-    await state.set_state(TokenStates.waiting_for_thread_confirmation)
     await callback.message.edit_text(
-        f"📝 Ветка для токена {token_name} ({contract_address[-4:]}) уже создана?\nЕсли да, скопируйте команду: ```/get_thread_id``` и вставьте её в нужную ветку.",
-        reply_markup=get_thread_confirmation_keyboard(),
+        f"💎 Токен {token_name} ({contract_address[-4:]}) успешно настроен!",
+        reply_markup=get_main_menu(),
         parse_mode="Markdown"
-    )
-    await callback.answer()
-
-async def thread_exists(callback: types.CallbackQuery, state: FSMContext):
-    if should_log("interface"):
-        logger.info(f"Callback 'thread_exists' получен от {callback.from_user.id}")
-        logger.info("Тред существует нажато")
-    await callback.message.edit_text(
-        "📝 Введите ID треда (например, 123456789):\n💡 Чтобы узнать ID ветки, скопируйте команду: ```/get_thread_id``` и вставьте её в нужную ветку.",
-        reply_markup=get_back_button(),
-        parse_mode="Markdown"
-    )
-    await state.set_state(TokenStates.waiting_for_thread_id)
-    await callback.answer()
-
-async def thread_not_exists(callback: types.CallbackQuery, state: FSMContext):
-    if should_log("interface"):
-        logger.info(f"Callback 'thread_not_exists' получен от {callback.from_user.id}")
-        logger.info("Тред не существует нажато")
-    user_data = await state.get_data()
-    contract_address = user_data["contract_address"]
-    token_name = user_data["token_name"]
-    decimals = await get_token_info(contract_address)["tokenDecimal"]
-    db.tracked_tokens.add_tracked_token(contract_address, token_name, decimals=int(decimals) if decimals.isdigit() else 18)
-    await callback.message.edit_text(
-        f"💎 Токен {token_name} ({contract_address[-4:]}) добавлен успешно!",
-        reply_markup=get_main_menu()
     )
     await state.clear()
     await callback.answer()
-
-async def process_thread_id(message: types.Message, state: FSMContext):
-    if should_log("interface"):
-        logger.info(f"Сообщение с ID треда от {message.from_user.id}: {message.text}")
-        logger.info(f"Введен ID треда: {message.text}")
-    thread_id = message.text.strip()
-    if not thread_id.isdigit():
-        await message.answer("❌ ID треда должен быть числом.", reply_markup=get_back_button())
-        return
-    user_data = await state.get_data()
-    contract_address = user_data["contract_address"]
-    token_name = user_data["token_name"]
-    decimals = await get_token_info(contract_address)["tokenDecimal"]
-    db.tracked_tokens.add_tracked_token(contract_address, token_name, thread_id=thread_id, decimals=int(decimals) if decimals.isdigit() else 18)
-    await message.answer(
-        f"💎 Токен {token_name} ({contract_address[-4:]}) добавлен успешно в тред {thread_id}!",
-        reply_markup=get_main_menu()
-    )
-    await state.clear()
 
 async def edit_token_start(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
