@@ -1,7 +1,7 @@
 # /interface/callbacks/settings_callbacks.py
 from aiogram import types
 from aiogram.fsm.context import FSMContext
-from ..keyboards import get_main_menu, get_settings_list, get_interval_edit_keyboard
+from ..keyboards import get_main_menu, get_settings_list, get_interval_edit_keyboard, get_commands_list  # Добавлен импорт
 from ..states import SettingStates
 from app_config import db
 from utils.logger_config import logger, should_log, update_log_settings
