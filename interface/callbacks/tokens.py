@@ -8,7 +8,7 @@ from utils.logger_config import logger, should_log
 from utils.arbiscan import get_token_info
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-logger.info("Загружена версия /interface/callbacks/tokens.py с исправлением edit_token_thread (v2.11)")
+logger.info("Загружена версия /interface/callbacks/tokens.py с исправлением edit_token_thread (v2.12)")
 
 async def show_tokens(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
@@ -75,7 +75,7 @@ async def thread_exists(callback: types.CallbackQuery, state: FSMContext):
         logger.info(f"Callback 'thread_exists' получен от {callback.from_user.id}")
         logger.info("Тред существует нажато")
     await callback.message.edit_text(
-        "📝 Введите ID треда (например, 123456789):\n💡 Чтобы узнать ID ветки, скопируйте команду: ```/get_thread_id``` и вставьте её в нужную ветку.",
+        "📝 Введите ID треда (например, 123456789):\n💡 Чтобы узнать ID ветки, отправьте команду ```/get_thread_id``` в нужной ветке.",
         reply_markup=get_back_button(),
         parse_mode="Markdown"
     )
@@ -194,8 +194,9 @@ async def edit_token_start(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer("❌ Токен не найден!", show_alert=True)
         return
     await callback.message.edit_text(
-        f"📝 Текущий тред для токена {token[2]}: {token[3] or 'Не указан'}\nВведите новый ID треда (или оставьте пустым, чтобы убрать):",
-        reply_markup=get_back_button()
+        f"📝 Текущий тред для токена {token[2]}: {token[3] or 'Не указан'}\n💡 Чтобы узнать ID треда, отправьте команду ```/get_thread_id``` в нужной ветке.",
+        reply_markup=get_back_button(),
+        parse_mode="Markdown"
     )
     await state.update_data(token_id=token_id)
     await state.set_state(TokenStates.waiting_for_edit_thread_id)
@@ -224,8 +225,9 @@ async def edit_token_thread_new(callback: types.CallbackQuery, state: FSMContext
         logger.debug(f"Токен найден: ID={token[0]}, Имя={token[2]}, Текущий тред={token[3]}")
     await state.update_data(token_id=token_id)
     await callback.message.edit_text(
-        f"📝 Текущий тред для токена {token[2]}: {token[3] or 'Не указан'}\nВведите новый ID треда (или оставьте пустым, чтобы убрать):",
-        reply_markup=get_back_button()
+        f"📝 Текущий тред для токена {token[2]}: {token[3] or 'Не указан'}\n💡 Чтобы узнать ID треда, отправьте команду ```/get_thread_id``` в нужной ветке.",
+        reply_markup=get_back_button(),
+        parse_mode="Markdown"
     )
     await state.set_state(TokenStates.waiting_for_edit_thread_id)
     await callback.answer()
@@ -235,6 +237,9 @@ async def process_edit_thread_id(message: types.Message, state: FSMContext):
         logger.info(f"Сообщение с новым ID треда токена от {message.from_user.id}: {message.text}")
         logger.info(f"Введен новый ID треда токена: {message.text}")
     thread_id = message.text.strip()
+    if not thread_id.isdigit():
+        await message.answer("❌ ID треда должен быть числом.", reply_markup=get_back_button())
+        return
     user_data = await state.get_data()
     token_id = user_data["token_id"]
     token = db.tracked_tokens.get_token_by_id(token_id)
