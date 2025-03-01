@@ -171,11 +171,10 @@ def get_commands_list():
     keyboard = [[InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]]
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def get_settings_list(check_interval="150", send_last="❌ВЫКЛ", api_errors="❌ВЫКЛ", transaction_info="✅ВКЛ", interface_info="❌ВЫКЛ", debug="❌ВЫКЛ", db_info="❌ВЫКЛ"):
+def get_settings_list(check_interval="150", api_errors="❌ВЫКЛ", transaction_info="❌ВЫКЛ", interface_info="❌ВЫКЛ", debug="❌ВЫКЛ", db_info="❌ВЫКЛ"):
     text = (
         "⚙️ Настройки бота\n\n"
         "⏱ Интервал проверки — как часто бот проверяет новые транзакции\n"
-        "📨 Последняя транзакция — отправка последней транзакции\n"
         "🚨 Ошибки API — логи ошибок внешних API\n"
         "📝 Транзакций — логирование проверки и отправки\n"
         "🖱 Интерфейса — логи действий в меню\n"
@@ -184,8 +183,7 @@ def get_settings_list(check_interval="150", send_last="❌ВЫКЛ", api_errors=
     )
     keyboard = [
         [
-            InlineKeyboardButton(text=f"⏱ Интервал ({check_interval})", callback_data="edit_setting_CHECK_INTERVAL"),
-            InlineKeyboardButton(text=f"📨 Последняя транзакция ({send_last})", callback_data="toggle_SEND_LAST_TRANSACTION")
+            InlineKeyboardButton(text=f"⏱ Интервал ({check_interval})", callback_data="edit_setting_CHECK_INTERVAL")
         ],
         [InlineKeyboardButton(text="ЛОГИ", callback_data="noop")],
         [

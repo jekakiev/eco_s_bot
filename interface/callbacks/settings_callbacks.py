@@ -21,15 +21,14 @@ async def show_settings(callback: types.CallbackQuery, state: FSMContext):
         logger.info(f"Callback 'show_settings' получен от {callback.from_user.id}")
         logger.info("Кнопка 'Настройки' нажата")
     check_interval = db.settings.get_setting("CHECK_INTERVAL", "150")
-    send_last = "✅ВКЛ" if int(db.settings.get_setting("SEND_LAST_TRANSACTION", "0")) else "❌ВЫКЛ"
     api_errors = "✅ВКЛ" if int(db.settings.get_setting("API_ERRORS", "0")) else "❌ВЫКЛ"
     transaction_info = "✅ВКЛ" if int(db.settings.get_setting("TRANSACTION_INFO", "0")) else "❌ВЫКЛ"
     interface_info = "✅ВКЛ" if int(db.settings.get_setting("INTERFACE_INFO", "0")) else "❌ВЫКЛ"
     debug = "✅ВКЛ" if int(db.settings.get_setting("DEBUG", "0")) else "❌ВЫКЛ"
-    db_info = "✅ВКЛ" if int(db.settings.get_setting("DB_INFO", "0")) else "❌ВЫКЛ"  # Новая настройка
-    text, reply_markup = get_settings_list(check_interval, send_last, api_errors, transaction_info, interface_info, debug, db_info)
+    db_info = "✅ВКЛ" if int(db.settings.get_setting("DB_INFO", "0")) else "❌ВЫКЛ"
+    text, reply_markup = get_settings_list(check_interval, api_errors, transaction_info, interface_info, debug, db_info)
     msg = await callback.message.edit_text(text, reply_markup=reply_markup, disable_web_page_preview=True)
-    await state.update_data(settings_message_id=msg.message_id, check_interval=check_interval, send_last=send_last, api_errors=api_errors, transaction_info=transaction_info, interface_info=interface_info, debug=debug, db_info=db_info)
+    await state.update_data(settings_message_id=msg.message_id, check_interval=check_interval, api_errors=api_errors, transaction_info=transaction_info, interface_info=interface_info, debug=debug, db_info=db_info)
     await callback.answer()
 
 async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
@@ -54,17 +53,13 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     
     check_interval = data.get("check_interval", "150")
-    send_last = data.get("send_last", "❌ВЫКЛ")
     api_errors = data.get("api_errors", "❌ВЫКЛ")
     transaction_info = data.get("transaction_info", "✅ВКЛ")
     interface_info = data.get("interface_info", "❌ВЫКЛ")
     debug = data.get("debug", "❌ВЫКЛ")
-    db_info = data.get("db_info", "❌ВЫКЛ")  # Новая настройка
+    db_info = data.get("db_info", "❌ВЫКЛ")
     
-    if setting_name == "SEND_LAST_TRANSACTION":
-        send_last = "✅ВКЛ" if send_last == "❌ВЫКЛ" else "❌ВЫКЛ"
-        db_value = "1" if send_last == "✅ВКЛ" else "0"
-    elif setting_name == "API_ERRORS":
+    if setting_name == "API_ERRORS":
         api_errors = "✅ВКЛ" if api_errors == "❌ВЫКЛ" else "❌ВЫКЛ"
         db_value = "1" if api_errors == "✅ВКЛ" else "0"
     elif setting_name == "TRANSACTION_INFO":
@@ -76,7 +71,7 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
     elif setting_name == "DEBUG":
         debug = "✅ВКЛ" if debug == "❌ВЫКЛ" else "❌ВЫКЛ"
         db_value = "1" if debug == "✅ВКЛ" else "0"
-    elif setting_name == "DB_INFO":  # Новая настройка
+    elif setting_name == "DB_INFO":
         db_info = "✅ВКЛ" if db_info == "❌ВЫКЛ" else "❌ВЫКЛ"
         db_value = "1" if db_info == "✅ВКЛ" else "0"
     
@@ -84,7 +79,7 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
     await asyncio.sleep(0.5)
     update_log_settings(db)
     
-    text, reply_markup = get_settings_list(check_interval, send_last, api_errors, transaction_info, interface_info, debug, db_info)
+    text, reply_markup = get_settings_list(check_interval, api_errors, transaction_info, interface_info, debug, db_info)
     try:
         await bot.edit_message_text(
             chat_id=callback.message.chat.id,
@@ -97,8 +92,8 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
         if should_log("api_errors"):
             logger.error(f"Ошибка редактирования сообщения: {str(e)}")
         msg = await callback.message.answer(text, reply_markup=reply_markup, disable_web_page_preview=True)
-        await state.update_data(settings_message_id=msg.message_id, check_interval=check_interval, send_last=send_last, api_errors=api_errors, transaction_info=transaction_info, interface_info=interface_info, debug=debug, db_info=db_info)
-    await state.update_data(check_interval=check_interval, send_last=send_last, api_errors=api_errors, transaction_info=transaction_info, interface_info=interface_info, debug=debug, db_info=db_info)
+        await state.update_data(settings_message_id=msg.message_id, check_interval=check_interval, api_errors=api_errors, transaction_info=transaction_info, interface_info=interface_info, debug=debug, db_info=db_info)
+    await state.update_data(check_interval=check_interval, api_errors=api_errors, transaction_info=transaction_info, interface_info=interface_info, debug=debug, db_info=db_info)
     await callback.answer()
 
 async def process_setting_value(message: types.Message, state: FSMContext):
@@ -122,12 +117,11 @@ async def process_setting_value(message: types.Message, state: FSMContext):
         
         text, reply_markup = get_settings_list(
             check_interval=check_interval,
-            send_last=data.get("send_last", "❌ВЫКЛ"),
             api_errors=data.get("api_errors", "❌ВЫКЛ"),
             transaction_info=data.get("transaction_info", "✅ВКЛ"),
             interface_info=data.get("interface_info", "❌ВЫКЛ"),
             debug=data.get("debug", "❌ВЫКЛ"),
-            db_info=data.get("db_info", "❌ВЫКЛ")  # Новая настройка
+            db_info=data.get("db_info", "❌ВЫКЛ")
         )
         try:
             await bot.edit_message_text(
@@ -141,7 +135,7 @@ async def process_setting_value(message: types.Message, state: FSMContext):
             if should_log("api_errors"):
                 logger.error(f"Ошибка редактирования сообщения: {str(e)}")
             msg = await message.answer(text, reply_markup=reply_markup, disable_web_page_preview=True)
-            await state.update_data(settings_message_id=msg.message_id, check_interval=check_interval, send_last=data.get("send_last", "❌ВЫКЛ"), api_errors=data.get("api_errors", "❌ВЫКЛ"), transaction_info=data.get("transaction_info", "✅ВКЛ"), interface_info=data.get("interface_info", "❌ВЫКЛ"), debug=data.get("debug", "❌ВЫКЛ"), db_info=data.get("db_info", "❌ВЫКЛ"))
+            await state.update_data(settings_message_id=msg.message_id, check_interval=check_interval, api_errors=data.get("api_errors", "❌ВЫКЛ"), transaction_info=data.get("transaction_info", "✅ВКЛ"), interface_info=data.get("interface_info", "❌ВЫКЛ"), debug=data.get("debug", "❌ВЫКЛ"), db_info=data.get("db_info", "❌ВЫКЛ"))
         await state.update_data(check_interval=check_interval)
         await state.clear()
     except ValueError as e:
