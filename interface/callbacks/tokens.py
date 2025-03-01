@@ -50,8 +50,16 @@ async def confirm_token_name(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     token_name = data["token_name"]
     contract_address = data["contract_address"]
-    await state.set_state(TokenStates.waiting_for_thread_confirmation)
-    await callback.message.edit_text(f"📝 Токен {token_name} для адреса {contract_address[-4:]} уже существует в чате?\nЕсли да, отправьте /get_thread_id в нужном чате для получения ID треда.", reply_markup=get_thread_confirmation_keyboard(), parse_mode="Markdown")
+    # Новый шаг: спрашиваем о добавлении ко всем кошелькам
+    await state.set_state(TokenStates.waiting_for_add_to_all_confirmation)
+    await callback.message.edit_text(
+        f"📝 Добавить токен {token_name} ({contract_address[-4:]}) ко всем отслеживаемым кошелькам?",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Да", callback_data="add_to_all_yes"), InlineKeyboardButton(text="❌ Нет", callback_data="add_to_all_no")],
+            [InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]
+        ]),
+        parse_mode="Markdown"
+    )
     await callback.answer()
 
 async def reject_token_name(callback: types.CallbackQuery, state: FSMContext):
@@ -62,11 +70,58 @@ async def reject_token_name(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state(TokenStates.waiting_for_contract_address)
     await callback.answer()
 
+async def add_to_all_yes(callback: types.CallbackQuery, state: FSMContext):
+    if should_log("interface"):
+        logger.info(f"Callback 'add_to_all_yes' получен от {callback.from_user.id}")
+        logger.info("Добавление токена ко всем кошелькам подтверждено")
+    data = await state.get_data()
+    token_name = data["token_name"]
+    contract_address = data["contract_address"]
+    # Добавляем токен ко всем существующим кошелькам
+    db.reconnect()
+    wallets = db.wallets.get_all_wallets()
+    for wallet in wallets:
+        wallet_id = wallet[0]
+        current_tokens = wallet[3].split(",") if wallet[3] else []
+        if token_name not in current_tokens:
+            current_tokens.append(token_name)
+            db.wallets.update_wallet_tokens(wallet_id, ",".join(current_tokens))
+            if should_log("db"):
+                logger.info(f"Токен {token_name} добавлен к кошельку ID {wallet_id}")
+    # Переходим к следующему шагу: подтверждение треда
+    await state.set_state(TokenStates.waiting_for_thread_confirmation)
+    await callback.message.edit_text(
+        f"📝 Токен {token_name} добавлен ко всем кошелькам.\nТокен уже существует в чате?\nЕсли да, отправьте /get_thread_id в нужном чате для получения ID треда.",
+        reply_markup=get_thread_confirmation_keyboard(),
+        parse_mode="Markdown"
+    )
+    await callback.answer()
+
+async def add_to_all_no(callback: types.CallbackQuery, state: FSMContext):
+    if should_log("interface"):
+        logger.info(f"Callback 'add_to_all_no' получен от {callback.from_user.id}")
+        logger.info("Добавление токена ко всем кошелькам отклонено")
+    data = await state.get_data()
+    token_name = data["token_name"]
+    contract_address = data["contract_address"]
+    # Переходим к следующему шагу: подтверждение треда
+    await state.set_state(TokenStates.waiting_for_thread_confirmation)
+    await callback.message.edit_text(
+        f"📝 Токен {token_name} ({contract_address[-4:]}) не добавлен к кошелькам.\nТокен уже существует в чате?\nЕсли да, отправьте /get_thread_id в нужном чате для получения ID треда.",
+        reply_markup=get_thread_confirmation_keyboard(),
+        parse_mode="Markdown"
+    )
+    await callback.answer()
+
 async def thread_exists(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
         logger.info(f"Callback 'thread_exists' получен от {callback.from_user.id}")
         logger.info("Тред существует нажато")
-    await callback.message.edit_text("📝 Введите ID треда (например, 123456789):\n💡 Чтобы узнать ID ветки, отправьте команду `/get_thread_id` прямо в нужный тред.", reply_markup=get_back_button(), parse_mode="Markdown")
+    await callback.message.edit_text(
+        "📝 Введите ID треда (например, 123456789):\n💡 Чтобы узнать ID ветки, отправьте команду `/get_thread_id` прямо в нужный тред.",
+        reply_markup=get_back_button(),
+        parse_mode="Markdown"
+    )
     await state.set_state(TokenStates.waiting_for_thread_id)
     await callback.answer()
 
@@ -79,7 +134,10 @@ async def thread_not_exists(callback: types.CallbackQuery, state: FSMContext):
     token_name = user_data["token_name"]
     decimals = await get_token_info(contract_address)["tokenDecimal"]
     db.tracked_tokens.add_tracked_token(contract_address, token_name, decimals=int(decimals) if decimals.isdigit() else 18)
-    await callback.message.edit_text(f"💎 Токен {token_name} ({contract_address[-4:]}) добавлен успешно!", reply_markup=get_main_menu())
+    await callback.message.edit_text(
+        f"💎 Токен {token_name} ({contract_address[-4:]}) добавлен успешно!",
+        reply_markup=get_main_menu()
+    )
     await state.clear()
     await callback.answer()
 
@@ -96,7 +154,10 @@ async def process_thread_id(message: types.Message, state: FSMContext):
     token_name = user_data["token_name"]
     decimals = await get_token_info(contract_address)["tokenDecimal"]
     db.tracked_tokens.add_tracked_token(contract_address, token_name, thread_id=thread_id, decimals=int(decimals) if decimals.isdigit() else 18)
-    await message.answer(f"💎 Токен {token_name} ({contract_address[-4:]}) добавлен успешно в тред {thread_id}!", reply_markup=get_main_menu())
+    await message.answer(
+        f"💎 Токен {token_name} ({contract_address[-4:]}) добавлен успешно в тред {thread_id}!",
+        reply_markup=get_main_menu()
+    )
     await state.clear()
 
 async def edit_token_start(callback: types.CallbackQuery, state: FSMContext):
@@ -108,7 +169,10 @@ async def edit_token_start(callback: types.CallbackQuery, state: FSMContext):
     if not token:
         await callback.answer("❌ Токен не найден!", show_alert=True)
         return
-    await callback.message.edit_text(f"📝 Текущий тред для токена {token[2]}: {token[3] or 'Не указан'}\nВведите новый ID треда (или оставьте пустым, чтобы убрать):", reply_markup=get_back_button())
+    await callback.message.edit_text(
+        f"📝 Текущий тред для токена {token[2]}: {token[3] or 'Не указан'}\nВведите новый ID треда (или оставьте пустым, чтобы убрать):",
+        reply_markup=get_back_button()
+    )
     await state.update_data(token_id=token_id)
     await state.set_state(TokenStates.waiting_for_edit_thread_id)
     await callback.answer()
@@ -122,7 +186,10 @@ async def edit_token_thread(callback: types.CallbackQuery, state: FSMContext):
     if not token:
         await callback.answer("❌ Токен не найден!", show_alert=True)
         return
-    await callback.message.edit_text(f"📝 Текущий тред для токена {token[2]}: {token[3] or 'Не указан'}\nВведите новый ID треда (или оставьте пустым, чтобы убрать):", reply_markup=get_back_button())
+    await callback.message.edit_text(
+        f"📝 Текущий тред для токена {token[2]}: {token[3] or 'Не указан'}\nВведите новый ID треда (или оставьте пустым, чтобы убрать):",
+        reply_markup=get_back_button()
+    )
     await state.update_data(token_id=token_id)
     await state.set_state(TokenStates.waiting_for_edit_thread_id)
     await callback.answer()
@@ -142,7 +209,10 @@ async def process_edit_thread_id(message: types.Message, state: FSMContext):
     new_thread_id = thread_id if thread_id.isdigit() else None
     db.tracked_tokens.update_token_thread(token_id, new_thread_id)
     token_name = token[2]
-    await message.answer(f"💎 Тред для токена {token_name} обновлен на {new_thread_id or 'Не указан'}!", reply_markup=get_token_control_keyboard(token_id))
+    await message.answer(
+        f"💎 Тред для токена {token_name} обновлен на {new_thread_id or 'Не указан'}!",
+        reply_markup=get_token_control_keyboard(token_id)
+    )
     await state.clear()
 
 async def delete_token(callback: types.CallbackQuery, state: FSMContext):
