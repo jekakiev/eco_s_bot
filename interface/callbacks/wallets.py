@@ -1,7 +1,7 @@
 # /interface/callbacks/wallets.py
 from aiogram import types
 from aiogram.fsm.context import FSMContext
-from ..keyboards import get_main_menu, get_back_button, get_tokens_keyboard, get_wallet_control_keyboard, get_wallets_list  # Добавлен get_wallets_list
+from ..keyboards import get_main_menu, get_back_button, get_tokens_keyboard, get_wallet_control_keyboard, get_wallets_list
 from ..states import WalletStates
 from app_config import db
 from utils.logger_config import logger, should_log
@@ -11,7 +11,7 @@ async def show_wallets(callback: types.CallbackQuery, state: FSMContext):
         logger.info(f"Callback 'show_wallets' получен от {callback.from_user.id}")
         logger.info("Кнопка 'Показать кошельки' нажата")
     text, reply_markup = get_wallets_list()
-    await callback.message.answer(text, disable_web_page_preview=True, reply_markup=reply_markup)
+    await callback.message.edit_text(text, disable_web_page_preview=True, reply_markup=reply_markup)
     await callback.answer()
 
 async def add_wallet_start(callback: types.CallbackQuery, state: FSMContext):
@@ -97,6 +97,12 @@ async def confirm_tokens(callback: types.CallbackQuery, state: FSMContext):
     if not selected_tokens:
         await callback.answer("⚠️ Вы не выбрали ни одной монеты!", show_alert=True)
         return
+    if not wallet_address or not wallet_name:  # Проверка на наличие данных
+        if should_log("debug"):
+            logger.debug(f"Некорректные данные для добавления кошелька: address={wallet_address}, name={wallet_name}")
+        await callback.answer("❌ Ошибка: данные кошелька неполные!", show_alert=True)
+        await state.clear()
+        return
     db.reconnect()
     wallet_id = db.wallets.add_wallet(wallet_address, wallet_name, ",".join(selected_tokens))
     last_4 = wallet_address[-4:]
@@ -117,6 +123,12 @@ async def save_tokens(callback: types.CallbackQuery, state: FSMContext):
         logger.debug(f"Сохраненные токены для кошелька с ID {wallet_id}: {selected_tokens}")
     if not selected_tokens:
         await callback.answer("⚠️ Вы не выбрали ни одной монеты!", show_alert=True)
+        return
+    if not wallet_id:  # Проверка на наличие wallet_id
+        if should_log("debug"):
+            logger.debug("Ошибка: wallet_id отсутствует в состоянии")
+        await callback.answer("❌ Ошибка: данные кошелька неполные!", show_alert=True)
+        await state.clear()
         return
     db.wallets.update_wallet_tokens(wallet_id, ",".join(selected_tokens))
     wallet = db.wallets.get_wallet_by_id(wallet_id)
@@ -204,8 +216,9 @@ async def edit_tokens_start(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer()
         await state.clear()
     else:
+        # Используем wallet_id для редактирования существующего кошелька
+        await state.update_data(wallet_id=wallet_id, selected_tokens=tokens)  # Устанавливаем текущие токены как начальные
         text = f"Кошелек: {wallet[2]} ({wallet[1][-4:]})"
         sent_message = await callback.message.edit_text(f"🪙 Выберите токены для кошелька {wallet[2]} ({wallet[1][-4:]}):", reply_markup=get_tokens_keyboard(tokens, is_edit=True))
         await state.set_state(WalletStates.waiting_for_tokens)
         await callback.answer()
-
