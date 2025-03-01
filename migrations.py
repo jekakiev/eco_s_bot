@@ -6,7 +6,6 @@ from utils.logger_config import logger, should_log
 
 def run_migrations():
     try:
-        # Подключение к базе данных
         connection = mysql.connector.connect(
             host=MYSQL_HOST,
             user=MYSQL_USER,
@@ -19,21 +18,10 @@ def run_migrations():
         if should_log("db"):
             logger.info("Подключение к базе данных для миграций успешно")
 
-        # Список миграций (SQL-команды)
         migrations = [
-            # 1. Добавление SEND_LAST_TRANSACTION в settings
-            """
-            INSERT INTO settings (`key`, value) 
-            VALUES ('SEND_LAST_TRANSACTION', '0') 
-            ON DUPLICATE KEY UPDATE value = '0';
-            """,
-            # 2. Удаление таблицы bot_settings
-            """
-            DROP TABLE IF EXISTS bot_settings;
-            """
+            "DELETE FROM settings WHERE `key` = 'SEND_LAST_TRANSACTION';"
         ]
 
-        # Выполнение миграций
         for migration in migrations:
             try:
                 cursor.execute(migration)
@@ -46,12 +34,10 @@ def run_migrations():
                 connection.rollback()
                 raise
 
-        # Закрытие соединения
         cursor.close()
         connection.close()
         if should_log("db"):
             logger.info("Миграции завершены, соединение закрыто")
-
     except Error as e:
         if should_log("db"):
             logger.error(f"Ошибка подключения к базе данных для миграций: {str(e)}")

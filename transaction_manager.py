@@ -14,8 +14,8 @@ async def check_token_transactions(bot: Bot, chat_id: str):
             db.reconnect()
             wallets = db.wallets.get_all_wallets()
             for wallet in wallets:
-                wallet_address = wallet[1]  # address
-                tokens = wallet[3].split(",") if wallet[3] else []  # tokens
+                wallet_address = wallet[1]
+                tokens = wallet[3].split(",") if wallet[3] else []
                 if not tokens:
                     continue
                 
@@ -23,27 +23,17 @@ async def check_token_transactions(bot: Bot, chat_id: str):
                 for tx in transactions:
                     if not tx.get('is_processed', False):
                         tx_hash = tx.get('hash', 'Неизвестно')
-                        try:
-                            amount_usd = await convert_to_usd(tx)
-                            if amount_usd > 50:  # Фільтрація за сумою
-                                await bot.send_message(chat_id, f"Новая транзакция для {wallet_address[-4:]}:\nХеш: {tx_hash}\nСумма: ${amount_usd:.2f}", parse_mode="HTML")
-                            tx['is_processed'] = True
-                            db.transactions.update_transaction(tx_hash, {'is_processed': True, 'amount_usd': amount_usd})
-                        except Exception as e:
-                            if should_log("api_errors"):
-                                logger.error(f"Ошибка обработки транзакции {tx_hash}: {str(e)}")
-                            continue
+                        amount_usd = await convert_to_usd(tx)
+                        timestamp = tx.get('timeStamp', '2025-01-01 00:00:00')
+                        block_number = int(tx.get('blockNumber', 0))
+                        db.transactions.add_transaction(wallet_address, tx_hash, timestamp, block_number, amount_usd)
+                        if amount_usd > 50:
+                            await bot.send_message(chat_id, f"Новая транзакция для {wallet_address[-4:]}:\nХеш: {tx_hash}\nСумма: ${amount_usd:.2f}", parse_mode="HTML")
+                        db.transactions.update_transaction(tx_hash, {'is_processed': True})
 
-                # Очищення старих транзакцій
-                try:
-                    db.transactions.clean_old_transactions(wallet_address, limit=20)
-                except Exception as e:
-                    if should_log("api_errors"):
-                        logger.error(f"Ошибка очистки старых транзакций для {wallet_address}: {str(e)}")
+                db.transactions.clean_old_transactions(wallet_address, limit=20)
 
             check_interval = int(db.settings.get_setting("CHECK_INTERVAL", "10"))
-            if should_log("transaction"):
-                logger.info(f"Проверка транзакций выполнена. Следующая через {check_interval} секунд.")
             await asyncio.sleep(check_interval)
         except Exception as e:
             if should_log("api_errors"):
@@ -163,5 +153,4 @@ async def get_token_price(chain, contract_address):
 async def start_transaction_monitoring(bot: Bot, chat_id: str):
     if should_log("transaction"):
         logger.info("Запуск мониторинга транзакций")
-        logger.info("Мониторинг транзакций начат")
     await check_token_transactions(bot, chat_id)
