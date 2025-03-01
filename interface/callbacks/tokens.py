@@ -8,7 +8,7 @@ from utils.logger_config import logger, should_log
 from utils.arbiscan import get_token_info
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-logger.info("Загружена версия /interface/callbacks/tokens.py с исправлением edit_token_thread (v2.8)")
+logger.info("Загружена версия /interface/callbacks/tokens.py с исправлением edit_token_thread (v2.9)")
 
 async def show_tokens(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
@@ -208,14 +208,17 @@ async def edit_token_thread_new(callback: types.CallbackQuery, state: FSMContext
     data = await state.get_data()
     token_id = data.get("token_id")
     if not token_id:
-        token_id = callback.data.replace("edit_token_thread_", "")
-        try:
-            token_id = int(token_id)
-        except ValueError:
-            if should_log("debug"):
-                logger.debug(f"Некорректный token_id из callback_data: {token_id}")
-            await callback.answer("❌ Ошибка: неверный ID токена!", show_alert=True)
-            return
+        if should_log("debug"):
+            logger.debug(f"token_id не найден в состоянии: {data}")
+        await callback.answer("❌ Ошибка: ID токена не определен!", show_alert=True)
+        return
+    try:
+        token_id = int(token_id)
+    except ValueError:
+        if should_log("debug"):
+            logger.debug(f"Некорректный token_id в состоянии: {token_id}")
+        await callback.answer("❌ Ошибка: неверный ID токена!", show_alert=True)
+        return
     db.reconnect()
     token = db.tracked_tokens.get_token_by_id(token_id)
     if not token:
@@ -225,7 +228,7 @@ async def edit_token_thread_new(callback: types.CallbackQuery, state: FSMContext
         return
     if should_log("debug"):
         logger.debug(f"Токен найден: ID={token[0]}, Имя={token[2]}, Текущий тред={token[3]}")
-    await state.update_data(token_id=token_id)
+    await state.update_data(token_id=token_id)  # Убеждаемся, что состояние обновлено
     await callback.message.edit_text(
         f"📝 Текущий тред для токена {token[2]}: {token[3] or 'Не указан'}\nВведите новый ID треда (или оставьте пустым, чтобы убрать):",
         reply_markup=get_back_button()
