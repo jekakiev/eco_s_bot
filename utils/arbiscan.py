@@ -12,11 +12,17 @@ async def get_token_info(contract_address):
         return {"tokenSymbol": "Неизвестно", "tokenDecimal": "18"}
     api_key = ARBISCAN_API_KEY
     base_url = "https://api.arbiscan.io/api"
+    # Используем tokentx для получения информации о токене
     params = {
-        "module": "token",
-        "action": "tokeninfo",
+        "module": "account",
+        "action": "tokentx",
         "contractaddress": contract_address,
-        "apikey": api_key
+        "startblock": 0,
+        "endblock": 99999999,
+        "sort": "desc",
+        "apikey": api_key,
+        "page": 1,
+        "offset": 1  # Берем только одну транзакцию
     }
     try:
         async with aiohttp.ClientSession() as session:
@@ -24,9 +30,10 @@ async def get_token_info(contract_address):
                 data = await response.json()
                 if should_log("debug"):
                     logger.debug(f"Ответ Arbiscan для get_token_info {contract_address}: {data}")
-                if data.get('status') == "1" and data.get('result'):
-                    symbol = data['result'][0].get('symbol', 'Неизвестно')
-                    decimals = data['result'][0].get('decimals', '18')
+                if data.get('status') == "1" and data.get('result') and len(data['result']) > 0:
+                    tx = data['result'][0]
+                    symbol = tx.get('tokenSymbol', 'Неизвестно')
+                    decimals = tx.get('tokenDecimal', '18')
                     if should_log("debug"):
                         logger.debug(f"Получено имя токена: {symbol}, decimals: {decimals}")
                     return {
@@ -34,7 +41,7 @@ async def get_token_info(contract_address):
                         "tokenDecimal": decimals if decimals else "18"
                     }
                 if should_log("api_errors"):
-                    logger.warning(f"Не удалось получить информацию о токене {contract_address}: {data.get('message', 'Нет данных')}")
+                    logger.warning(f"Данные о токене {contract_address} недоступны: {data.get('message', 'Нет транзакций или ошибка')}")
                 return {"tokenSymbol": "Неизвестно", "tokenDecimal": "18"}
     except aiohttp.ClientError as e:
         logger.error(f"Ошибка сети при запросе к Arbiscan для {contract_address}: {str(e)}")
