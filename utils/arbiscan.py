@@ -23,10 +23,14 @@ async def get_token_info(contract_address):
             data = await response.json()
             if should_log("debug"):
                 logger.debug(f"Ответ Arbiscan для get_token_info {contract_address}: {data}")
-            if data['status'] == "1" and data['result']:
+            if data.get('status') == "1" and data.get('result'):
+                symbol = data['result'][0].get('symbol', 'Неизвестно')
+                decimals = data['result'][0].get('decimals', '18')
+                if should_log("debug"):
+                    logger.debug(f"Получено имя токена: {symbol}, decimals: {decimals}")
                 return {
-                    "tokenSymbol": data['result'][0].get('symbol', 'Неизвестно'),
-                    "tokenDecimal": data['result'][0].get('decimals', '18')
+                    "tokenSymbol": symbol if symbol else "Неизвестно",
+                    "tokenDecimal": decimals if decimals else "18"
                 }
             if should_log("api_errors"):
                 logger.warning(f"Не удалось получить информацию о токене {contract_address}: {data.get('message', 'Нет данных')}")
