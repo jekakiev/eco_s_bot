@@ -52,7 +52,6 @@ async def confirm_token_name(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     token_name = data["token_name"]
     contract_address = data["contract_address"]
-    # Переходим сразу к вопросу о ветке
     await state.set_state(TokenStates.waiting_for_thread_confirmation)
     await callback.message.edit_text(
         f"📝 Ветка для токена {token_name} ({contract_address[-4:]}) уже создана?\nЕсли да, скопируйте команду: ```/get_thread_id``` и вставьте её в нужную ветку.",
@@ -88,9 +87,9 @@ async def thread_not_exists(callback: types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
     contract_address = user_data["contract_address"]
     token_name = user_data["token_name"]
-    decimals = await get_token_info(contract_address)["tokenDecimal"]
+    decimals = await get_token_info(contract_address)  # Исправлено: ждём результат
+    decimals = decimals["tokenDecimal"]  # Теперь берём значение по ключу
     db.tracked_tokens.add_tracked_token(contract_address, token_name, decimals=int(decimals) if decimals.isdigit() else 18)
-    # Переходим к вопросу о добавлении ко всем кошелькам
     await state.set_state(TokenStates.waiting_for_add_to_all_final_confirmation)
     await callback.message.edit_text(
         f"💎 Токен {token_name} ({contract_address[-4:]}) добавлен успешно!\nДобавить токен ко всем отслеживаемым кошелькам?",
@@ -113,9 +112,9 @@ async def process_thread_id(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     contract_address = user_data["contract_address"]
     token_name = user_data["token_name"]
-    decimals = await get_token_info(contract_address)["tokenDecimal"]
+    token_info = await get_token_info(contract_address)  # Исправлено: ждём результат
+    decimals = token_info["tokenDecimal"]  # Теперь берём значение по ключу
     db.tracked_tokens.add_tracked_token(contract_address, token_name, thread_id=thread_id, decimals=int(decimals) if decimals.isdigit() else 18)
-    # Переходим к вопросу о добавлении ко всем кошелькам
     await state.set_state(TokenStates.waiting_for_add_to_all_final_confirmation)
     await message.answer(
         f"💎 Токен {token_name} ({contract_address[-4:]}) добавлен успешно в тред {thread_id}!\nДобавить токен ко всем отслеживаемым кошелькам?",
