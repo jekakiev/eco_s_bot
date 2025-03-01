@@ -1,5 +1,6 @@
 # /interface/handlers.py
 from aiogram import Dispatcher, F, types
+from aiogram.filters import Command, Text  # Добавляем Text
 from .callbacks.wallets import (
     show_wallets, add_wallet_start, process_wallet_address, process_wallet_name,
     toggle_token, confirm_tokens, save_tokens, delete_wallet, rename_wallet_start,
@@ -21,7 +22,6 @@ from .callbacks.test_api_last_transaction import (
 from .callbacks.test_api_by_hash import (
     show_test_api_by_hash, request_transaction_hash
 )
-from aiogram.filters import Command
 from .states import WalletStates, TokenStates, SettingStates
 from db import Database
 from utils.logger_config import logger, should_log
@@ -82,8 +82,8 @@ def register_handlers(dp: Dispatcher):
         if should_log("interface"):
             logger.warning("Нет кошельков для регистрации команд /Editw_XXXX")
     
-    # Убираем динамическую регистрацию токенов, используем общий фильтр для всех /edit_XXXX
-    dp.message.register(edit_token_command, Command(commands=r"edit_\w{4}"))
+    # Регистрируем edit_token_command с фильтром Text для всех /edit_XXXX
+    dp.message.register(edit_token_command, Text(startswith="/edit_", regex=r"^/edit_\w{4}$"))
 
     dp.message.register(get_thread_id_command, Command(commands=["get_thread_id"]))
 
