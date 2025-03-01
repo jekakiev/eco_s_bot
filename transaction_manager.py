@@ -1,14 +1,14 @@
 # /transaction_manager.py
 import asyncio
-from moralis import Moralis, streams  # Импортируем Moralis для инициализации и streams для стримов
+from moralis import streams  # Убрал Moralis, оставил только streams
 from aiogram import Bot
 from app_config import db
 from utils.logger_config import logger, should_log
 from config.settings import MORALIS_API_KEY, CHAT_ID, WEBHOOK_URL
 import os
 
-# Инициализация клиента Moralis
-Moralis.start({"apiKey": MORALIS_API_KEY})
+# Устанавливаем API ключ через переменную окружения, как было изначально
+os.environ['MORALIS_API_KEY'] = MORALIS_API_KEY
 
 async def setup_streams(bot: Bot, chat_id: str):
     """Настройка потоков Moralis для всех кошельков из базы."""
