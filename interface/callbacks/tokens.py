@@ -9,7 +9,7 @@ from utils.arbiscan import get_token_info
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 # Индикатор версии для проверки загрузки
-logger.info("Загружена версия /interface/callbacks/tokens.py с исправлением edit_token_thread (v2)")
+logger.info("Загружена версия /interface/callbacks/tokens.py с исправлением edit_token_thread (v2.1)")
 
 async def show_tokens(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
@@ -195,9 +195,9 @@ async def edit_token_start(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state(TokenStates.waiting_for_edit_thread_id)
     await callback.answer()
 
-async def edit_token_thread(callback: types.CallbackQuery, state: FSMContext):
+async def edit_token_thread_new(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
-        logger.info(f"Callback 'edit_token_thread' получен от {callback.from_user.id}: {callback.data}")
+        logger.info(f"Callback 'edit_token_thread_new' получен от {callback.from_user.id}: {callback.data}")
         logger.info(f"Редактирование треда токена: {callback.data}")
     token_id_str = callback.data.replace("edit_token_thread_", "")
     logger.info(f"До обработки token_id_str: {token_id_str}")
