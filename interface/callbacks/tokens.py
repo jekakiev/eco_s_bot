@@ -87,8 +87,8 @@ async def thread_not_exists(callback: types.CallbackQuery, state: FSMContext):
     user_data = await state.get_data()
     contract_address = user_data["contract_address"]
     token_name = user_data["token_name"]
-    decimals = await get_token_info(contract_address)  # Исправлено: ждём результат
-    decimals = decimals["tokenDecimal"]  # Теперь берём значение по ключу
+    decimals = await get_token_info(contract_address)
+    decimals = decimals["tokenDecimal"]
     db.tracked_tokens.add_tracked_token(contract_address, token_name, decimals=int(decimals) if decimals.isdigit() else 18)
     await state.set_state(TokenStates.waiting_for_add_to_all_final_confirmation)
     await callback.message.edit_text(
@@ -112,9 +112,11 @@ async def process_thread_id(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     contract_address = user_data["contract_address"]
     token_name = user_data["token_name"]
-    token_info = await get_token_info(contract_address)  # Исправлено: ждём результат
-    decimals = token_info["tokenDecimal"]  # Теперь берём значение по ключу
+    token_info = await get_token_info(contract_address)
+    decimals = token_info["tokenDecimal"]
     db.tracked_tokens.add_tracked_token(contract_address, token_name, thread_id=thread_id, decimals=int(decimals) if decimals.isdigit() else 18)
+    if should_log("interface"):
+        logger.info(f"Токен добавлен: {token_name} ({contract_address})")
     await state.set_state(TokenStates.waiting_for_add_to_all_final_confirmation)
     await message.answer(
         f"💎 Токен {token_name} ({contract_address[-4:]}) добавлен успешно в тред {thread_id}!\nДобавить токен ко всем отслеживаемым кошелькам?",
@@ -124,7 +126,6 @@ async def process_thread_id(message: types.Message, state: FSMContext):
         ]),
         parse_mode="Markdown"
     )
-    await state.clear()  # Очищаем состояние перед новым шагом
 
 async def add_to_all_yes(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
@@ -143,7 +144,7 @@ async def add_to_all_yes(callback: types.CallbackQuery, state: FSMContext):
             for wallet in wallets:
                 wallet_id = wallet[0]
                 current_tokens = wallet[3].split(",") if wallet[3] else []
-                if token_name not in current_tokens:
+                if token_name and token_name not in current_tokens:  # Проверка на None
                     current_tokens.append(token_name)
                     db.wallets.update_wallet_tokens(wallet_id, ",".join(current_tokens))
                     if should_log("db"):
@@ -153,7 +154,7 @@ async def add_to_all_yes(callback: types.CallbackQuery, state: FSMContext):
         logger.error(f"Ошибка при добавлении токена {token_name} ко всем кошелькам: {str(e)}", exc_info=True)
         await callback.answer("❌ Ошибка при добавлении токена ко всем кошелькам!", show_alert=True)
     await callback.message.edit_text(
-        f"💎 Токен {token_name} ({contract_address[-4:]}) успешно настроен!",
+        f"💎 Токен {token_name} ({contract_address[-4:] if contract_address else 'unknown'}) успешно настроен!",
         reply_markup=get_main_menu(),
         parse_mode="Markdown"
     )
@@ -164,10 +165,10 @@ async def add_to_all_no(callback: types.CallbackQuery, state: FSMContext):
         logger.info(f"Callback 'add_to_all_no' получен от {callback.from_user.id}")
         logger.info("Добавление токена ко всем кошелькам отклонено")
     data = await state.get_data()
-    token_name = data["token_name"]
-    contract_address = data["contract_address"]
+    token_name = data.get("token_name")
+    contract_address = data.get("contract_address")
     await callback.message.edit_text(
-        f"💎 Токен {token_name} ({contract_address[-4:]}) успешно настроен!",
+        f"💎 Токен {token_name} ({contract_address[-4:] if contract_address else 'unknown'}) успешно настроен!",
         reply_markup=get_main_menu(),
         parse_mode="Markdown"
     )
