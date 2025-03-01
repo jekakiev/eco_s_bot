@@ -171,7 +171,7 @@ def get_commands_list():
     keyboard = [[InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]]
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
-def get_settings_list(check_interval="150", api_errors="❌ВЫКЛ", transaction_info="❌ВЫКЛ", interface_info="❌ВЫКЛ", debug="❌ВЫКЛ", db_info="❌ВЫКЛ"):
+def get_settings_list(check_interval="150", api_errors="❌ВЫКЛ", transaction_info="❌ВЫКЛ", interface_info="❌ВЫКЛ", debug="❌ВЫКЛ", db_info="❌ВЫКЛ", min_other_token_value="50"):
     text = (
         "⚙️ Настройки бота\n\n"
         "⏱ Интервал проверки — как часто бот проверяет новые транзакции\n"
@@ -180,6 +180,7 @@ def get_settings_list(check_interval="150", api_errors="❌ВЫКЛ", transactio
         "🖱 Интерфейса — логи действий в меню\n"
         "🔍 Отладка — подробные отладочные сообщения\n"
         "📚 База данных — логи операций с базой\n"
+        f"💰 Минимальная сумма для других токенов — текущая: ${min_other_token_value} USD\n"
     )
     keyboard = [
         [
@@ -195,7 +196,8 @@ def get_settings_list(check_interval="150", api_errors="❌ВЫКЛ", transactio
             InlineKeyboardButton(text=f"🔍 Отладка ({debug})", callback_data="toggle_DEBUG")
         ],
         [
-            InlineKeyboardButton(text=f"📚 База данных ({db_info})", callback_data="toggle_DB_INFO")
+            InlineKeyboardButton(text=f"📚 База данных ({db_info})", callback_data="toggle_DB_INFO"),
+            InlineKeyboardButton(text=f"💰 Другие токены (${min_other_token_value})", callback_data="edit_setting_MIN_OTHER_TOKEN_VALUE")
         ],
         [InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]
     ]

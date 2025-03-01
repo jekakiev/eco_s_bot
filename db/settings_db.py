@@ -1,3 +1,4 @@
+# /db/settings_db.py
 from mysql.connector import Error
 from utils.logger_config import logger
 
@@ -9,6 +10,12 @@ class SettingsDB:
     def create_table(self):
         try:
             self.cursor.execute("CREATE TABLE IF NOT EXISTS settings (`key` VARCHAR(255) NOT NULL PRIMARY KEY, value VARCHAR(255))")
+            # Проверка и добавление MIN_OTHER_TOKEN_VALUE, если его нет
+            self.cursor.execute("SELECT `key` FROM settings WHERE `key` = 'MIN_OTHER_TOKEN_VALUE'")
+            if not self.cursor.fetchone():
+                self.cursor.execute("INSERT INTO settings (`key`, value) VALUES ('MIN_OTHER_TOKEN_VALUE', '50')")
+                self.connection.commit()
+                logger.info("Настройка MIN_OTHER_TOKEN_VALUE добавлена в таблицу settings с дефолтным значением 50.")
             logger.info("Таблица settings создана или проверена.")
         except Error as e:
             logger.error(f"Ошибка создания таблицы settings: {str(e)}")

@@ -1,7 +1,7 @@
 # /interface/callbacks/settings_callbacks.py
 from aiogram import types
 from aiogram.fsm.context import FSMContext
-from ..keyboards import get_main_menu, get_settings_list, get_interval_edit_keyboard, get_commands_list  # Добавлен импорт
+from ..keyboards import get_main_menu, get_settings_list, get_interval_edit_keyboard, get_commands_list
 from ..states import SettingStates
 from app_config import db
 from utils.logger_config import logger, should_log, update_log_settings
@@ -26,9 +26,10 @@ async def show_settings(callback: types.CallbackQuery, state: FSMContext):
     interface_info = "✅ВКЛ" if int(db.settings.get_setting("INTERFACE_INFO", "0")) else "❌ВЫКЛ"
     debug = "✅ВКЛ" if int(db.settings.get_setting("DEBUG", "0")) else "❌ВЫКЛ"
     db_info = "✅ВКЛ" if int(db.settings.get_setting("DB_INFO", "0")) else "❌ВЫКЛ"
-    text, reply_markup = get_settings_list(check_interval, api_errors, transaction_info, interface_info, debug, db_info)
+    min_other_token_value = db.settings.get_setting("MIN_OTHER_TOKEN_VALUE", "50")  # Новая настройка
+    text, reply_markup = get_settings_list(check_interval, api_errors, transaction_info, interface_info, debug, db_info, min_other_token_value)
     msg = await callback.message.edit_text(text, reply_markup=reply_markup, disable_web_page_preview=True)
-    await state.update_data(settings_message_id=msg.message_id, check_interval=check_interval, api_errors=api_errors, transaction_info=transaction_info, interface_info=interface_info, debug=debug, db_info=db_info)
+    await state.update_data(settings_message_id=msg.message_id, check_interval=check_interval, api_errors=api_errors, transaction_info=transaction_info, interface_info=interface_info, debug=debug, db_info=db_info, min_other_token_value=min_other_token_value)
     await callback.answer()
 
 async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
@@ -40,6 +41,10 @@ async def edit_setting_start(callback: types.CallbackQuery, state: FSMContext):
     current_value = data.get("check_interval", db.settings.get_setting(setting_name, "150"))
     if setting_name == "CHECK_INTERVAL":
         text = f"⚙️ Интервал проверки\nТекущее значение: {current_value} секунд\nВведите интервал обновления в секундах (мин. 1):"
+        msg = await callback.message.edit_text(text, reply_markup=get_interval_edit_keyboard())
+        await state.update_data(settings_message_id=msg.message_id, setting_name=setting_name)
+    elif setting_name == "MIN_OTHER_TOKEN_VALUE":
+        text = f"⚙️ Минимальная сумма для других токенов\nТекущее значение: ${current_value} USD\nВведите новую сумму в USD (мин. 1):"
         msg = await callback.message.edit_text(text, reply_markup=get_interval_edit_keyboard())
         await state.update_data(settings_message_id=msg.message_id, setting_name=setting_name)
     await state.set_state(SettingStates.waiting_for_setting_value)
@@ -58,6 +63,7 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
     interface_info = data.get("interface_info", "❌ВЫКЛ")
     debug = data.get("debug", "❌ВЫКЛ")
     db_info = data.get("db_info", "❌ВЫКЛ")
+    min_other_token_value = data.get("min_other_token_value", "50")
     
     if setting_name == "API_ERRORS":
         api_errors = "✅ВКЛ" if api_errors == "❌ВЫКЛ" else "❌ВЫКЛ"
@@ -79,7 +85,7 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
     await asyncio.sleep(0.5)
     update_log_settings(db)
     
-    text, reply_markup = get_settings_list(check_interval, api_errors, transaction_info, interface_info, debug, db_info)
+    text, reply_markup = get_settings_list(check_interval, api_errors, transaction_info, interface_info, debug, db_info, min_other_token_value)
     try:
         await bot.edit_message_text(
             chat_id=callback.message.chat.id,
@@ -92,8 +98,8 @@ async def toggle_setting(callback: types.CallbackQuery, state: FSMContext):
         if should_log("api_errors"):
             logger.error(f"Ошибка редактирования сообщения: {str(e)}")
         msg = await callback.message.answer(text, reply_markup=reply_markup, disable_web_page_preview=True)
-        await state.update_data(settings_message_id=msg.message_id, check_interval=check_interval, api_errors=api_errors, transaction_info=transaction_info, interface_info=interface_info, debug=debug, db_info=db_info)
-    await state.update_data(check_interval=check_interval, api_errors=api_errors, transaction_info=transaction_info, interface_info=interface_info, debug=debug, db_info=db_info)
+        await state.update_data(settings_message_id=msg.message_id, check_interval=check_interval, api_errors=api_errors, transaction_info=transaction_info, interface_info=interface_info, debug=debug, db_info=db_info, min_other_token_value=min_other_token_value)
+    await state.update_data(check_interval=check_interval, api_errors=api_errors, transaction_info=transaction_info, interface_info=interface_info, debug=debug, db_info=db_info, min_other_token_value=min_other_token_value)
     await callback.answer()
 
 async def process_setting_value(message: types.Message, state: FSMContext):
@@ -111,17 +117,24 @@ async def process_setting_value(message: types.Message, state: FSMContext):
                 raise ValueError("Интервал должен быть не менее 1 секунды")
             check_interval = f"{new_value} сек"
             db_value = str(new_value)
+        elif setting_name == "MIN_OTHER_TOKEN_VALUE":
+            new_value = float(new_value)
+            if new_value < 1:
+                raise ValueError("Минимальная сумма должна быть не менее 1 USD")
+            check_interval = None  # Не используется для этой настройки
+            db_value = str(new_value)
         
         db.settings.set_setting(setting_name, db_value)
         await asyncio.sleep(0.5)
         
         text, reply_markup = get_settings_list(
-            check_interval=check_interval,
+            check_interval=data.get("check_interval", "150"),
             api_errors=data.get("api_errors", "❌ВЫКЛ"),
             transaction_info=data.get("transaction_info", "✅ВКЛ"),
             interface_info=data.get("interface_info", "❌ВЫКЛ"),
             debug=data.get("debug", "❌ВЫКЛ"),
-            db_info=data.get("db_info", "❌ВЫКЛ")
+            db_info=data.get("db_info", "❌ВЫКЛ"),
+            min_other_token_value=db.settings.get_setting("MIN_OTHER_TOKEN_VALUE", "50")
         )
         try:
             await bot.edit_message_text(
@@ -135,8 +148,8 @@ async def process_setting_value(message: types.Message, state: FSMContext):
             if should_log("api_errors"):
                 logger.error(f"Ошибка редактирования сообщения: {str(e)}")
             msg = await message.answer(text, reply_markup=reply_markup, disable_web_page_preview=True)
-            await state.update_data(settings_message_id=msg.message_id, check_interval=check_interval, api_errors=data.get("api_errors", "❌ВЫКЛ"), transaction_info=data.get("transaction_info", "✅ВКЛ"), interface_info=data.get("interface_info", "❌ВЫКЛ"), debug=data.get("debug", "❌ВЫКЛ"), db_info=data.get("db_info", "❌ВЫКЛ"))
-        await state.update_data(check_interval=check_interval)
+            await state.update_data(settings_message_id=msg.message_id, check_interval=data.get("check_interval", "150"), api_errors=data.get("api_errors", "❌ВЫКЛ"), transaction_info=data.get("transaction_info", "✅ВКЛ"), interface_info=data.get("interface_info", "❌ВЫКЛ"), debug=data.get("debug", "❌ВЫКЛ"), db_info=data.get("db_info", "❌ВЫКЛ"), min_other_token_value=db.settings.get_setting("MIN_OTHER_TOKEN_VALUE", "50"))
+        await state.update_data(check_interval=data.get("check_interval", "150"), min_other_token_value=db.settings.get_setting("MIN_OTHER_TOKEN_VALUE", "50"))
         await state.clear()
     except ValueError as e:
         await message.answer(f"❌ Ошибка: {str(e)}. Попробуйте ещё раз:", reply_markup=get_interval_edit_keyboard())
