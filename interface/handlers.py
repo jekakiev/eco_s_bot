@@ -1,7 +1,7 @@
 # /interface/handlers.py
 from aiogram import Dispatcher, F, types
 from aiogram.filters import Command
-from aiogram.fsm.context import FSMContext  # Добавлен импорт
+from aiogram.fsm.context import FSMContext
 from .callbacks.wallets import (
     show_wallets, add_wallet_start, process_wallet_address, process_wallet_name,
     toggle_token, confirm_tokens, save_tokens, delete_wallet, rename_wallet_start,
@@ -176,7 +176,7 @@ async def edit_token_command(message: types.Message, state: FSMContext):
             return
         short_address = message.text.replace("/edit_", "")
         if len(short_address) != 4:
-            await message.answer("❌ Последние 4 символа адреса должны быть указаны (например, /edit_70ef).")
+            await message.answer("❌ Последние 4 символа адреса должны быть указаны (например, /edit_2ca7).")
             return
         if should_log("debug"):
             logger.debug(f"Попытка найти токен с последними 4 символами адреса: {short_address}")
@@ -219,7 +219,7 @@ async def edit_token_command(message: types.Message, state: FSMContext):
         if should_log("debug"):
             logger.debug(f"Сформирована клавиатура: {keyboard.inline_keyboard}")
         
-        await state.update_data(token_id=str(token[0]))
+        await state.update_data(token_id=int(token[0]))  # Сохраняем как int
         sent_message = await message.answer(text, reply_markup=keyboard)
         await message.delete()
     except Exception as e:
