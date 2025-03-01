@@ -9,7 +9,7 @@ from .callbacks.tokens import (
     show_tokens, add_token_start, process_contract_address, confirm_token_name,
     reject_token_name, thread_exists, thread_not_exists, process_thread_id,
     edit_token_start, edit_token_thread, process_edit_thread_id, delete_token,
-    add_to_all_yes, add_to_all_no  # Добавлены новые импорты
+    add_to_all_yes, add_to_all_no
 )
 from .callbacks.settings_callbacks import (
     show_commands, show_settings, edit_setting_start, process_setting_value,
@@ -56,7 +56,6 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(edit_token_thread, F.data.startswith("edit_token_thread_"))
     dp.message.register(process_edit_thread_id, TokenStates.waiting_for_edit_thread_id)
     dp.callback_query.register(delete_token, F.data.startswith("delete_token_"))
-    # Добавлены новые обработчики
     dp.callback_query.register(add_to_all_yes, F.data == "add_to_all_yes")
     dp.callback_query.register(add_to_all_no, F.data == "add_to_all_no")
     
@@ -92,6 +91,9 @@ def register_handlers(dp: Dispatcher):
     else:
         if should_log("interface"):
             logger.warning("Нет токенов для регистрации команд /edit_XXXX")
+
+    # Добавляем обработчик для /get_thread_id
+    dp.message.register(get_thread_id_command, Command(commands=["get_thread_id"]))
 
     if should_log("interface"):
         logger.info("Регистрация обработчиков callback-запросов завершена")
@@ -213,3 +215,12 @@ async def edit_token_command(message: types.Message):
         if should_log("api_errors"):
             logger.error(f"Ошибка обработки команды /edit: {str(e)}", exc_info=True)
         await message.answer("❌ Ошибка при обработке команды.")
+
+async def get_thread_id_command(message: types.Message):
+    if should_log("interface"):
+        logger.info(f"Получена команда /get_thread_id от {message.from_user.id}")
+    thread_id = message.message_thread_id
+    if thread_id:
+        await message.answer(f"ID текущей ветки: {thread_id}")
+    else:
+        await message.answer("❌ Это не ветка чата или ID недоступен.")

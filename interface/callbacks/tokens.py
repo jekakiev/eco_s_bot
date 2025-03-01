@@ -99,7 +99,7 @@ async def add_to_all_yes(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer("❌ Ошибка при добавлении токена ко всем кошелькам!", show_alert=True)
     await state.set_state(TokenStates.waiting_for_thread_confirmation)
     await callback.message.edit_text(
-        f"📝 Токен {token_name} ({contract_address[-4:]}) добавлен ко всем кошелькам.\nТокен уже существует в чате?\nЕсли да, отправьте /get_thread_id в нужном чате для получения ID треда.",
+        f"📝 Ветка для токена {token_name} ({contract_address[-4:]}) уже создана?\nЕсли да, скопируйте команду: ```/get_thread_id``` и вставьте её в нужную ветку.",
         reply_markup=get_thread_confirmation_keyboard(),
         parse_mode="Markdown"
     )
@@ -113,7 +113,7 @@ async def add_to_all_no(callback: types.CallbackQuery, state: FSMContext):
     contract_address = data["contract_address"]
     await state.set_state(TokenStates.waiting_for_thread_confirmation)
     await callback.message.edit_text(
-        f"📝 Токен {token_name} ({contract_address[-4:]}) не добавлен к кошелькам.\nТокен уже существует в чате?\nЕсли да, отправьте /get_thread_id в нужном чате для получения ID треда.",
+        f"📝 Ветка для токена {token_name} ({contract_address[-4:]}) уже создана?\nЕсли да, скопируйте команду: ```/get_thread_id``` и вставьте её в нужную ветку.",
         reply_markup=get_thread_confirmation_keyboard(),
         parse_mode="Markdown"
     )
@@ -124,7 +124,7 @@ async def thread_exists(callback: types.CallbackQuery, state: FSMContext):
         logger.info(f"Callback 'thread_exists' получен от {callback.from_user.id}")
         logger.info("Тред существует нажато")
     await callback.message.edit_text(
-        "📝 Введите ID треда (например, 123456789):\n💡 Чтобы узнать ID ветки, отправьте команду `/get_thread_id` прямо в нужный тред.",
+        "📝 Введите ID треда (например, 123456789):\n💡 Чтобы узнать ID ветки, скопируйте команду: ```/get_thread_id``` и вставьте её в нужную ветку.",
         reply_markup=get_back_button(),
         parse_mode="Markdown"
     )
