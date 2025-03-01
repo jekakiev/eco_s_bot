@@ -1,6 +1,6 @@
 # /transaction_manager.py
 import asyncio
-from moralis import streams_api  # Изменил импорт на streams_api
+from moralis import streams  # Вернул исходный импорт
 from aiogram import Bot
 from app_config import db
 from utils.logger_config import logger, should_log
@@ -41,6 +41,7 @@ async def setup_streams(bot: Bot, chat_id: str):
 async def create_stream(wallet_address):
     """Создание потока для конкретного кошелька."""
     try:
+        # Инициализация клиента Moralis (если требуется для версии 0.1.49)
         stream_data = {
             "chainIds": ["42161"],  # Arbitrum Mainnet
             "tag": f"wallet_{wallet_address}",
@@ -54,8 +55,14 @@ async def create_stream(wallet_address):
         if should_log("debug"):
             logger.debug(f"Данные потока для {wallet_address}: {stream_data}")
         
-        # Используем streams_api вместо streams для более новой версии SDK
-        streams_api.create_stream(stream_data)
+        # Пытаемся использовать streams.create_stream напрямую
+        streams.create_stream(stream_data)
+    except AttributeError as e:
+        if should_log("api_errors"):
+            logger.error(f"Ошибка: модуль 'moralis.streams' не содержит 'create_stream' для {wallet_address}: {str(e)}", exc_info=True)
+        if should_log("debug"):
+            logger.debug(f"Попытка использовать альтернативный метод для {wallet_address}", exc_info=True)
+        raise  # Пробрасываем, чтобы увидеть в логах
     except Exception as e:
         if should_log("api_errors"):
             logger.error(f"Ошибка создания потока для {wallet_address}: {str(e)}", exc_info=True)
