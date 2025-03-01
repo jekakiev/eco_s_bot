@@ -200,17 +200,17 @@ async def edit_token_thread(callback: types.CallbackQuery, state: FSMContext):
         logger.info(f"Callback 'edit_token_thread' получен от {callback.from_user.id}: {callback.data}")
         logger.info(f"Редактирование треда токена: {callback.data}")
     token_id_str = callback.data.replace("edit_token_thread_", "")
+    logger.info(f"До обработки token_id_str: {token_id_str}")
     try:
         token_id = int(token_id_str)  # Приводим к int
     except ValueError:
         logger.error(f"Некорректный token_id: {token_id_str} не является числом")
         await callback.answer("❌ Ошибка: некорректный ID токена!", show_alert=True)
         return
-    # Принудительные логи для отладки
-    logger.info(f"Получен token_id: {token_id} (тип: {type(token_id)})")
+    logger.info(f"После обработки token_id: {token_id} (тип: {type(token_id)})")
     db.reconnect()  # Убеждаемся, что соединение активно
     token = db.tracked_tokens.get_token_by_id(token_id)
-    logger.info(f"Результат запроса token: {token}")
+    logger.info(f"После вызова get_token_by_id: Результат запроса token: {token}")
     if not token:
         logger.info(f"Токен с ID {token_id} не найден в базе: {db.tracked_tokens.get_all_tracked_tokens()}")
         await callback.answer("❌ Токен не найден!", show_alert=True)
