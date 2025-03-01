@@ -25,7 +25,6 @@ async def get_token_info(contract_address):
     }
     
     try:
-        # Получаем ABI токена через Arbiscan
         logger.debug(f"Начало запроса ABI для {contract_address}")
         async with aiohttp.ClientSession() as session:
             async with session.get(base_url, params=params, timeout=aiohttp.ClientTimeout(total=10)) as response:
@@ -34,12 +33,9 @@ async def get_token_info(contract_address):
                 
                 if data.get('status') == "1" and data.get('result'):
                     abi = data['result']
-                    # Преобразуем адрес в checksum-формат
                     checksum_address = w3.to_checksum_address(contract_address)
                     logger.debug(f"Checksum-адрес: {checksum_address}")
-                    # Подключаемся к контракту
                     contract = w3.eth.contract(address=checksum_address, abi=abi)
-                    # Вызываем функции name() и symbol()
                     try:
                         symbol = contract.functions.symbol().call()
                         decimals = contract.functions.decimals().call()
