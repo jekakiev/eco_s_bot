@@ -56,7 +56,6 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(edit_token_thread, F.data.startswith("edit_token_thread_"))
     dp.message.register(process_edit_thread_id, TokenStates.waiting_for_edit_thread_id)
     dp.callback_query.register(delete_token, F.data.startswith("delete_token_"))
-    # Регистрация для финального подтверждения добавления ко всем кошелькам
     dp.callback_query.register(add_to_all_yes, F.data == "add_to_all_yes")
     dp.callback_query.register(add_to_all_no, F.data == "add_to_all_no")
     
@@ -83,15 +82,8 @@ def register_handlers(dp: Dispatcher):
         if should_log("interface"):
             logger.warning("Нет кошельков для регистрации команд /Editw_XXXX")
     
-    tokens = db.tracked_tokens.get_all_tracked_tokens()
-    token_commands = [f"edit_{token[1][-4:]}" for token in tokens]
-    if token_commands:
-        dp.message.register(edit_token_command, Command(commands=token_commands))
-        if should_log("interface"):
-            logger.info(f"Зарегистрированы команды для токенов: {token_commands}")
-    else:
-        if should_log("interface"):
-            logger.warning("Нет токенов для регистрации команд /edit_XXXX")
+    # Убираем динамическую регистрацию токенов, используем общий фильтр для всех /edit_XXXX
+    dp.message.register(edit_token_command, Command(commands=r"edit_\w{4}"))
 
     dp.message.register(get_thread_id_command, Command(commands=["get_thread_id"]))
 
@@ -169,7 +161,15 @@ async def edit_token_command(message: types.Message):
     if should_log("interface"):
         logger.info(f"Получена команда: {message.text}")
     try:
-        short_address = message.text.split("_")[1]
+        if not message.text.startswith("/edit_"):
+            await message.answer("❌ Неверный формат команды. Используйте /edit_XXXX (последние 4 символа адреса токена).")
+            return
+        short_address = message.text.replace("/edit_", "")
+        if len(short_address) != 4:
+            await message.answer("❌ Последние 4 символа адреса должны быть указаны (например, /edit_70ef).")
+            return
+        if should_log("debug"):
+            logger.debug(f"Попытка найти токен с последними 4 символами адреса: {short_address}")
         db.reconnect()
         tokens = db.tracked_tokens.get_all_tracked_tokens()
         if should_log("debug"):
