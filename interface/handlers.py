@@ -10,13 +10,13 @@ import importlib
 import sys
 
 # Удаляем модуль из кэша и перезагружаем
-tokens_module_name = 'interface.callbacks.tokens_v2'
+tokens_module_name = 'interface.callbacks.tokens'
 if tokens_module_name in sys.modules:
     del sys.modules[tokens_module_name]
-from .callbacks import tokens_v2
-importlib.reload(tokens_v2)
+from .callbacks import tokens
+importlib.reload(tokens)
 
-from .callbacks.tokens_v2 import (
+from .callbacks.tokens import (
     show_tokens, add_token_start, process_contract_address, confirm_token_name,
     reject_token_name, thread_exists, thread_not_exists, process_thread_id,
     edit_token_start, edit_token_thread_new, process_edit_thread_id, delete_token,
