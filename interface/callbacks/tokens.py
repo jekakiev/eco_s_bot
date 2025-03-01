@@ -39,7 +39,6 @@ async def process_contract_address(message: types.Message, state: FSMContext):
         return
     await state.update_data(contract_address=contract_address)
     token_info = await get_token_info(contract_address)
-    # Временное принудительное логирование для диагностики
     logger.debug(f"Данные токена от Arbiscan для {contract_address}: {token_info}")
     token_name = token_info["tokenSymbol"] if token_info["tokenSymbol"] and token_info["tokenSymbol"] != "Неизвестно" else f"Токен_{contract_address[-4:]}"
     await state.update_data(token_name=token_name)
@@ -77,25 +76,33 @@ async def add_to_all_yes(callback: types.CallbackQuery, state: FSMContext):
         logger.info(f"Callback 'add_to_all_yes' получен от {callback.from_user.id}")
         logger.info("Добавление токена ко всем кошелькам подтверждено")
     data = await state.get_data()
-    token_name = data["token_name"]
-    contract_address = data["contract_address"]
-    db.reconnect()
-    wallets = db.wallets.get_all_wallets()
-    for wallet in wallets:
-        wallet_id = wallet[0]
-        current_tokens = wallet[3].split(",") if wallet[3] else []
-        if token_name not in current_tokens:
-            current_tokens.append(token_name)
-            db.wallets.update_wallet_tokens(wallet_id, ",".join(current_tokens))
-            if should_log("db"):
-                logger.info(f"Токен {token_name} добавлен к кошельку ID {wallet_id}")
+    token_name = data.get("token_name")
+    contract_address = data.get("contract_address")
+    try:
+        db.reconnect()
+        wallets = db.wallets.get_all_wallets()
+        if not wallets:
+            logger.warning("Нет отслеживаемых кошельков для добавления токена")
+            await callback.answer("⚠️ Нет отслеживаемых кошельков!", show_alert=True)
+        else:
+            for wallet in wallets:
+                wallet_id = wallet[0]
+                current_tokens = wallet[3].split(",") if wallet[3] else []
+                if token_name not in current_tokens:
+                    current_tokens.append(token_name)
+                    db.wallets.update_wallet_tokens(wallet_id, ",".join(current_tokens))
+                    if should_log("db"):
+                        logger.info(f"Токен {token_name} добавлен к кошельку ID {wallet_id}")
+            await callback.answer(f"✅ Токен {token_name} добавлен ко всем кошелькам!", show_alert=True)
+    except Exception as e:
+        logger.error(f"Ошибка при добавлении токена {token_name} ко всем кошелькам: {str(e)}", exc_info=True)
+        await callback.answer("❌ Ошибка при добавлении токена ко всем кошелькам!", show_alert=True)
     await state.set_state(TokenStates.waiting_for_thread_confirmation)
     await callback.message.edit_text(
-        f"📝 Токен {token_name} добавлен ко всем кошелькам.\nТокен уже существует в чате?\nЕсли да, отправьте /get_thread_id в нужном чате для получения ID треда.",
+        f"📝 Токен {token_name} ({contract_address[-4:]}) добавлен ко всем кошелькам.\nТокен уже существует в чате?\nЕсли да, отправьте /get_thread_id в нужном чате для получения ID треда.",
         reply_markup=get_thread_confirmation_keyboard(),
         parse_mode="Markdown"
     )
-    await callback.answer()
 
 async def add_to_all_no(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
@@ -190,40 +197,4 @@ async def edit_token_thread(callback: types.CallbackQuery, state: FSMContext):
         reply_markup=get_back_button()
     )
     await state.update_data(token_id=token_id)
-    await state.set_state(TokenStates.waiting_for_edit_thread_id)
-    await callback.answer()
-
-async def process_edit_thread_id(message: types.Message, state: FSMContext):
-    if should_log("interface"):
-        logger.info(f"Сообщение с новым ID треда токена от {message.from_user.id}: {message.text}")
-        logger.info(f"Введен новый ID треда токена: {message.text}")
-    thread_id = message.text.strip()
-    user_data = await state.get_data()
-    token_id = user_data["token_id"]
-    token = db.tracked_tokens.get_token_by_id(token_id)
-    if not token:
-        await message.answer("❌ Токен не найден!", reply_markup=get_back_button())
-        await state.clear()
-        return
-    new_thread_id = thread_id if thread_id.isdigit() else None
-    db.tracked_tokens.update_token_thread(token_id, new_thread_id)
-    token_name = token[2]
-    await message.answer(
-        f"💎 Тред для токена {token_name} обновлен на {new_thread_id or 'Не указан'}!",
-        reply_markup=get_token_control_keyboard(token_id)
-    )
-    await state.clear()
-
-async def delete_token(callback: types.CallbackQuery, state: FSMContext):
-    if should_log("interface"):
-        logger.info(f"Callback 'delete_token' получен от {callback.from_user.id}: {callback.data}")
-        logger.info(f"Удаление токена: {callback.data}")
-    token_id = callback.data.replace("delete_token_", "")
-    token = db.tracked_tokens.get_token_by_id(token_id)
-    if not token:
-        await callback.answer("❌ Токен не найден!", show_alert=True)
-        return
-    db.tracked_tokens.delete_tracked_token(token_id)
-    text, reply_markup = get_tracked_tokens_list()
-    await callback.message.edit_text(text, reply_markup=reply_markup, disable_web_page_preview=True)
-    await callback.answer(f"🗑 Токен {token[2]} удален!")
+    await state.set_state(TokenStates.waiting_for_edit_thread_id

@@ -8,7 +8,8 @@ from .callbacks.wallets import (
 from .callbacks.tokens import (
     show_tokens, add_token_start, process_contract_address, confirm_token_name,
     reject_token_name, thread_exists, thread_not_exists, process_thread_id,
-    edit_token_start, edit_token_thread, process_edit_thread_id, delete_token
+    edit_token_start, edit_token_thread, process_edit_thread_id, delete_token,
+    add_to_all_yes, add_to_all_no  # Добавлены новые импорты
 )
 from .callbacks.settings_callbacks import (
     show_commands, show_settings, edit_setting_start, process_setting_value,
@@ -55,6 +56,9 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(edit_token_thread, F.data.startswith("edit_token_thread_"))
     dp.message.register(process_edit_thread_id, TokenStates.waiting_for_edit_thread_id)
     dp.callback_query.register(delete_token, F.data.startswith("delete_token_"))
+    # Добавлены новые обработчики
+    dp.callback_query.register(add_to_all_yes, F.data == "add_to_all_yes")
+    dp.callback_query.register(add_to_all_no, F.data == "add_to_all_no")
     
     dp.callback_query.register(show_commands, F.data == "show_commands")
     dp.callback_query.register(show_settings, F.data == "show_settings")
@@ -148,13 +152,12 @@ async def edit_wallet_command(message: types.Message):
             sent_message = await message.answer(text, reply_markup=keyboard)
             await message.delete()
         except Exception as e:
-            # Временно убираем условие should_log для точной диагностики
             logger.error(f"Ошибка при отправке сообщения для кошелька с адресом {address_cleaned[-4:]}: {str(e)}", exc_info=True)
             await message.answer("❌ Ошибка при отправке данных кошелька.")
             return
     
     except Exception as e:
-        logger.error(f"Ошибка обработки команды /Editw: {str(e)}", exc_info=True)  # Временно убираем условие should_log
+        logger.error(f"Ошибка обработки команды /Editw: {str(e)}", exc_info=True)
         if should_log("debug"):
             logger.debug(f"Состояние подключения к базе после ошибки: {db.connection.is_connected() if db.connection else 'Нет подключения'}")
             logger.debug(f"Список кошельков после ошибки: {db.wallets.get_all_wallets()}")
