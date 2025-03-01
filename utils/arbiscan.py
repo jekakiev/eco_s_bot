@@ -1,48 +1,56 @@
 # /utils/arbiscan.py
 import asyncio
 import aiohttp
+from web3 import Web3
 from config.settings import ARBISCAN_API_KEY
 from utils.logger_config import logger, should_log
 from app_config import db
+
+# Подключение к Arbitrum через публичный RPC
+w3 = Web3(Web3.HTTPProvider('https://arb1.arbitrum.io/rpc'))
 
 async def get_token_info(contract_address):
     if not contract_address or not contract_address.startswith("0x"):
         if should_log("api_errors"):
             logger.warning(f"Некорректный адрес контракта: {contract_address}")
         return {"tokenSymbol": "Неизвестно", "tokenDecimal": "18"}
+    
     api_key = ARBISCAN_API_KEY
     base_url = "https://api.arbiscan.io/api"
-    # Используем tokentx для получения информации о токене
     params = {
-        "module": "account",
-        "action": "tokentx",
-        "contractaddress": contract_address,
-        "startblock": 0,
-        "endblock": 99999999,
-        "sort": "desc",
-        "apikey": api_key,
-        "page": 1,
-        "offset": 1  # Берем только одну транзакцию
+        "module": "contract",
+        "action": "getabi",
+        "address": contract_address,
+        "apikey": api_key
     }
+    
     try:
+        # Получаем ABI токена через Arbiscan
+        logger.debug(f"Начало запроса ABI для {contract_address}")
         async with aiohttp.ClientSession() as session:
             async with session.get(base_url, params=params, timeout=aiohttp.ClientTimeout(total=10)) as response:
                 data = await response.json()
-                if should_log("debug"):
-                    logger.debug(f"Ответ Arbiscan для get_token_info {contract_address}: {data}")
-                if data.get('status') == "1" and data.get('result') and len(data['result']) > 0:
-                    tx = data['result'][0]
-                    symbol = tx.get('tokenSymbol', 'Неизвестно')
-                    decimals = tx.get('tokenDecimal', '18')
-                    if should_log("debug"):
+                logger.debug(f"Ответ Arbiscan для getabi {contract_address}: {data}")
+                
+                if data.get('status') == "1" and data.get('result'):
+                    abi = data['result']
+                    # Подключаемся к контракту
+                    contract = w3.eth.contract(address=contract_address, abi=abi)
+                    # Вызываем функции name() и symbol()
+                    try:
+                        symbol = contract.functions.symbol().call()
+                        decimals = contract.functions.decimals().call()
                         logger.debug(f"Получено имя токена: {symbol}, decimals: {decimals}")
-                    return {
-                        "tokenSymbol": symbol if symbol else "Неизвестно",
-                        "tokenDecimal": decimals if decimals else "18"
-                    }
-                if should_log("api_errors"):
-                    logger.warning(f"Данные о токене {contract_address} недоступны: {data.get('message', 'Нет транзакций или ошибка')}")
-                return {"tokenSymbol": "Неизвестно", "tokenDecimal": "18"}
+                        return {
+                            "tokenSymbol": symbol if symbol else "Неизвестно",
+                            "tokenDecimal": str(decimals) if decimals else "18"
+                        }
+                    except Exception as e:
+                        logger.error(f"Ошибка вызова функций контракта для {contract_address}: {str(e)}")
+                        return {"tokenSymbol": "Неизвестно", "tokenDecimal": "18"}
+                else:
+                    logger.warning(f"Не удалось получить ABI для {contract_address}: {data.get('message', 'Нет данных')}")
+                    return {"tokenSymbol": "Неизвестно", "tokenDecimal": "18"}
     except aiohttp.ClientError as e:
         logger.error(f"Ошибка сети при запросе к Arbiscan для {contract_address}: {str(e)}")
         return {"tokenSymbol": "Неизвестно", "tokenDecimal": "18"}

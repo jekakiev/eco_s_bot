@@ -3,3 +3,4 @@ python-dotenv
 mysql-connector-python
 aiohttp
 requests  # Додано для роботи з CoinGecko
+web3.py>=6.0.0
