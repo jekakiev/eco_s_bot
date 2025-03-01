@@ -1,7 +1,7 @@
 # /interface/callbacks/wallets.py
 from aiogram import types
 from aiogram.fsm.context import FSMContext
-from ..keyboards import get_main_menu, get_back_button, get_tokens_keyboard, get_wallet_control_keyboard
+from ..keyboards import get_main_menu, get_back_button, get_tokens_keyboard, get_wallet_control_keyboard, get_wallets_list  # Добавлен get_wallets_list
 from ..states import WalletStates
 from app_config import db
 from utils.logger_config import logger, should_log
@@ -208,3 +208,4 @@ async def edit_tokens_start(callback: types.CallbackQuery, state: FSMContext):
         sent_message = await callback.message.edit_text(f"🪙 Выберите токены для кошелька {wallet[2]} ({wallet[1][-4:]}):", reply_markup=get_tokens_keyboard(tokens, is_edit=True))
         await state.set_state(WalletStates.waiting_for_tokens)
         await callback.answer()
+
