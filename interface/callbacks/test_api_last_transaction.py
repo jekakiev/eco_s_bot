@@ -1,7 +1,7 @@
 # /interface/callbacks/test_api_last_transaction.py
 from aiogram import types
 from aiogram.fsm.context import FSMContext
-from ..keyboards import get_main_menu, get_wallets_list
+from ..keyboards import get_main_menu, get_wallet_selection_keyboard  # Заменяем get_wallets_list
 from ..states import WalletStates
 from app_config import db
 from utils.logger_config import logger, should_log
@@ -13,7 +13,7 @@ async def show_test_api(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
         logger.info(f"Callback 'test_api_last_transaction' получен от {callback.from_user.id}")
         logger.info("Кнопка 'Тест апи (последняя транза)' нажата")
-    text, reply_markup = get_wallets_list()
+    text, reply_markup = get_wallet_selection_keyboard()  # Используем новую функцию
     msg = await callback.message.edit_text(text, reply_markup=reply_markup, disable_web_page_preview=True)
     await state.update_data(test_api_message_id=msg.message_id)
     await state.set_state(WalletStates.waiting_for_wallet_selection)

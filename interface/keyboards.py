@@ -95,6 +95,22 @@ def get_wallets_list():
         logger.info(f"Сформирован список кошельков: {text}")
     return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
 
+def get_wallet_selection_keyboard():
+    db.reconnect()
+    wallets = db.wallets.get_all_wallets()
+    if not wallets:
+        return "📜 Нет добавленных кошельков для теста API.", InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")]])
+    text = "📜 Выберите кошелёк для теста последней транзакции:\n\n"
+    keyboard = []
+    for wallet in wallets:
+        last_4 = wallet[1][-4:]
+        text += f"💰 {wallet[2]} ({last_4})\n"
+        keyboard.append([InlineKeyboardButton(text=f"{wallet[2]} ({last_4})", callback_data=f"select_wallet_{wallet[0]}")])
+    keyboard.append([InlineKeyboardButton(text="🏠 Главное меню", callback_data="home")])
+    if should_log("interface"):
+        logger.info(f"Сформирован список кошельков для выбора: {text}")
+    return text, InlineKeyboardMarkup(inline_keyboard=keyboard)
+
 def get_tracked_tokens_list():
     tokens = db.tracked_tokens.get_all_tracked_tokens()
     if not tokens:
