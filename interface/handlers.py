@@ -208,34 +208,4 @@ async def edit_token_command(message: types.Message, state: FSMContext):
             return
         
         if should_log("debug"):
-            logger.debug(f"Найден токен: ID={token[0]}, Адрес={token[1]}, Имя={token[2]}, Тред={token[3]}")
-        
-        from .keyboards import get_token_control_keyboard
-        text = f"Токен: {token_name_cleaned} ({token_address_cleaned[-4:]})"
-        if should_log("debug"):
-            logger.debug(f"Сформирован текст: {text}")
-        
-        keyboard = get_token_control_keyboard(token[0])
-        if should_log("debug"):
-            logger.debug(f"Сформирована клавиатура: {keyboard.inline_keyboard}")
-        
-        # Сбрасываем состояние перед сохранением нового
-        await state.clear()
-        await state.update_data(token_id=token[0])  # Сохраняем как int
-        if should_log("debug"):
-            logger.debug(f"Состояние обновлено с token_id={token[0]}")
-        sent_message = await message.answer(text, reply_markup=keyboard)
-        await message.delete()
-    except Exception as e:
-        if should_log("api_errors"):
-            logger.error(f"Ошибка обработки команды /edit: {str(e)}", exc_info=True)
-        await message.answer("❌ Ошибка при обработке команды.")
-
-async def get_thread_id_command(message: types.Message):
-    if should_log("interface"):
-        logger.info(f"Получена команда /get_thread_id от {message.from_user.id}")
-    thread_id = message.message_thread_id
-    if thread_id:
-        await message.answer(f"ID текущей ветки: {thread_id}")
-    else:
-        await message.answer("❌ Это не ветка чата или ID недоступен.")
+            logger.debug(f"Найден токен: ID={token[0]}, Адрес={token[1]}, Имя={token[2]}, Тред={token[
