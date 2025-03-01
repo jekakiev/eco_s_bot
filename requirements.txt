@@ -4,5 +4,5 @@ mysql-connector-python
 aiohttp
 requests  # Додано для роботи з CoinGecko
 web3>=6.0.0
-moralis>=2.0.0  # Если последняя версия поддерживает Python 3.10
+moralis==0.1.49  # Указываем конкретную версию, совместимую с Python 3.10
 flask>=2.0.0
