@@ -196,15 +196,24 @@ async def edit_token_thread(callback: types.CallbackQuery, state: FSMContext):
     if should_log("interface"):
         logger.info(f"Callback 'edit_token_thread' получен от {callback.from_user.id}: {callback.data}")
         logger.info(f"Редактирование треда токена: {callback.data}")
-    token_id = int(callback.data.replace("edit_token_thread_", ""))  # Приводим к int
+    token_id_str = callback.data.replace("edit_token_thread_", "")
+    try:
+        token_id = int(token_id_str)  # Приводим к int
+    except ValueError:
+        logger.error(f"Некорректный token_id: {token_id_str} не является числом")
+        await callback.answer("❌ Ошибка: некорректный ID токена!", show_alert=True)
+        return
     if should_log("debug"):
         logger.debug(f"Получен token_id для редактирования треда: {token_id} (тип: {type(token_id)})")
+    db.reconnect()  # Убеждаемся, что соединение активно
     token = db.tracked_tokens.get_token_by_id(token_id)
     if not token:
         if should_log("debug"):
             logger.debug(f"Токен с ID {token_id} не найден в базе: {db.tracked_tokens.get_all_tracked_tokens()}")
         await callback.answer("❌ Токен не найден!", show_alert=True)
         return
+    if should_log("debug"):
+        logger.debug(f"Токен найден: {token}")
     await callback.message.edit_text(
         f"📝 Текущий тред для токена {token[2]}: {token[3] or 'Не указан'}\nВведите новый ID треда (или оставьте пустым, чтобы убрать):",
         reply_markup=get_back_button()
