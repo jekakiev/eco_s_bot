@@ -1,6 +1,7 @@
 # /interface/handlers.py
 from aiogram import Dispatcher, F, types
 from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext  # Добавлен импорт
 from .callbacks.wallets import (
     show_wallets, add_wallet_start, process_wallet_address, process_wallet_name,
     toggle_token, confirm_tokens, save_tokens, delete_wallet, rename_wallet_start,
@@ -218,7 +219,7 @@ async def edit_token_command(message: types.Message, state: FSMContext):
         if should_log("debug"):
             logger.debug(f"Сформирована клавиатура: {keyboard.inline_keyboard}")
         
-        await state.update_data(token_id=str(token[0]))  # Сохраняем token_id в состояние
+        await state.update_data(token_id=str(token[0]))
         sent_message = await message.answer(text, reply_markup=keyboard)
         await message.delete()
     except Exception as e:
