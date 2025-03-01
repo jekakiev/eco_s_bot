@@ -38,7 +38,9 @@ async def process_contract_address(message: types.Message, state: FSMContext):
         return
     await state.update_data(contract_address=contract_address)
     token_info = await get_token_info(contract_address)
-    token_name = token_info["tokenSymbol"] if token_info["tokenSymbol"] != "Неизвестно" else f"Токен_{contract_address[-4:]}"
+    if should_log("debug"):
+        logger.debug(f"Данные токена от Arbiscan для {contract_address}: {token_info}")
+    token_name = token_info["tokenSymbol"] if token_info["tokenSymbol"] and token_info["tokenSymbol"] != "Неизвестно" else f"Токен_{contract_address[-4:]}"
     await state.update_data(token_name=token_name)
     await message.answer(f"📝 Подтвердите имя токена: *{token_name}*. Всё верно?", parse_mode="Markdown", reply_markup=get_token_name_confirmation_keyboard())
     await state.set_state(TokenStates.waiting_for_name_confirmation)
@@ -50,7 +52,6 @@ async def confirm_token_name(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     token_name = data["token_name"]
     contract_address = data["contract_address"]
-    # Новый шаг: спрашиваем о добавлении ко всем кошелькам
     await state.set_state(TokenStates.waiting_for_add_to_all_confirmation)
     await callback.message.edit_text(
         f"📝 Добавить токен {token_name} ({contract_address[-4:]}) ко всем отслеживаемым кошелькам?",
@@ -77,7 +78,6 @@ async def add_to_all_yes(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     token_name = data["token_name"]
     contract_address = data["contract_address"]
-    # Добавляем токен ко всем существующим кошелькам
     db.reconnect()
     wallets = db.wallets.get_all_wallets()
     for wallet in wallets:
@@ -88,7 +88,6 @@ async def add_to_all_yes(callback: types.CallbackQuery, state: FSMContext):
             db.wallets.update_wallet_tokens(wallet_id, ",".join(current_tokens))
             if should_log("db"):
                 logger.info(f"Токен {token_name} добавлен к кошельку ID {wallet_id}")
-    # Переходим к следующему шагу: подтверждение треда
     await state.set_state(TokenStates.waiting_for_thread_confirmation)
     await callback.message.edit_text(
         f"📝 Токен {token_name} добавлен ко всем кошелькам.\nТокен уже существует в чате?\nЕсли да, отправьте /get_thread_id в нужном чате для получения ID треда.",
@@ -104,7 +103,6 @@ async def add_to_all_no(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     token_name = data["token_name"]
     contract_address = data["contract_address"]
-    # Переходим к следующему шагу: подтверждение треда
     await state.set_state(TokenStates.waiting_for_thread_confirmation)
     await callback.message.edit_text(
         f"📝 Токен {token_name} ({contract_address[-4:]}) не добавлен к кошелькам.\nТокен уже существует в чате?\nЕсли да, отправьте /get_thread_id в нужном чате для получения ID треда.",
