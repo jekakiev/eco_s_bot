@@ -37,7 +37,7 @@ async def setup_streams(bot: Bot, chat_id: str):
 
 async def create_stream(wallet_address):
     """Создание потока для конкретного кошелька через HTTP-запрос."""
-    url = "https://api.moralis-streams.com/v2/streams/evm"
+    url = "https://api.moralis.com/streams/v2/evm"  # Исправленный URL
     headers = {
         "Authorization": f"Bearer {MORALIS_API_KEY}",
         "Content-Type": "application/json"
