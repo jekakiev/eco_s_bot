@@ -10,6 +10,20 @@ from config.settings import MORALIS_API_KEY, CHAT_ID, WEBHOOK_URL
 # Логируем версию moralis
 logger.info(f"Используемая версия moralis: {moralis.__version__}")
 
+# ABI для ERC20 Transfer
+ERC20_TRANSFER_ABI = [
+    {
+        "anonymous": False,
+        "inputs": [
+            {"indexed": True, "name": "from", "type": "address"},
+            {"indexed": True, "name": "to", "type": "address"},
+            {"indexed": True, "name": "value", "type": "uint256"},
+        ],
+        "name": "Transfer",
+        "type": "event",
+    }
+]
+
 async def setup_streams(bot: Bot, chat_id: str):
     """Настройка потоков Moralis для всех кошельков из базы."""
     try:
@@ -23,39 +37,57 @@ async def setup_streams(bot: Bot, chat_id: str):
         
         wallet_addresses = [wallet[1] for wallet in wallets]
         if should_log("debug"):
-            logger.debug(f"Получены Addresses кошельков из базы: {wallet_addresses}")
+            logger.debug(f"Получены адреса кошельков из базы: {wallet_addresses}")
         
-        # Шаг 1: Создаём стрим
+        # Шаг 1: Создаём базовый стрим
         stream_body = {
             "webhookUrl": WEBHOOK_URL,
             "description": "Monitor transactions for bot wallets",
             "tag": "bot_wallets_stream",
             "chainIds": ["0x1a4"],  # Arbitrum Mainnet в hex (42161)
             "includeNativeTxs": True,
-            "includeContractLogs": True,
-            "topic0": ["Transfer(address,address,uint256)"]
+            "includeContractLogs": True  # Обязательно для начального стрима
         }
         
         if should_log("debug"):
             logger.debug(f"Создание стрима: {stream_body}")
         
-        result = streams.evm_streams.create_stream(api_key=MORALIS_API_KEY, body=stream_body)
+        create_result = streams.evm_streams.create_stream(api_key=MORALIS_API_KEY, body=stream_body)
         
         if should_log("debug"):
-            logger.debug(f"Ответ от Moralis Streams при создании: {result}")
+            logger.debug(f"Ответ от Moralis Streams при создании: {create_result}")
         
-        stream_id = result.get("id")
+        stream_id = create_result.get("id")
         if not stream_id:
-            raise ValueError(f"Не удалось создать стрим, нет ID: {result}")
+            raise ValueError(f"Не удалось создать стрим, нет ID: {create_result}")
         
         if should_log("transaction"):
             logger.info(f"Стрим успешно создан, ID: {stream_id}")
         
-        # Шаг 2: Добавляем адреса к стриму
+        # Шаг 2: Обновляем стрим с ABI и topic0
+        update_body = {
+            "abi": ERC20_TRANSFER_ABI,
+            "includeContractLogs": True,
+            "topic0": ["Transfer(address,address,uint256)"],
+            "description": "Monitor ERC20 transfers for bot wallets"
+        }
+        params = {"id": stream_id}
+        
+        if should_log("debug"):
+            logger.debug(f"Обновление стрима {stream_id}: {update_body}")
+        
+        update_result = streams.evm_streams.update_stream(api_key=MORALIS_API_KEY, body=update_body, params=params)
+        
+        if should_log("debug"):
+            logger.debug(f"Ответ от Moralis Streams при обновлении: {update_result}")
+        
+        if should_log("transaction"):
+            logger.info(f"Стрим {stream_id} обновлён с ABI для ERC20 трансферов")
+        
+        # Шаг 3: Добавляем адреса к стриму
         add_body = {
             "address": wallet_addresses  # Список всех адресов
         }
-        params = {"id": stream_id}
         
         if should_log("debug"):
             logger.debug(f"Добавление адресов к стриму {stream_id}: {add_body}")
