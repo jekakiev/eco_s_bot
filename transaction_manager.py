@@ -1,14 +1,10 @@
 # /transaction_manager.py
 import asyncio
-from moralis import streams  # Убрал Moralis, оставил только streams
+import requests
 from aiogram import Bot
 from app_config import db
 from utils.logger_config import logger, should_log
 from config.settings import MORALIS_API_KEY, CHAT_ID, WEBHOOK_URL
-import os
-
-# Устанавливаем API ключ через переменную окружения, как было изначально
-os.environ['MORALIS_API_KEY'] = MORALIS_API_KEY
 
 async def setup_streams(bot: Bot, chat_id: str):
     """Настройка потоков Moralis для всех кошельков из базы."""
@@ -40,34 +36,51 @@ async def setup_streams(bot: Bot, chat_id: str):
             logger.debug(f"Подробности ошибки настройки потоков: {str(e)}", exc_info=True)
 
 async def create_stream(wallet_address):
-    """Создание потока для конкретного кошелька."""
+    """Создание потока для конкретного кошелька через HTTP-запрос."""
+    url = "https://api.moralis-streams.com/v2/streams/evm"
+    headers = {
+        "Authorization": f"Bearer {MORALIS_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    stream_body = {
+        "chainIds": ["42161"],  # Arbitrum Mainnet
+        "tag": f"wallet_{wallet_address}",
+        "description": f"Monitor transactions for {wallet_address}",
+        "webhookUrl": WEBHOOK_URL,
+        "includeNativeTxs": True,  # Отслеживать нативные транзакции (ETH)
+        "includeContractLogs": True,  # Логи смарт-контрактов (токены)
+        "topic0": ["Transfer(address,address,uint256)"],  # Трансферы ERC20
+        "address": wallet_address  # Адрес кошелька для мониторинга
+    }
+    
     try:
-        stream_data = {
-            "chainIds": ["42161"],  # Arbitrum Mainnet
-            "tag": f"wallet_{wallet_address}",
-            "description": f"Monitor transactions for {wallet_address}",
-            "webhookUrl": WEBHOOK_URL,
-            "includeNativeTxs": True,  # Отслеживать нативные транзакции (ETH)
-            "includeContractLogs": True,  # Логи смарт-контрактов (токены)
-            "topic0": ["Transfer(address,address,uint256)"],  # Трансферы ERC20
-            "address": wallet_address  # Адрес кошелька для мониторинга
-        }
         if should_log("debug"):
-            logger.debug(f"Данные потока для {wallet_address}: {stream_data}")
+            logger.debug(f"Отправка запроса для создания потока {wallet_address}: {stream_body}")
         
-        # Пытаемся использовать streams.create_stream для версии 0.1.49
-        streams.create_stream(stream_data)
-    except AttributeError as e:
-        if should_log("api_errors"):
-            logger.error(f"Ошибка: модуль 'moralis.streams' не содержит 'create_stream' для {wallet_address}: {str(e)}", exc_info=True)
+        response = requests.post(url, json=stream_body, headers=headers)
+        response.raise_for_status()  # Вызовет исключение, если статус не 2xx
+        response_data = response.json()
+        
         if should_log("debug"):
-            logger.debug(f"Попытка использовать альтернативный метод для {wallet_address}", exc_info=True)
-        raise  # Пробрасываем, чтобы увидеть в логах
+            logger.debug(f"Ответ от Moralis Streams API: {response_data}")
+        
+        if "id" in response_data:
+            if should_log("transaction"):
+                logger.info(f"Поток успешно создан для {wallet_address}, ID: {response_data['id']}")
+        else:
+            raise ValueError(f"Неожиданный ответ от Moralis: {response_data}")
+            
+    except requests.exceptions.RequestException as e:
+        if should_log("api_errors"):
+            logger.error(f"Ошибка HTTP-запроса для создания потока {wallet_address}: {str(e)}", exc_info=True)
+        if should_log("debug"):
+            logger.debug(f"Подробности ошибки HTTP-запроса: {e.response.text if e.response else 'Нет ответа'}")
+        raise
     except Exception as e:
         if should_log("api_errors"):
             logger.error(f"Ошибка создания потока для {wallet_address}: {str(e)}", exc_info=True)
         if should_log("debug"):
-            logger.debug(f"Подробности ошибки создания потока для {wallet_address}: {str(e)}", exc_info=True)
+            logger.debug(f"Подробности ошибки создания потока: {str(e)}")
         raise
 
 async def start_transaction_monitoring(bot: Bot, chat_id: str):
@@ -75,7 +88,5 @@ async def start_transaction_monitoring(bot: Bot, chat_id: str):
     if should_log("transaction"):
         logger.info("Запуск мониторинга транзакций через Moralis Streams")
     await setup_streams(bot, chat_id)
-    # Здесь больше не нужен бесконечный цикл, так как вебхуки работают в реальном времени
-    # Для проверки изменений в базе можно добавить периодическую задачу позже
     while True:
         await asyncio.sleep(3600)  # Простая заглушка, чтобы процесс не завершался
