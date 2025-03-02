@@ -4,7 +4,7 @@ import requests
 from aiogram import Bot
 from app_config import db
 from utils.logger_config import logger, should_log
-from config.settings import MORALIS_API_KEY, CHAT_ID, WEBHOOK_URL
+from config.settings import MORALIS_API_KEY, CHAT_ID, WEBHOOK_URL  # Используем существующий ключ
 
 async def setup_streams(bot: Bot, chat_id: str):
     """Настройка потоков Moralis для всех кошельков из базы."""
@@ -37,9 +37,9 @@ async def setup_streams(bot: Bot, chat_id: str):
 
 async def create_stream(wallet_address):
     """Создание потока для конкретного кошелька через HTTP-запрос."""
-    url = "https://api.moralis.com/streams/v2/evm"  # Исправленный URL
+    url = "https://api.moralis.com/streams/v2/evm"
     headers = {
-        "Authorization": f"Bearer {MORALIS_API_KEY}",
+        "Authorization": f"Bearer {MORALIS_API_KEY}",  # Используем существующий ключ
         "Content-Type": "application/json"
     }
     stream_body = {
