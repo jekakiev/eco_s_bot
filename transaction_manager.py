@@ -57,7 +57,6 @@ async def create_stream(wallet_address):
         if should_log("debug"):
             logger.debug(f"Отправка запроса для создания потока {wallet_address}: {stream_body}")
         
-        # Временный лог для проверки
         logger.info("Используется обновлённая версия transaction_manager.py с логированием ответа")
         
         response = requests.post(url, json=stream_body, headers=headers)
@@ -78,6 +77,8 @@ async def create_stream(wallet_address):
             logger.error(f"Ошибка HTTP-запроса для создания потока {wallet_address}: {str(e)}", exc_info=True)
         if should_log("debug"):
             logger.debug(f"Подробности ошибки HTTP-запроса: {e.response.text if e.response else 'Нет ответа'}")
+        # Временное логирование на уровне INFO
+        logger.info(f"Тело ответа от Moralis при ошибке: {e.response.text if e.response else 'Нет ответа'}")
         raise
     except Exception as e:
         if should_log("api_errors"):
