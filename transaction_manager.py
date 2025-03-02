@@ -4,7 +4,7 @@ import requests
 from aiogram import Bot
 from app_config import db
 from utils.logger_config import logger, should_log
-from config.settings import MORALIS_API_KEY, CHAT_ID, WEBHOOK_URL  # Используем существующий ключ
+from config.settings import MORALIS_API_KEY, CHAT_ID, WEBHOOK_URL
 
 async def setup_streams(bot: Bot, chat_id: str):
     """Настройка потоков Moralis для всех кошельков из базы."""
@@ -39,7 +39,7 @@ async def create_stream(wallet_address):
     """Создание потока для конкретного кошелька через HTTP-запрос."""
     url = "https://api.moralis.com/streams/v2/evm"
     headers = {
-        "Authorization": f"Bearer {MORALIS_API_KEY}",  # Используем существующий ключ
+        "Authorization": f"Bearer {MORALIS_API_KEY}",
         "Content-Type": "application/json"
     }
     stream_body = {
@@ -47,18 +47,21 @@ async def create_stream(wallet_address):
         "tag": f"wallet_{wallet_address}",
         "description": f"Monitor transactions for {wallet_address}",
         "webhookUrl": WEBHOOK_URL,
-        "includeNativeTxs": True,  # Отслеживать нативные транзакции (ETH)
-        "includeContractLogs": True,  # Логи смарт-контрактов (токены)
-        "topic0": ["Transfer(address,address,uint256)"],  # Трансферы ERC20
-        "address": wallet_address  # Адрес кошелька для мониторинга
+        "includeNativeTxs": True,
+        "includeContractLogs": True,
+        "topic0": ["Transfer(address,address,uint256)"],
+        "address": wallet_address
     }
     
     try:
         if should_log("debug"):
             logger.debug(f"Отправка запроса для создания потока {wallet_address}: {stream_body}")
         
+        # Временный лог для проверки
+        logger.info("Используется обновлённая версия transaction_manager.py с логированием ответа")
+        
         response = requests.post(url, json=stream_body, headers=headers)
-        response.raise_for_status()  # Вызовет исключение, если статус не 2xx
+        response.raise_for_status()
         response_data = response.json()
         
         if should_log("debug"):
@@ -89,4 +92,4 @@ async def start_transaction_monitoring(bot: Bot, chat_id: str):
         logger.info("Запуск мониторинга транзакций через Moralis Streams")
     await setup_streams(bot, chat_id)
     while True:
-        await asyncio.sleep(3600)  # Простая заглушка, чтобы процесс не завершался
+        await asyncio.sleep(3600)
