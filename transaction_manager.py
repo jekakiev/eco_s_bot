@@ -1,10 +1,14 @@
 # /transaction_manager.py
 import asyncio
-import requests
+from moralis import streams
+import moralis  # Для проверки версии
 from aiogram import Bot
 from app_config import db
 from utils.logger_config import logger, should_log
 from config.settings import MORALIS_API_KEY, CHAT_ID, WEBHOOK_URL
+
+# Логируем версию moralis
+logger.info(f"Используемая версия moralis: {moralis.__version__}")
 
 async def setup_streams(bot: Bot, chat_id: str):
     """Настройка потоков Moralis для всех кошельков из базы."""
@@ -36,17 +40,12 @@ async def setup_streams(bot: Bot, chat_id: str):
             logger.debug(f"Подробности ошибки настройки потоков: {str(e)}", exc_info=True)
 
 async def create_stream(wallet_address):
-    """Создание потока для конкретного кошелька через HTTP-запрос."""
-    url = "https://api.moralis.com/streams/v2/evm"
-    headers = {
-        "Authorization": f"Bearer {MORALIS_API_KEY}",
-        "Content-Type": "application/json"
-    }
+    """Создание потока для конкретного кошелька согласно инструкции Moralis."""
     stream_body = {
-        "chainIds": ["42161"],  # Arbitrum Mainnet
-        "tag": f"wallet_{wallet_address}",
-        "description": f"Monitor transactions for {wallet_address}",
         "webhookUrl": WEBHOOK_URL,
+        "description": f"Monitor transactions for {wallet_address}",
+        "tag": f"wallet_{wallet_address}",
+        "chainIds": ["0x1a4"],  # Arbitrum Mainnet в hex (42161)
         "includeNativeTxs": True,
         "includeContractLogs": True,
         "topic0": ["Transfer(address,address,uint256)"],
@@ -55,30 +54,22 @@ async def create_stream(wallet_address):
     
     try:
         if should_log("debug"):
-            logger.debug(f"Отправка запроса для создания потока {wallet_address}: {stream_body}")
+            logger.debug(f"Создание потока для {wallet_address}: {stream_body}")
         
-        logger.info("Используется обновлённая версия transaction_manager.py с логированием ответа")
-        
-        response = requests.post(url, json=stream_body, headers=headers)
-        response.raise_for_status()
-        response_data = response.json()
+        result = streams.evm_streams.create_stream(api_key=MORALIS_API_KEY, body=stream_body)
         
         if should_log("debug"):
-            logger.debug(f"Ответ от Moralis Streams API: {response_data}")
+            logger.debug(f"Ответ от Moralis Streams: {result}")
         
-        if "id" in response_data:
+        if "id" in result:
             if should_log("transaction"):
-                logger.info(f"Поток успешно создан для {wallet_address}, ID: {response_data['id']}")
+                logger.info(f"Поток успешно создан для {wallet_address}, ID: {result['id']}")
         else:
-            raise ValueError(f"Неожиданный ответ от Moralis: {response_data}")
+            raise ValueError(f"Неожиданный ответ от Moralis: {result}")
             
-    except requests.exceptions.RequestException as e:
+    except AttributeError as e:
         if should_log("api_errors"):
-            logger.error(f"Ошибка HTTP-запроса для создания потока {wallet_address}: {str(e)}", exc_info=True)
-        if should_log("debug"):
-            logger.debug(f"Подробности ошибки HTTP-запроса: {e.response.text if e.response else 'Нет ответа'}")
-        # Временное логирование на уровне INFO
-        logger.info(f"Тело ответа от Moralis при ошибке: {e.response.text if e.response else 'Нет ответа'}")
+            logger.error(f"Ошибка: метод create_stream недоступен в moralis.streams: {str(e)}", exc_info=True)
         raise
     except Exception as e:
         if should_log("api_errors"):
