@@ -7,6 +7,8 @@ from app_config import db
 from utils.logger_config import logger, should_log
 from config.settings import MORALIS_API_KEY, CHAT_ID, WEBHOOK_URL
 
+logger.info("Проверка requirements.txt: moralis==0.1.49")
+
 # Логируем версию moralis
 logger.info(f"Используемая версия moralis: {moralis.__version__}")
 
@@ -44,9 +46,9 @@ async def setup_streams(bot: Bot, chat_id: str):
             "webhookUrl": WEBHOOK_URL,
             "description": "Monitor transactions for bot wallets",
             "tag": "bot_wallets_stream",
-            "chainIds": ["0x1a4"],  # Arbitrum Mainnet в hex (42161)
+            "chainIds": ["42161"],  # Arbitrum Mainnet в десятичном формате
             "includeNativeTxs": True,
-            "includeContractLogs": True  # Обязательно для начального стрима
+            "includeContractLogs": True
         }
         
         if should_log("debug"):
@@ -86,7 +88,7 @@ async def setup_streams(bot: Bot, chat_id: str):
         
         # Шаг 3: Добавляем адреса к стриму
         add_body = {
-            "address": wallet_addresses  # Список всех адресов
+            "address": wallet_addresses
         }
         
         if should_log("debug"):
