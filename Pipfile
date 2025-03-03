@@ -12,8 +12,7 @@ aiohttp = "*"
 requests = "*"
 web3 = ">=6.0.0"
 flask = ">=2.0.0"
+async-timeout = "*"
 
 [requires]
 python_version = "3.13"
-
-async-timeout = "*"
