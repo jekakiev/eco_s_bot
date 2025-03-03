@@ -90,11 +90,10 @@ async def run_aiogram():
         dp.start_polling(bot)
     )
 
-# Запускаємо Aiogram у фоновому потоці при старті
+# Запускаємо Aiogram у фоновому потоці
+logger.info("Запуск Aiogram у фоновому потоці")
 aiogram_thread = threading.Thread(target=lambda: asyncio.run(run_aiogram()), daemon=True)
 aiogram_thread.start()
 
-# Експортуємо Flask-додаток для gunicorn
-if __name__ == "__main__":
-    # Цей блок не викличеться на Railway, бо gunicorn запустить app напряму
-    logger.info("Запуск Flask через gunicorn має бути виконаний командою Railway")
+# Flask-додаток для gunicorn
+logger.info("Flask готовий до запуску через gunicorn")
