@@ -44,6 +44,7 @@ def webhook():
     
     return jsonify({"status": "success"}), 200
 
+# Реєстрація обробників Aiogram
 if should_log("interface"):
     logger.info("Регистрация обработчиков")
 register_handlers(dp)
@@ -97,3 +98,4 @@ aiogram_thread.start()
 
 # Flask-додаток для gunicorn
 logger.info("Flask готовий до запуску через gunicorn")
+# Нічого більше не потрібно, gunicorn запустить app із railway.json
