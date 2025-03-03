@@ -7,7 +7,7 @@ from .callbacks.wallets import (
 from .callbacks.tokens import (
     show_tokens, add_token_start, process_contract_address, confirm_token_name,
     reject_token_name, thread_exists, thread_not_exists, process_thread_id,
-    edit_token_start, edit_token_thread, process_edit_thread_id, delete_token
+    edit_token_start, edit_token_thread_new, process_edit_thread_id, delete_token  # Замінено edit_token_thread на edit_token_thread_new
 )
 from .callbacks.settings_callbacks import (
     show_commands, show_settings, edit_setting_start, process_setting_value,
@@ -50,7 +50,7 @@ def register_handlers(dp: Dispatcher):
     dp.callback_query.register(thread_not_exists, F.data == "thread_not_exists")
     dp.message.register(process_thread_id, TokenStates.waiting_for_thread_id)
     dp.callback_query.register(edit_token_start, F.data.startswith("edit_token_"))
-    dp.callback_query.register(edit_token_thread, F.data.startswith("edit_token_thread_"))
+    dp.callback_query.register(edit_token_thread_new, F.data.startswith("edit_token_thread_"))  # Оновлено тут
     dp.message.register(process_edit_thread_id, TokenStates.waiting_for_edit_thread_id)
     dp.callback_query.register(delete_token, F.data.startswith("delete_token_"))
     
