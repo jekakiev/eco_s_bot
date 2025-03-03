@@ -5,7 +5,7 @@ name = "pypi"
 
 [packages]
 moralis = "==0.1.49"
-aiogram = "*"
+aiogram = "3.8.0"
 python-dotenv = "*"
 mysql-connector-python = "*"
 aiohttp = "*"
