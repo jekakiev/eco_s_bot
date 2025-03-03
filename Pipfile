@@ -13,6 +13,7 @@ requests = "2.32.3"
 web3 = "6.20.2"
 flask = "3.0.3"
 async-timeout = "4.0.3"
+# Оновлено для примусового перезбирання
 
 [requires]
 python_version = "3.12"
