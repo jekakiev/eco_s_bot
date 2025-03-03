@@ -1,8 +1,0 @@
-aiogram
-python-dotenv
-mysql-connector-python
-aiohttp
-requests
-web3>=6.0.0
-moralis==0.1.49  # Убедись, что версия явно указана
-flask>=2.0.0
