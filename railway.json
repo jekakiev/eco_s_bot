@@ -1,6 +1,6 @@
 {
   "build": {
-    "command": "pipenv install --python 3.12"
+    "command": "pipenv install --python 3.12 --clear"
   },
   "start": {
     "command": "pipenv run python bot.py"
