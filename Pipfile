@@ -1,0 +1,17 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+moralis = "==0.1.49"
+aiogram = "*"
+python-dotenv = "*"
+mysql-connector-python = "*"
+aiohttp = "*"
+requests = "*"
+web3 = ">=6.0.0"
+flask = ">=2.0.0"
+
+[requires]
+python_version = "3.13"
