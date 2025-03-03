@@ -47,7 +47,7 @@ async def setup_streams(bot: Bot, chat_id: str):
             "webhookUrl": WEBHOOK_URL,
             "description": "Monitor transactions for bot wallets",
             "tag": "bot_wallets_stream",
-            "chainId": "42161",  # Використовуємо chainId як рядок замість chainIds
+            "chainIds": ["0xa4b1"],  # Arbitrum One Mainnet у hex-форматі як список
             "includeNativeTxs": True,
             "includeContractLogs": True
         }
