@@ -1,8 +1,8 @@
 {
-    "build": {
-      "command": "pipenv install --python 3.13"
-    },
-    "start": {
-      "command": "pipenv run python bot.py"
-    }
+  "build": {
+    "command": "pipenv install --python 3.10"
+  },
+  "start": {
+    "command": "pipenv run python bot.py"
   }
+}
