@@ -1,1 +1,1 @@
-web: pipenv run python bot.py
+web: pipenv install && pipenv run python bot.py
