@@ -1,6 +1,6 @@
 {
   "build": {
-    "command": "pipenv install --python 3.10 && pipenv install aiogram"
+    "command": "pipenv install --python 3.12"
   },
   "start": {
     "command": "pipenv run python bot.py"

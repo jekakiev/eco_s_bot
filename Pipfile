@@ -8,6 +8,6 @@ moralis = "==0.1.49"
 aiogram = "==3.8.0"
 
 [requires]
-python_version = "3.12.9"
+python_version = "3.12"
 
 [dev-packages]
