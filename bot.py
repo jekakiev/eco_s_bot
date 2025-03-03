@@ -12,7 +12,6 @@ from utils.logger_config import logger, update_log_settings, should_log
 from transaction_manager import start_transaction_monitoring
 from app_config import db
 from flask import Flask, request, jsonify
-import os
 
 # Ініціалізація Flask
 app = Flask(__name__)
@@ -45,12 +44,6 @@ def webhook():
     
     return jsonify({"status": "success"}), 200
 
-def run_flask():
-    """Запуск Flask-сервера у фоновому потоці."""
-    port = int(os.getenv("PORT", 80))  # Беремо порт із змінної PORT, за замовчуванням 80
-    logger.info(f"Запуск Flask-сервера на порту {port}")
-    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
-
 if should_log("interface"):
     logger.info("Регистрация обработчиков")
 register_handlers(dp)
@@ -61,46 +54,45 @@ if should_log("interface"):
 @dp.message(lambda message: message.text and message.text.startswith("/Editw_"))
 async def dynamic_edit_wallet_command(message: types.Message):
     if should_log("interface"):
-        logger.info(f"Динамическая команда /Editw_ получена от {message.from_user.id}: {message.text}")
-        logger.info(f"Обработка динамической команды /Editw_ для пользователя {message.from_user.id}")
+        logger.info(f"Динамическая команда /Editw_ отримана від {message.from_user.id}: {message.text}")
+        logger.info(f"Обробка динамічної команди /Editw_ для користувача {message.from_user.id}")
     await edit_wallet_command(message)
 
 @dp.message(Command("start"))
 async def start_command(message):
     if should_log("interface"):
-        logger.info(f"Команда /start получена от {message.from_user.id}")
-        logger.info(f"Команда /start обработана для пользователя {message.from_user.id}")
+        logger.info(f"Команда /start отримана від {message.from_user.id}")
+        logger.info(f"Команда /start оброблена для користувача {message.from_user.id}")
     menu = get_main_menu()
     await message.answer("✅ Бот запущен и мониторит транзакции!", reply_markup=menu)
 
 @dp.message(Command("get_last_transaction"))
 async def get_last_transaction_command(message):
     if should_log("interface"):
-        logger.info(f"Команда /get_last_transaction получена от {message.from_user.id}")
-        logger.info(f"Команда /get_last_transaction обработана для пользователя {message.from_user.id}")
-    await message.answer("Функция в разработке!")
+        logger.info(f"Команда /get_last_transaction отримана від {message.from_user.id}")
+        logger.info(f"Команда /get_last_transaction оброблена для користувача {message.from_user.id}")
+    await message.answer("Функція в розробці!")
 
 @dp.message(Command("get_thread_id"))
 async def get_thread_id_command(message):
     if should_log("interface"):
-        logger.info(f"Команда /get_thread_id получена от {message.from_user.id}")
-        logger.info(f"Команда /get_thread_id обработана для пользователя {message.from_user.id}")
-    thread_id = message.message_thread_id if message.is_topic_message else "Нет треда"
-    await message.answer(f"ID текущего треда: `{thread_id}`", parse_mode="Markdown")
+        logger.info(f"Команда /get_thread_id отримана від {message.from_user.id}")
+        logger.info(f"Команда /get_thread_id оброблена для користувача {message.from_user.id}")
+    thread_id = message.message_thread_id if message.is_topic_message else "Немає треда"
+    await message.answer(f"ID поточного треда: `{thread_id}`", parse_mode="Markdown")
 
-async def main():
+async def run_aiogram():
+    """Запуск Aiogram polling і моніторингу транзакцій."""
     if should_log("interface"):
-        logger.info("🚀 Бот запущен и ждет новые транзакции!")
-    
-    # Запускаємо Flask у фоновому потоці
-    flask_thread = threading.Thread(target=run_flask, daemon=True)
-    flask_thread.start()
-    
-    # Запускаємо моніторинг транзакцій і Aiogram polling у головному циклі asyncio
+        logger.info("Запуск Aiogram polling і моніторингу транзакцій")
     await asyncio.gather(
         start_transaction_monitoring(bot, CHAT_ID),
         dp.start_polling(bot)
     )
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # Запускаємо Aiogram у фоновому потоці
+    aiogram_thread = threading.Thread(target=lambda: asyncio.run(run_aiogram()), daemon=True)
+    aiogram_thread.start()
+    # Flask запускається через gunicorn у Railway, тому тут просто утримуємо головний потік
+    threading.Event().wait()
