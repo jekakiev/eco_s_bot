@@ -1,5 +1,6 @@
 # /app/bot.py
 import asyncio
+import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -31,7 +32,7 @@ async def webhook():
     if should_log("debug"):
         logger.debug(f"Дані вебхука: {data}")
     
-    # Обробка даних від Moralis (наприклад, відправка повідомлення в чат)
+    # Обробка даних від Moralis
     try:
         tx_hash = data.get("txs", [{}])[0].get("hash", "невідомий хеш")
         message = f"Нова транзакція виявлена!\nХеш: `{tx_hash}`"
@@ -82,18 +83,19 @@ async def get_thread_id_command(message):
 
 async def run_flask():
     """Запуск Flask-сервера у фоновому режимі."""
-    from wsgiref.simple_server import make_server
-    server = make_server('0.0.0.0', 8080, app)
-    logger.info("Запуск Flask-сервера на порту 8080")
-    await asyncio.to_thread(server.serve_forever)
+    port = int(os.getenv("PORT", 8080))  # Беремо порт із змінної оточення або 8080 за замовчуванням
+    logger.info(f"Запуск Flask-сервера на порту {port}")
+    app.run(host="0.0.0.0", port=port)
 
 async def main():
     if should_log("interface"):
         logger.info("🚀 Бот запущен и ждет новые транзакции!")
     
-    # Запускаємо Aiogram polling і Flask паралельно
+    # Запускаємо Flask у фоновій задачі
     flask_task = asyncio.create_task(run_flask())
+    # Запускаємо моніторинг транзакцій
     monitoring_task = asyncio.create_task(start_transaction_monitoring(bot, CHAT_ID))
+    # Запускаємо Aiogram polling
     polling_task = dp.start_polling(bot)
     
     await asyncio.gather(flask_task, monitoring_task, polling_task)

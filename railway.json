@@ -4,5 +4,11 @@
   },
   "start": {
     "command": "pipenv run python bot.py"
-  }
+  },
+  "ports": [
+    {
+      "port": 8080,
+      "protocol": "http"
+    }
+  ]
 }
