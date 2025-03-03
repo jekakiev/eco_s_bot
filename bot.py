@@ -10,8 +10,38 @@ from config.bot_instance import bot
 from utils.logger_config import logger, update_log_settings, should_log
 from transaction_manager import start_transaction_monitoring
 from app_config import db
+from flask import Flask, request, jsonify
 
+# Ініціалізація Flask
+app = Flask(__name__)
+
+# Ініціалізація Aiogram
 dp = Dispatcher(storage=MemoryStorage())
+
+# Flask-ендпоінт для вебхука Moralis Streams
+@app.route('/webhook', methods=['POST'])
+async def webhook():
+    if should_log("transaction"):
+        logger.info("Отримано POST-запит від Moralis Streams на /webhook")
+    data = request.get_json()
+    if not data:
+        logger.error("Отримано порожній вебхук-запит")
+        return jsonify({"status": "error", "message": "No data received"}), 400
+    
+    if should_log("debug"):
+        logger.debug(f"Дані вебхука: {data}")
+    
+    # Обробка даних від Moralis (наприклад, відправка повідомлення в чат)
+    try:
+        tx_hash = data.get("txs", [{}])[0].get("hash", "невідомий хеш")
+        message = f"Нова транзакція виявлена!\nХеш: `{tx_hash}`"
+        await bot.send_message(chat_id=CHAT_ID, text=message, parse_mode="Markdown")
+        logger.info(f"Повідомлення про транзакцію відправлено: {tx_hash}")
+    except Exception as e:
+        logger.error(f"Помилка при обробці вебхука: {str(e)}", exc_info=True)
+        return jsonify({"status": "error", "message": str(e)}), 500
+    
+    return jsonify({"status": "success"}), 200
 
 if should_log("interface"):
     logger.info("Регистрация обработчиков")
@@ -50,11 +80,23 @@ async def get_thread_id_command(message):
     thread_id = message.message_thread_id if message.is_topic_message else "Нет треда"
     await message.answer(f"ID текущего треда: `{thread_id}`", parse_mode="Markdown")
 
+async def run_flask():
+    """Запуск Flask-сервера у фоновому режимі."""
+    from wsgiref.simple_server import make_server
+    server = make_server('0.0.0.0', 8080, app)
+    logger.info("Запуск Flask-сервера на порту 8080")
+    await asyncio.to_thread(server.serve_forever)
+
 async def main():
     if should_log("interface"):
         logger.info("🚀 Бот запущен и ждет новые транзакции!")
-    asyncio.create_task(start_transaction_monitoring(bot, CHAT_ID))
-    await dp.start_polling(bot)
+    
+    # Запускаємо Aiogram polling і Flask паралельно
+    flask_task = asyncio.create_task(run_flask())
+    monitoring_task = asyncio.create_task(start_transaction_monitoring(bot, CHAT_ID))
+    polling_task = dp.start_polling(bot)
+    
+    await asyncio.gather(flask_task, monitoring_task, polling_task)
 
 if __name__ == "__main__":
     asyncio.run(main())
