@@ -11,7 +11,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 ARBISCAN_API_KEY = os.getenv("ARBISCAN_API_KEY")
 MORALIS_API_KEY = os.getenv("MORALIS_API_KEY")  # Новый ключ для Moralis
-WEBHOOK_URL = os.getenv("WEBHOOK_URL", "https://your-server.com/webhook")  # URL вебхука, заменить после настройки ngrok
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # Отримуємо з .env або Railway Dashboard без дефолтного значення
 DEFAULT_THREAD_ID = 60
 
 MYSQL_HOST = os.getenv("MYSQL_HOST", "mysql.railway.internal")
