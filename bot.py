@@ -47,7 +47,7 @@ def webhook():
 
 def run_flask():
     """Запуск Flask-сервера у фоновому потоці."""
-    port = int(os.getenv("PORT", 8080))  # Беремо порт із змінної оточення або 8080 за замовчуванням
+    port = int(os.getenv("PORT", 80))  # Беремо порт із змінної PORT, за замовчуванням 80
     logger.info(f"Запуск Flask-сервера на порту {port}")
     app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
 
